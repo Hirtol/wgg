@@ -1,0 +1,187 @@
+name: Build Docker images
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+  workflow_dispatch:
+
+jobs:
+  build-backend:
+    name: Build Back-end
+    runs-on: ${{ matrix.config.os }} # Restrict glibc version to < 2.29 if not building musl
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+              os: ubuntu-18.04,
+              toolchain: stable,
+              target: x86_64-unknown-linux-musl,
+              cross: true,
+            }
+          - {
+              os: ubuntu-18.04,
+              toolchain: stable,
+              target: aarch64-unknown-linux-gnu,
+              cross: true,
+            }
+          - {
+              os: ubuntu-18.04,
+              toolchain: stable,
+              target: armv7-unknown-linux-gnueabihf,
+              cross: true,
+            }
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        id: rust-toolchain
+        with:
+          toolchain: stable
+          profile: default
+          override: true
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v1.2.0
+        with:
+          key: backend-${{ matrix.config.target }}
+
+      - name: Build artifact
+        uses: actions-rs/cargo@v1
+        env:
+          CARGO_INCREMENTAL: 0
+          CARGO_PROFILE_RELEASE_LTO: fat
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: 3
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+        with:
+          use-cross: ${{ matrix.config.cross }}
+          command: build
+          args: --release -p wgg_http --target ${{ matrix.config.target }}
+
+      - name: Tar server file
+        run: |
+          mkdir artifacts/${{ matrix.config.target }} -p
+          cp target/${{ matrix.config.target }}/release/wgg_http artifacts/${{ matrix.config.target }}/wgg_http
+          tar -cvf wgg_http-${{ matrix.config.target }}.tar artifacts/${{ matrix.config.target }}
+
+      - name: Upload backend binary artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wgg_http-${{ matrix.config.target }}
+          path: wgg_http-${{ matrix.config.target }}.tar
+          retention-days: 5
+
+  build-frontend:
+    name: Build Front-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        name: Setup Node
+        with:
+          cache: "npm"
+          cache-dependency-path: wgg_front/package-lock.json
+
+      - uses: actions-rs/toolchain@v1
+        id: rust-toolchain
+        name: Setup Rust Toolchain
+        with:
+          toolchain: stable
+          profile: default
+          override: true
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v1.2.0
+
+      - uses: bahmutov/npm-install@v1
+        name: Install NPM Dependencies
+        with:
+          working-directory: wgg_front/
+
+      - name: npm build
+        run: npm run build
+        working-directory: wgg_front/
+
+      - name: Tar dist directory
+        run: |
+          mv wgg_front/build ./dist
+          tar -cvf frontend.tar dist
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: frontend
+          path: frontend.tar
+          retention-days: 5
+
+      - name: Clear the cargo caches
+        run: |
+          cargo install cargo-cache --no-default-features --features ci-autoclean
+          cargo-cache
+
+  build-docker:
+    name: Build Docker image and push
+    runs-on: ubuntu-latest
+    needs:
+      - build-frontend
+      - build-backend
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Move all tar files to workdir
+        run: mv ./**/*.tar .
+
+      - name: Untar all artifacts (front and back end)
+        run: |
+          ls *.tar |xargs -n1 tar -xvf
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          file: Dockerfile.workflow
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wgg-server:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+
+      - # Temp fix
+        # https://github.com/docker/build-push-action/issues/252
+        # https://github.com/moby/buildkit/issues/1896
+        name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
