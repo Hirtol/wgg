@@ -1,0 +1,49 @@
+[package]
+name = "wgg_http"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.60"
+thiserror = "1.0.32"
+tracing = "0.1.36"
+itertools = "0.10"
+
+# Async
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+
+# Web
+async-graphql = { version = "4.0.6", features = ["time", "dataloader"] }
+async-graphql-axum = "4.0.6"
+axum = { version = "0.5.13", features = ["ws", "headers", "tower-log", "multipart"] }
+tower = "0.4.13"
+tower-http = { version = "0.3.4", features = ["full"] }
+
+cookie = { version = "0.16.0", features = ["private", "percent-encode"] }
+tower-cookies = { version = "0.7.0", features = ["private"] }
+httpdate = "1.0.2"
+time = { version = "0.3", features = ["parsing", "serde", "macros"] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.82"
+
+
+# Database
+
+# Crypto
+argon2 = "0.4.1"
+rand = "0.8.5"
+
+# Config
+figment = { version = "0.10.6", features = ["toml", "env"] }
+platform-dirs = "0.3.0"
+toml = "0.5.9"
+
+# Providers
+wgg_providers = { path = "../wgg_providers" }
+
+
+

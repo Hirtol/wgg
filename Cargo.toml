@@ -1,0 +1,35 @@
+[profile.release]
+incremental = true
+debug = 0
+
+[profile.dev.package."*"]
+# Build dependencies with full release optimizations in debug builds since they'll rarely change
+opt-level = 3
+
+## For some reason pest_generator hangs in an infinite compile loop if it doesn't have at least level 1 debug info.
+#[profile.dev.package.pest_generator]
+#debug = 1
+#
+## For some reason derive_builder_macro hangs in an infinite compile loop if it doesn't have at least level 1 debug info.
+#[profile.dev.package.derive_builder_macro]
+#debug = 1
+
+[profile.dev]
+opt-level = 0
+incremental = true
+debug = 0
+
+[profile.debugs]
+inherits = "dev"
+debug = 1
+
+[profile.debugs.package.wgg_http]
+debug = 2
+
+[profile.debugs.package.wgg_providers]
+debug = 2
+
+[workspace]
+resolver = "2"
+members = ["wgg_http", "wgg_providers"]
+default-members = ["wgg_http"]
