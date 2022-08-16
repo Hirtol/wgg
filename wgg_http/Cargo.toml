@@ -3,7 +3,14 @@ name = "wgg_http"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+doctest = false
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "wgg_http"
 
 [dependencies]
 anyhow = "1.0.60"
@@ -45,5 +52,10 @@ toml = "0.5.9"
 # Providers
 wgg_providers = { path = "../wgg_providers" }
 
+[dev-dependencies]
+static_init = "1"
+pretty_assertions = "1.2"
+tempfile = "3"
+const_format = "0.2.13"
 
 
