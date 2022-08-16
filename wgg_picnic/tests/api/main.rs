@@ -1,2 +1,2 @@
+mod common;
 mod picnic;
-mod setup;
