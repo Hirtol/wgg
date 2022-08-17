@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Write};
 
 // ** LOGIN STUFF **
@@ -186,6 +187,9 @@ pub enum Decorator {
     ArticleDeliveryFailure {
         failures: Vec<String>,
         prices: Vec<String>,
+    },
+    Quantity {
+        quantity: i64,
     },
     #[serde(other)]
     Other,
@@ -416,4 +420,118 @@ pub enum SubCategory {
     SingleArticle(SingleArticle),
     #[serde(other)]
     Other,
+}
+
+// ** Shopping Cart **
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Order {
+    pub id: String,
+    #[serde(default)]
+    pub items: Vec<OrderLine>,
+    #[serde(default)]
+    pub delivery_slots: Vec<DeliverySlot>,
+    pub selected_slot: SelectedSlot,
+    pub slot_selector_message: Option<Value>,
+    pub total_count: i64,
+    pub total_price: i64,
+    pub checkout_total_price: i64,
+    pub total_savings: i64,
+    /// Only available once the total price exceeds the minimum (at the moment, 35,- euros) quantity.
+    pub total_deposit: Option<i64>,
+    /// Only available once the order has been placed.
+    pub cancellable: Option<bool>,
+    /// Only available once the order has been placed, and cancelled.
+    pub cancellation_time: Option<String>,
+    /// Only available once the order has been placed.
+    pub creation_time: Option<String>,
+    /// Only available once the order has been placed.
+    ///
+    /// Any of: "CURRENT" | "COMPLETED" | "CANCELLED" | string
+    pub status: Option<String>,
+    pub mts: i64,
+    #[serde(default)]
+    pub deposit_breakdown: Vec<DepositBreakdown>,
+    pub decorator_overrides: HashMap<String, Vec<Decorator>>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrderLine {
+    pub id: String,
+    pub items: Vec<OrderArticle>,
+    pub display_price: i64,
+    pub price: i64,
+    #[serde(default)]
+    pub decorators: Vec<Decorator>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrderArticle {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub id: String,
+    pub name: String,
+    pub image_ids: Vec<String>,
+    pub unit_quantity: String,
+    pub unit_quantity_sub: Option<String>,
+    pub price: i64,
+    pub max_count: i64,
+    pub perishable: bool,
+    pub tags: Vec<Value>,
+    pub decorators: Vec<Decorator>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SelectedSlot {
+    pub slot_id: String,
+    pub state: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DeliverySlot {
+    pub slot_id: String,
+    pub hub_id: String,
+    pub fc_id: String,
+    pub window_start: String,
+    pub window_end: String,
+    pub cut_off_time: String,
+    pub is_available: bool,
+    pub selected: bool,
+    pub reserved: bool,
+    pub minimum_order_value: i64,
+    pub unavailability_reason: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DepositBreakdown {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    value: i64,
+    count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub(crate) struct ModifyCartProduct<'a> {
+    /// The product to add or remove.
+    pub product_id: &'a crate::ProductId,
+    /// The amount of the provided product to add/remove.
+    pub count: u32,
+}
+
+// ** Deliveries **
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DeliveryStatus {
+    Current,
+    Completed,
+    Cancelled,
+}
+
+impl Display for DeliveryStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeliveryStatus::Current => f.write_str("CURRENT"),
+            DeliveryStatus::Completed => f.write_str("COMPLETED"),
+            DeliveryStatus::Cancelled => f.write_str("CANCELLED"),
+        }
+    }
 }
