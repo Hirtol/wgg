@@ -7,8 +7,8 @@ use crate::models::{
 use anyhow::anyhow;
 use md5::Digest;
 use reqwest::{Response, Url};
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use serde::Serialize;
+
 use std::time::Duration;
 
 pub mod config;
@@ -25,6 +25,9 @@ pub type ListId = str;
 
 type Query<'a> = [(&'a str, &'a str)];
 
+/// The root struct for accessing the `Picnic` API.
+///
+/// See [PicnicApi::new] or [PicnicApi::from_login] for creating a new instance.
 pub struct PicnicApi {
     config: Config,
     credentials: Credentials,
@@ -32,6 +35,10 @@ pub struct PicnicApi {
 }
 
 impl PicnicApi {
+    /// Create a [PicnicApi] from existing [Credentials].
+    ///
+    /// It is the caller's responsibility to ensure the [Credentials] are valid.
+    /// Otherwise, refer to [PicnicApi::from_login].
     pub fn new(credentials: Credentials, config: Config) -> Self {
         let client = get_reqwest_client(&config.user_argent).expect("Failed to create a API Client");
         PicnicApi {
@@ -41,7 +48,11 @@ impl PicnicApi {
         }
     }
 
-    pub async fn from_login<T: AsRef<str>>(username: impl Into<String>, password: T, config: Config) -> Result<Self> {
+    /// Create a new [PicnicApi] instance by logging in.
+    ///
+    /// It is recommended to save the [Credentials] in a secure place to avoid having to log in with username/password
+    /// every time. One could in the future then call [PicnicApi::new].
+    pub async fn from_login(username: impl Into<String>, password: impl AsRef<str>, config: Config) -> Result<Self> {
         let mut hasher = md5::Md5::new();
 
         hasher.update(password.as_ref());
@@ -56,7 +67,11 @@ impl PicnicApi {
             client_id: 1,
         };
 
-        let response = client.post(config.url.clone()).json(&login).send().await?;
+        let response = client
+            .post(config.get_full_url("/user/login"))
+            .json(&login)
+            .send()
+            .await?;
 
         if response.status().is_client_error() {
             return Err(ApiError::LoginFailed(format!(
@@ -81,6 +96,13 @@ impl PicnicApi {
         };
 
         Ok(Self::new(credentials, config))
+    }
+
+    /// Return the current credentials used by the [PicnicApi].
+    ///
+    /// Can be useful to save separately to avoid having to log in every restart.
+    pub fn credentials(&self) -> &Credentials {
+        &self.credentials
     }
 
     /// Query all user details of the current user.
@@ -137,9 +159,7 @@ impl PicnicApi {
     /// A depth of 2 or higher ensures the first 4 items in the sub-categories are returned as well. Note that there could
     /// be more items in those categories. The presence of the `MoreButton` decorator indicates such a case.
     pub async fn categories(&self, depth: u32) -> Result<MyStore> {
-        let response = self
-            .get(&format!("/my_store"), &[("depth", &depth.to_string())])
-            .await?;
+        let response = self.get("/my_store", &[("depth", &depth.to_string())]).await?;
 
         Ok(response.json().await?)
     }
@@ -307,7 +327,7 @@ impl PicnicApi {
     /// If `sublist_id` is specified then the full list of items part of that sub-category is returned.
     ///
     /// Default `depth` is 0. When specified at `>= 2` then the first 4 items for all promotions will also be returned,
-    /// even without a specified `sublist_id`.
+    /// even when called without a specified `sublist_id`.
     pub async fn promotions(&self, sublist_id: Option<&ListId>, depth: u32) -> Result<Vec<SubCategory>> {
         self.list("promotions", sublist_id, depth).await
     }
@@ -334,11 +354,8 @@ impl PicnicApi {
     ) -> Result<Vec<SubCategory>> {
         let url = format!("/lists/{}", list_id.as_ref());
         let response = if let Some(sublist) = sublist_id {
-            self.get(
-                &url,
-                &[("sublist", sublist.as_ref()), ("depth", depth.to_string().as_ref())],
-            )
-            .await
+            self.get(&url, &[("sublist", sublist), ("depth", depth.to_string().as_ref())])
+                .await
         } else {
             self.get(&url, &[("depth", depth.to_string().as_ref())]).await
         }?;
@@ -371,13 +388,13 @@ impl PicnicApi {
     }
 
     fn get_full_url(&self, suffix: &str) -> String {
-        format!("{}{}", self.config.url(), suffix)
+        self.config.get_full_url(suffix)
     }
 }
 #[derive(Clone)]
 pub struct Credentials {
-    auth_token: String,
-    user_id: String,
+    pub auth_token: String,
+    pub user_id: String,
 }
 
 impl Credentials {

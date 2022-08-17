@@ -2,10 +2,8 @@ use reqwest::Url;
 use std::fmt::{Display, Formatter};
 
 pub struct Config {
-    pub(crate) country_code: CountryCode,
     pub(crate) url: Url,
     pub(crate) static_url: Url,
-    pub(crate) api_version: u16,
     pub(crate) user_argent: String,
 }
 
@@ -21,7 +19,6 @@ impl Config {
     /// Current defaults are [CountryCode::NL], and `api_version = 17`.
     pub fn new(country_code: CountryCode, api_version: u16) -> Self {
         Config {
-            country_code,
             url: format!(
                 "https://storefront-prod.{}.picnicinternational.com/api/{}",
                 country_code, api_version
@@ -34,17 +31,32 @@ impl Config {
             )
             .parse()
             .expect("Default URL Incorrect"),
-            api_version,
             user_argent: "okhttp/3.12.2".to_string(),
         }
     }
 
+    /// Returns the API url.
     pub fn url(&self) -> &Url {
         &self.url
     }
 
+    /// Returns the URL for accessing static (unauthorised) content.
     pub fn static_url(&self) -> &Url {
         &self.static_url
+    }
+
+    /// Returns the full url for the API and the provided suffix.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use wgg_picnic::config::Config;
+    /// let config = Config::default();
+    ///
+    /// assert_eq!(config.get_full_url("/cart"), "https://storefront-prod.nl.picnicinternational.com/api/17/cart")
+    /// ```
+    pub fn get_full_url(&self, suffix: &str) -> String {
+        format!("{}{}", self.url(), suffix)
     }
 }
 

@@ -2,9 +2,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
 
-// ** LOGIN STUFF **
+// ** LOGIN **
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct LoginRequest {
@@ -89,7 +89,7 @@ pub struct Address {
 
 // ** SEARCH **
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     #[serde(rename = "type")]
@@ -104,7 +104,7 @@ pub struct SearchResult {
     pub hidden: bool,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Link {
     #[serde(rename = "type")]
@@ -112,7 +112,7 @@ pub struct Link {
     pub href: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SearchItem {
@@ -122,7 +122,7 @@ pub enum SearchItem {
     Other,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SingleArticle {
     pub id: String,
     #[serde(default)]
@@ -142,7 +142,7 @@ pub struct SingleArticle {
 
 // ** Decorator **
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Decorator {
@@ -195,7 +195,7 @@ pub enum Decorator {
     Other,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Banner {
     pub banner_id: String,
     pub image_id: String,
@@ -205,12 +205,12 @@ pub struct Banner {
     pub reference: Option<Reference>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Reference {
     pub target: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Style {
     pub position: Position,
     pub color: String,
@@ -218,19 +218,19 @@ pub struct Style {
     pub priority: i64,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Position {
     pub start_index: i64,
     pub length: i64,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Explanation {
     pub short_explanation: String,
     pub long_explanation: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Replacement {
     id: String,
     decorators: Vec<Decorator>,
@@ -244,7 +244,7 @@ pub struct Replacement {
     replacement_type: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Issue {
     pub article_id: String,
     pub price: i64,
@@ -253,7 +253,7 @@ pub struct Issue {
     pub resolution: IssueResolution,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum IssueResolution {
@@ -269,7 +269,7 @@ pub enum IssueResolution {
     Other,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ArticleIssueReasonType {
@@ -287,7 +287,7 @@ pub enum ArticleIssueReasonType {
 
 // ** Suggestions **
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Suggestion {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -298,7 +298,7 @@ pub struct Suggestion {
 
 // ** Product Info **
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Product {
     pub current_count: i64,
     pub max_count: i64,
@@ -312,20 +312,20 @@ pub struct Product {
     pub unit_quantity: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SubItemDetails {
     pub id: String,
     pub text: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ItemDetails {
     pub id: String,
     pub title: String,
     pub items: Vec<SubItemDetails>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NutritionalValue {
     pub name: String,
     pub value: String,
@@ -334,27 +334,27 @@ pub struct NutritionalValue {
     pub sub_values: Vec<SubValue>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SubValue {
     pub name: String,
     pub value: String,
     pub gda_percentage: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FreshLabel {
     pub unit: String,
     pub number: i32,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DietTags {
     pub name: String,
     pub color: String,
     pub description: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProductDetails {
     pub id: String,
     pub decorators: Vec<Decorator>,
@@ -379,7 +379,7 @@ pub struct ProductDetails {
     pub nutritional_info_unit: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProductResult {
     pub product_details: ProductDetails,
     pub products: Vec<Product>,
@@ -387,7 +387,7 @@ pub struct ProductResult {
 
 // ** Images **
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImageSize {
     Tiny,
     Small,
@@ -409,7 +409,7 @@ impl Display for ImageSize {
 }
 
 // ** My Store **
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MyStore {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -422,7 +422,7 @@ pub struct MyStore {
     pub links: Vec<Link>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Catalog {
     pub id: String,
     pub name: String,
@@ -437,7 +437,7 @@ pub struct Catalog {
     pub header_image_id: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Category {
     pub id: String,
     pub name: String,
@@ -453,7 +453,7 @@ pub struct Category {
     pub header_image_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SubCategory {
@@ -465,7 +465,7 @@ pub enum SubCategory {
 
 // ** Shopping Cart **
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Order {
     pub id: String,
     #[serde(default)]
@@ -495,7 +495,7 @@ pub struct Order {
     pub decorator_overrides: HashMap<String, Vec<Decorator>>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrderLine {
     pub id: String,
     pub items: Vec<OrderArticle>,
@@ -505,7 +505,7 @@ pub struct OrderLine {
     pub decorators: Vec<Decorator>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrderArticle {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -521,13 +521,13 @@ pub struct OrderArticle {
     pub decorators: Vec<Decorator>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SelectedSlot {
     pub slot_id: String,
     pub state: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DepositBreakdown {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -535,12 +535,12 @@ pub struct DepositBreakdown {
     count: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OrderStatus {
     pub checkout_status: CheckoutStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CheckoutStatus {
     Abandoned,
@@ -551,7 +551,7 @@ pub enum CheckoutStatus {
     Unsupported,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub(crate) struct ModifyCartProduct<'a> {
     /// The product to add or remove.
     pub product_id: &'a crate::ProductId,
@@ -560,7 +560,7 @@ pub(crate) struct ModifyCartProduct<'a> {
 }
 
 // ** Deliveries **
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Delivery {
     pub delivery_id: String,
     pub creation_time: DateTime<Utc>,
@@ -575,7 +575,7 @@ pub struct Delivery {
     pub parcels: Vec<Value>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReturnedContainer {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -584,13 +584,13 @@ pub struct ReturnedContainer {
     pub price: i64,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeliverySlotQuery {
     pub delivery_slots: Vec<DeliverySlot>,
     pub selected_slot: SelectedSlot,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeliverySlot {
     pub slot_id: String,
     pub hub_id: String,
@@ -605,7 +605,7 @@ pub struct DeliverySlot {
     pub unavailability_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PartialDelivery {
     pub delivery_id: String,
     pub creation_time: DateTime<Utc>,
@@ -617,13 +617,13 @@ pub struct PartialDelivery {
     pub orders: Vec<PartialOrder>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeWindow {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PartialOrder {
     pub id: String,
     pub creation_time: DateTime<Utc>,
@@ -632,7 +632,7 @@ pub struct PartialOrder {
     pub cancellation_time: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeliveryStatus {
     Current,
