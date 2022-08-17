@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -184,9 +185,8 @@ pub enum Decorator {
         replacements: Vec<Replacement>,
         explanation: Explanation,
     },
-    ArticleDeliveryFailure {
-        failures: Vec<String>,
-        prices: Vec<String>,
+    ArticleDeliveryIssues {
+        issues: Vec<Issue>,
     },
     Quantity {
         quantity: i64,
@@ -242,6 +242,47 @@ pub struct Replacement {
     unit_quantity: String,
     tags: Value,
     replacement_type: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Issue {
+    pub article_id: String,
+    pub price: i64,
+    pub quantity: i64,
+    pub reason: ArticleIssueReasonType,
+    pub resolution: IssueResolution,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum IssueResolution {
+    None,
+    FreeInBasket,
+    Refund,
+    Substituted {
+        substitutions: Vec<OrderArticle>,
+        refunded: bool,
+    },
+    Unsupported,
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ArticleIssueReasonType {
+    ProductNotShipped,
+    ProductDamaged,
+    ProductNotRequested,
+    ProductLowQuality,
+    ProductAgeRequirementNotMet,
+    ProductAbsent,
+    ProductPricePromiseBroken,
+    ProductSubstituted,
+    ProductNotProcessed,
+    Unsupported,
 }
 
 // ** Suggestions **
@@ -431,9 +472,11 @@ pub struct Order {
     pub items: Vec<OrderLine>,
     #[serde(default)]
     pub delivery_slots: Vec<DeliverySlot>,
-    pub selected_slot: SelectedSlot,
+    /// Only available if a timeslot has been selected for this particular order.
+    pub selected_slot: Option<SelectedSlot>,
     pub slot_selector_message: Option<Value>,
-    pub total_count: i64,
+    /// Only available in the shopping cart overview of the Order
+    pub total_count: Option<i64>,
     pub total_price: i64,
     pub checkout_total_price: i64,
     pub total_savings: i64,
@@ -446,10 +489,7 @@ pub struct Order {
     /// Only available once the order has been placed.
     pub creation_time: Option<String>,
     /// Only available once the order has been placed.
-    ///
-    /// Any of: "CURRENT" | "COMPLETED" | "CANCELLED" | string
-    pub status: Option<String>,
-    pub mts: i64,
+    pub status: Option<DeliveryStatus>,
     #[serde(default)]
     pub deposit_breakdown: Vec<DepositBreakdown>,
     pub decorator_overrides: HashMap<String, Vec<Decorator>>,
@@ -488,26 +528,27 @@ pub struct SelectedSlot {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DeliverySlot {
-    pub slot_id: String,
-    pub hub_id: String,
-    pub fc_id: String,
-    pub window_start: String,
-    pub window_end: String,
-    pub cut_off_time: String,
-    pub is_available: bool,
-    pub selected: bool,
-    pub reserved: bool,
-    pub minimum_order_value: i64,
-    pub unavailability_reason: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DepositBreakdown {
     #[serde(rename = "type")]
     pub type_field: String,
     value: i64,
     count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrderStatus {
+    pub checkout_status: CheckoutStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum CheckoutStatus {
+    Abandoned,
+    Failed,
+    Finished,
+    Ongoing,
+    Unknown,
+    Unsupported,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -520,10 +561,85 @@ pub(crate) struct ModifyCartProduct<'a> {
 
 // ** Deliveries **
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Delivery {
+    pub delivery_id: String,
+    pub creation_time: DateTime<Utc>,
+    pub slot: DeliverySlot,
+    pub eta2: TimeWindow,
+    pub status: DeliveryStatus,
+    pub delivery_time: TimeWindow,
+    pub id: String,
+    pub decorators: Vec<Decorator>,
+    pub orders: Vec<Order>,
+    pub returned_containers: Vec<ReturnedContainer>,
+    pub parcels: Vec<Value>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReturnedContainer {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub localized_name: String,
+    pub quantity: i64,
+    pub price: i64,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DeliverySlotQuery {
+    pub delivery_slots: Vec<DeliverySlot>,
+    pub selected_slot: SelectedSlot,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DeliverySlot {
+    pub slot_id: String,
+    pub hub_id: String,
+    pub fc_id: String,
+    pub window_start: DateTime<Utc>,
+    pub window_end: DateTime<Utc>,
+    pub cut_off_time: DateTime<Utc>,
+    pub is_available: bool,
+    pub selected: bool,
+    pub reserved: bool,
+    pub minimum_order_value: i64,
+    pub unavailability_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PartialDelivery {
+    pub delivery_id: String,
+    pub creation_time: DateTime<Utc>,
+    pub slot: DeliverySlot,
+    pub eta2: TimeWindow,
+    pub status: DeliveryStatus,
+    pub delivery_time: TimeWindow,
+    /// Contains partial orders, more detailed information needs to be queried separately.
+    pub orders: Vec<PartialOrder>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimeWindow {
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PartialOrder {
+    pub id: String,
+    pub creation_time: DateTime<Utc>,
+    pub total_price: i64,
+    pub status: DeliveryStatus,
+    pub cancellation_time: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeliveryStatus {
     Current,
     Completed,
     Cancelled,
+    #[serde(other)]
+    Other,
 }
 
 impl Display for DeliveryStatus {
@@ -532,6 +648,7 @@ impl Display for DeliveryStatus {
             DeliveryStatus::Current => f.write_str("CURRENT"),
             DeliveryStatus::Completed => f.write_str("COMPLETED"),
             DeliveryStatus::Cancelled => f.write_str("CANCELLED"),
+            _ => f.write_str("OTHER"),
         }
     }
 }

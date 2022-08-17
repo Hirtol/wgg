@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::error::ApiError;
 use crate::models::{
-    Category, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct, MyStore, Order, ProductResult,
-    SearchResult, SubCategory, Suggestion, UserInfo,
+    Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct,
+    MyStore, Order, OrderStatus, PartialDelivery, ProductResult, SearchResult, SubCategory, Suggestion, UserInfo,
 };
 use anyhow::anyhow;
 use md5::Digest;
@@ -144,12 +144,14 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
+    /// Retrieves the shopping cart information of the user, including the contents.
     pub async fn shopping_cart(&self) -> Result<Order> {
         let response = self.get("/cart", &[]).await?;
 
         Ok(response.json().await?)
     }
 
+    /// Adds the specified product to the cart, and returns the update state of the cart.
     pub async fn add_product_to_shopping_cart(&self, product_id: impl AsRef<ProductId>, count: u32) -> Result<Order> {
         let payload = ModifyCartProduct {
             product_id: product_id.as_ref(),
@@ -160,6 +162,7 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
+    /// Removes the specified product from the cart, and returns the update state of the cart.
     pub async fn remove_product_from_shopping_cart(
         &self,
         product_id: impl AsRef<ProductId>,
@@ -174,18 +177,25 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
+    /// Clear the entire shopping cart.
+    ///
+    /// Returns the updated state of the cart.
     pub async fn clear_shopping_cart(&self) -> Result<Order> {
         let response = self.post("/cart/clear", &()).await?;
 
         Ok(response.json().await?)
     }
 
-    pub async fn delivery_slots(&self) -> Result<Vec<()>> {
+    /// Get all possible delivery slots
+    pub async fn delivery_slots(&self) -> Result<DeliverySlotQuery> {
         let response = self.get("/cart/delivery_slots", &[]).await?;
 
         Ok(response.json().await?)
     }
 
+    /// Set the selected delivery slot to the provided slot id
+    ///
+    /// Returns the updated cart information
     pub async fn set_delivery_slot(&self, slot_id: impl AsRef<DeliverySlotId>) -> Result<Order> {
         #[derive(Serialize)]
         struct SetSlot<'a> {
@@ -204,18 +214,25 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
-    pub async fn deliveries(&self, filters: &[DeliveryStatus]) -> Result<Vec<()>> {
+    /// Retrieve all deliveries ever done for the current user.
+    ///
+    /// Will only be partially filled in. For the complete delivery information (including order) see [PicnicApi::delivery]
+    pub async fn deliveries(&self, filters: &[DeliveryStatus]) -> Result<Vec<PartialDelivery>> {
         let response = self.post("/deliveries/summary", filters).await?;
 
         Ok(response.json().await?)
     }
 
-    pub async fn delivery(&self, delivery_id: impl AsRef<DeliveryId>) -> Result<()> {
+    /// Get the full details of one specific delivery, including its order.
+    pub async fn delivery(&self, delivery_id: impl AsRef<DeliveryId>) -> Result<Delivery> {
         let response = self.get(&format!("/deliveries/{}", delivery_id.as_ref()), &[]).await?;
 
         Ok(response.json().await?)
     }
 
+    /// Broken at the moment.
+    ///
+    /// Need to figure out how x-picnic-agent and x-picnic-did work.
     pub async fn delivery_position(&self, delivery_id: impl AsRef<DeliveryId>) -> Result<()> {
         // TODO: May need to include picnic headers
         let response = self
@@ -225,6 +242,9 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
+    /// Broken at the moment.
+    ///
+    /// Need to figure out how x-picnic-agent and x-picnic-did work.
     pub async fn delivery_scenario(&self, delivery_id: impl AsRef<DeliveryId>) -> Result<()> {
         // TODO: May need to include picnic headers
         let response = self
@@ -274,12 +294,22 @@ impl PicnicApi {
     }
 
     /// Provides the status of the order (note, different from a delivery!) with the given id.
-    pub async fn order_status(&self, order_id: impl AsRef<OrderId>) -> Result<()> {
+    pub async fn order_status(&self, order_id: impl AsRef<OrderId>) -> Result<OrderStatus> {
         let response = self
             .get(&format!("/cart/checkout/order/{}/status", order_id.as_ref()), &[])
             .await?;
 
         Ok(response.json().await?)
+    }
+
+    /// Returns all available promotions if `sublist_id` is `None`.
+    ///
+    /// If `sublist_id` is specified then the full list of items part of that sub-category is returned.
+    ///
+    /// Default `depth` is 0. When specified at `>= 2` then the first 4 items for all promotions will also be returned,
+    /// even without a specified `sublist_id`.
+    pub async fn promotions(&self, sublist_id: Option<&ListId>, depth: u32) -> Result<Vec<SubCategory>> {
+        self.list("promotions", sublist_id, depth).await
     }
 
     /// Returns all lists and sub-lists.
@@ -299,7 +329,7 @@ impl PicnicApi {
     pub async fn list(
         &self,
         list_id: impl AsRef<ListId>,
-        sublist_id: Option<impl AsRef<ListId>>,
+        sublist_id: Option<&ListId>,
         depth: u32,
     ) -> Result<Vec<SubCategory>> {
         let url = format!("/lists/{}", list_id.as_ref());
@@ -363,24 +393,4 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
         .gzip(true)
         .user_agent(user_agent)
         .build()?)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{Config, Credentials, ModifyCartProduct, PicnicApi};
-
-    #[tokio::test]
-    pub async fn test_setup() {
-        let auth_cred = dotenv::var("PICNIC_AUTH_TOKEN").unwrap();
-        let user_id = dotenv::var("PICNIC_USER_ID").unwrap();
-
-        let cred = Credentials {
-            auth_token: auth_cred,
-            user_id,
-        };
-
-        let api = PicnicApi::new(cred, Config::default());
-        let response = api.categories(0).await.unwrap();
-        println!("Response: {:#?}", response);
-    }
 }

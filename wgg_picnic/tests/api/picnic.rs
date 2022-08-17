@@ -1,6 +1,6 @@
 use crate::common::picnic_api;
 use crate::conditional_test;
-use wgg_picnic::models::ImageSize;
+use wgg_picnic::models::{ImageSize, SearchItem};
 
 #[tokio::test]
 pub async fn test_user_data() {
@@ -18,8 +18,16 @@ pub async fn test_search() {
     let api = picnic_api();
 
     let result = api.search("melk").await.unwrap();
-    // Picnic halfvolle melk
-    let milk_exists = result.iter().find(|x| x.id == "11470254");
+    // Picnic halfvolle melk, the Vec always seems to have just one item in it.
+    let milk_exists = result[0]
+        .items
+        .iter()
+        .filter_map(|x| match x {
+            SearchItem::SingleArticle(article) => Some(article),
+            _ => None,
+        })
+        .find(|x| x.id == "11470254");
+
     assert!(milk_exists.is_some())
 }
 

@@ -14,6 +14,9 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PICNIC_AUTH_TOKEN: ${{ secrets.PICNIC_AUTH_TOKEN }}
+      PICNIC_USER_ID: ${{ secrets.PICNIC_USER_ID }}
     steps:
       - uses: actions/checkout@master
 
