@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 pub struct Config {
     pub(crate) url: Url,
     pub(crate) static_url: Url,
-    pub(crate) user_argent: String,
+    pub(crate) user_agent: String,
 }
 
 impl Default for Config {
@@ -31,7 +31,7 @@ impl Config {
             )
             .parse()
             .expect("Default URL Incorrect"),
-            user_argent: "okhttp/3.12.2".to_string(),
+            user_agent: "okhttp/3.12.2".to_string(),
         }
     }
 

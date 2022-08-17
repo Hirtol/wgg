@@ -40,7 +40,7 @@ impl PicnicApi {
     /// It is the caller's responsibility to ensure the [Credentials] are valid.
     /// Otherwise, refer to [PicnicApi::from_login].
     pub fn new(credentials: Credentials, config: Config) -> Self {
-        let client = get_reqwest_client(&config.user_argent).expect("Failed to create a API Client");
+        let client = get_reqwest_client(&config.user_agent).expect("Failed to create a API Client");
         PicnicApi {
             config,
             credentials,
@@ -60,7 +60,7 @@ impl PicnicApi {
         let result = hasher.finalize();
         let hex = hex::encode(result);
 
-        let client = get_reqwest_client(&config.user_argent)?;
+        let client = get_reqwest_client(&config.user_agent)?;
         let login = LoginRequest {
             key: username.into(),
             secret: hex,
