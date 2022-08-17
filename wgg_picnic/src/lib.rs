@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::error::ApiError;
-use crate::models::{LoginRequest, LoginResponse, SearchResult, Suggestion, UserInfo};
+use crate::models::{LoginRequest, LoginResponse, ProductResult, SearchResult, Suggestion, UserInfo};
 use anyhow::anyhow;
 use md5::Digest;
 use reqwest::Response;
@@ -98,6 +98,13 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
+    /// Return full product info for the provided product id.
+    pub async fn product(&self, product_id: impl AsRef<str>) -> Result<ProductResult> {
+        let response = self.get(&format!("/product/{}", product_id.as_ref()), &[]).await?;
+
+        Ok(response.json().await?)
+    }
+
     async fn get(&self, url: &str, payload: &Query<'_>) -> Result<Response> {
         let response = self
             .client
@@ -163,6 +170,6 @@ mod tests {
 
         let api = PicnicApi::new(cred, Config::default());
 
-        println!("Response: {:#?}", api.suggestions("melk").await.unwrap())
+        println!("Response: {:#?}", api.product("11470254").await.unwrap())
     }
 }

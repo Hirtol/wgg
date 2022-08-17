@@ -115,6 +115,8 @@ pub struct Link {
 pub enum SearchItem {
     SingleArticle(SingleArticle),
     ItemSuggestionDialog,
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -131,17 +133,57 @@ pub struct SingleArticle {
     pub tags: Vec<Value>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Decorator {
-    #[serde(rename = "type")]
-    pub type_field: String,
-    pub period: Option<String>,
-    pub unit_quantity_text: Option<String>,
-    #[serde(default)]
-    pub styles: Vec<Style>,
-    pub text: Option<String>,
-    pub display_price: Option<i64>,
-    pub valid_until: Option<String>,
+// ** Decorator **
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Decorator {
+    BasePrice {
+        base_price_text: String,
+    },
+    FreshLabel {
+        period: String,
+    },
+    Label {
+        text: String,
+    },
+    Price {
+        display_price: i32,
+    },
+    BackgroundImage {
+        image_ids: Vec<String>,
+        height_percent: i32,
+    },
+    Banners {
+        height_percent: i32,
+        //banners: Value TODO: Switch to actual struct
+    },
+    UnitQuantity {
+        unit_quantity_text: String,
+    },
+    ValidityLabel {
+        valid_until: String,
+    },
+    TitleStyle {
+        styles: Vec<Style>,
+    },
+    MoreButton {
+        link: Link,
+        images: Vec<String>,
+        sellable_item_count: i32,
+    },
+    Unavailable {
+        reason: String,
+        replacements: Vec<Replacement>,
+        explanation: Explanation,
+    },
+    ArticleDeliveryFailure {
+        failures: Vec<String>,
+        prices: Vec<String>,
+    },
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -158,6 +200,26 @@ pub struct Position {
     pub length: i64,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Explanation {
+    pub short_explanation: String,
+    pub long_explanation: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Replacement {
+    id: String,
+    decorators: Vec<Decorator>,
+    name: String,
+    display_price: i32,
+    price: i32,
+    image_id: String,
+    max_count: i32,
+    unit_quantity: String,
+    tags: Value,
+    replacement_type: String,
+}
+
 // ** Suggestions **
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -167,4 +229,93 @@ pub struct Suggestion {
     pub id: String,
     pub links: Vec<Link>,
     pub suggestion: String,
+}
+
+// ** Product Info **
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Product {
+    pub current_count: i64,
+    pub max_count: i64,
+    pub price: i64,
+    pub name: String,
+    pub fresh_label: FreshLabel,
+    pub product_id: String,
+    pub unit_quantity_sub: String,
+    pub deposit: i64,
+    pub image_id: String,
+    pub unit_quantity: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SubItemDetails {
+    pub id: String,
+    pub text: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ItemDetails {
+    pub id: String,
+    pub title: String,
+    pub items: Vec<SubItemDetails>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NutritionalValue {
+    pub name: String,
+    pub value: String,
+    pub gda_percentage: String,
+    #[serde(default)]
+    pub sub_values: Vec<SubValue>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SubValue {
+    pub name: String,
+    pub value: String,
+    pub gda_percentage: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FreshLabel {
+    pub unit: String,
+    pub number: i32,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DietTags {
+    pub name: String,
+    pub color: String,
+    pub description: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProductDetails {
+    pub id: String,
+    pub decorators: Vec<Decorator>,
+    pub name: String,
+    pub display_price: i32,
+    pub price: i32,
+    pub image_id: String,
+    pub max_count: i32,
+    pub unit_quantity: String,
+    pub unit_quantity_sub: String,
+    pub tags: Vec<DietTags>,
+    pub product_id: String,
+    pub description: String,
+    pub canonical_name: Option<String>,
+    pub image_ids: Vec<String>,
+    pub fresh_label: FreshLabel,
+    pub nutritional_values: Vec<NutritionalValue>,
+    pub ingredients_blob: String,
+    pub additional_info: String,
+    pub label_holder: String,
+    pub items: Vec<ItemDetails>,
+    pub nutritional_info_unit: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProductResult {
+    pub product_details: ProductDetails,
+    pub products: Vec<Product>,
 }

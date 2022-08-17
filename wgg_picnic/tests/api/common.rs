@@ -30,6 +30,8 @@ macro_rules! function {
 
 /// Check whether live testing is enabled for this run.
 ///
+/// # Example
+///
 /// ```norun
 ///
 /// #[tokio::test]
