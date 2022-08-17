@@ -49,7 +49,11 @@ macro_rules! conditional_test {
         let fn_name = $crate::function!();
 
         if !is_live {
-            println!("Skipping: {}", fn_name);
+            println!(
+                "Skipping: {} - Set the environment variable {}=() to enable",
+                fn_name,
+                $crate::common::LIVE_TESTING_ENV
+            );
             return;
         }
     };

@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 pub struct Config {
     pub(crate) country_code: CountryCode,
     pub(crate) url: Url,
+    pub(crate) static_url: Url,
     pub(crate) api_version: u16,
     pub(crate) user_argent: String,
 }
@@ -27,9 +28,23 @@ impl Config {
             )
             .parse()
             .expect("Default URL Incorrect"),
+            static_url: format!(
+                "https://storefront-prod.{}.picnicinternational.com/static",
+                country_code
+            )
+            .parse()
+            .expect("Default URL Incorrect"),
             api_version,
             user_argent: "okhttp/3.12.2".to_string(),
         }
+    }
+
+    pub fn url(&self) -> &Url {
+        &self.url
+    }
+
+    pub fn static_url(&self) -> &Url {
+        &self.static_url
     }
 }
 

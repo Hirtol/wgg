@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fmt::{Display, Formatter, Write};
 
 // ** LOGIN STUFF **
 
@@ -122,13 +123,17 @@ pub enum SearchItem {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SingleArticle {
     pub id: String,
+    #[serde(default)]
     pub decorators: Vec<Decorator>,
     pub name: String,
     pub display_price: i64,
     pub price: Option<i64>,
+    #[serde(default)]
     pub image_id: String,
     pub max_count: i64,
+    #[serde(default)]
     pub unit_quantity: String,
+    #[serde(default)]
     pub unit_quantity_sub: String,
     pub tags: Vec<Value>,
 }
@@ -156,8 +161,8 @@ pub enum Decorator {
         height_percent: i32,
     },
     Banners {
-        height_percent: i32,
-        //banners: Value TODO: Switch to actual struct
+        height_percentage: i32,
+        banners: Vec<Banner>,
     },
     UnitQuantity {
         unit_quantity_text: String,
@@ -184,6 +189,21 @@ pub enum Decorator {
     },
     #[serde(other)]
     Other,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Banner {
+    pub banner_id: String,
+    pub image_id: String,
+    pub display_time: String,
+    pub description: String,
+    pub position: String,
+    pub reference: Option<Reference>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Reference {
+    pub target: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -318,4 +338,82 @@ pub struct ProductDetails {
 pub struct ProductResult {
     pub product_details: ProductDetails,
     pub products: Vec<Product>,
+}
+
+// ** Images **
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImageSize {
+    Tiny,
+    Small,
+    Medium,
+    Large,
+    ExtraLarge,
+}
+
+impl Display for ImageSize {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImageSize::Tiny => f.write_str("tiny"),
+            ImageSize::Small => f.write_str("small"),
+            ImageSize::Medium => f.write_str("medium"),
+            ImageSize::Large => f.write_str("large"),
+            ImageSize::ExtraLarge => f.write_str("extra-large"),
+        }
+    }
+}
+
+// ** My Store **
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MyStore {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    /// Contains all global categories (think Promotions, Recipes)
+    pub catalog: Vec<Catalog>,
+    pub content: Vec<Value>,
+    pub first_time_user: bool,
+    pub landing_page_hint: String,
+    pub id: String,
+    pub links: Vec<Link>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Catalog {
+    pub id: String,
+    pub name: String,
+    pub items: Vec<Category>,
+    pub level: i64,
+    pub is_included_in_category_tree: bool,
+    pub hidden: bool,
+    #[serde(default)]
+    pub decorators: Vec<Decorator>,
+    pub links: Vec<Link>,
+    pub image_id: Option<String>,
+    pub header_image_id: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Category {
+    pub id: String,
+    pub name: String,
+    pub items: Vec<SubCategory>,
+    pub level: i64,
+    pub is_included_in_category_tree: bool,
+    pub hidden: bool,
+    #[serde(default)]
+    pub decorators: Vec<Decorator>,
+    #[serde(default)]
+    pub links: Vec<Link>,
+    pub image_id: Option<String>,
+    pub header_image_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SubCategory {
+    Category(Category),
+    SingleArticle(SingleArticle),
+    #[serde(other)]
+    Other,
 }

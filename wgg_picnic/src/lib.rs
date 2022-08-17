@@ -1,9 +1,11 @@
 use crate::config::Config;
 use crate::error::ApiError;
-use crate::models::{LoginRequest, LoginResponse, ProductResult, SearchResult, Suggestion, UserInfo};
+use crate::models::{
+    ImageSize, LoginRequest, LoginResponse, MyStore, ProductResult, SearchResult, Suggestion, UserInfo,
+};
 use anyhow::anyhow;
 use md5::Digest;
-use reqwest::Response;
+use reqwest::{Response, Url};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
@@ -105,10 +107,35 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
-    async fn get(&self, url: &str, payload: &Query<'_>) -> Result<Response> {
+    /// Retrieve the full image at the specified size.
+    ///
+    /// Note that no credentials are needed to retrieve these images, and can therefore be used at will.
+    pub async fn image(&self, image_id: impl AsRef<str>, size: ImageSize) -> Result<Vec<u8>> {
+        let response = self.client.get(self.image_url(image_id, size)).send().await?;
+        Ok(response.bytes().await?.into())
+    }
+
+    /// Retrieve the image url for the provided image.
+    ///
+    /// Note that no credentials are needed to retrieve these images, and can therefore be used at will.
+    pub fn image_url(&self, image_id: impl AsRef<str>, size: ImageSize) -> Url {
+        let url = format!("{}/images/{}/{}.png", self.config.static_url(), image_id.as_ref(), size);
+        // We know that the URL will be valid
+        url.parse().unwrap()
+    }
+
+    pub async fn categories(&self, depth: u32) -> Result<MyStore> {
+        let response = self
+            .get(&format!("/my_store"), &[("depth", &depth.to_string())])
+            .await?;
+
+        Ok(response.json().await?)
+    }
+
+    async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
         let response = self
             .client
-            .get(self.get_full_url(url))
+            .get(self.get_full_url(url_suffix))
             .header("x-picnic-auth", &self.credentials.auth_token)
             .query(payload)
             .send()
@@ -130,7 +157,7 @@ impl PicnicApi {
     }
 
     fn get_full_url(&self, suffix: &str) -> String {
-        format!("{}{}", self.config.url, suffix)
+        format!("{}{}", self.config.url(), suffix)
     }
 }
 #[derive(Clone)]
@@ -169,7 +196,7 @@ mod tests {
         };
 
         let api = PicnicApi::new(cred, Config::default());
-
-        println!("Response: {:#?}", api.product("11470254").await.unwrap())
+        let response = api.categories(0).await.unwrap();
+        println!("Response: {:#?}", response);
     }
 }

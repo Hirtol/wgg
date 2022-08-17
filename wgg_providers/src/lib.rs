@@ -1,3 +1,5 @@
+pub use wgg_picnic;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
