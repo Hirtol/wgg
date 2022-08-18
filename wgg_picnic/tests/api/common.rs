@@ -2,7 +2,7 @@ use wgg_picnic::config::Config;
 use wgg_picnic::{Credentials, PicnicApi};
 
 /// The environment variable that needs to be set to start live testing.
-pub const LIVE_TESTING_ENV: &str = "API_LIVE_TESTING";
+pub const LIVE_TESTING_ENV: &str = "AUTH_API_LIVE_TESTING";
 
 /// Create an instance for the PicnicApi integration tests.
 ///

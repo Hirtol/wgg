@@ -17,6 +17,7 @@ jobs:
     env:
       PICNIC_AUTH_TOKEN: ${{ secrets.PICNIC_AUTH_TOKEN }}
       PICNIC_USER_ID: ${{ secrets.PICNIC_USER_ID }}
+      API_LIVE_TESTING: ()
     steps:
       - uses: actions/checkout@master
 
