@@ -2615,6 +2615,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "wgg_jumbo"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "const_format",
+ "dotenv",
+ "futures",
+ "itertools",
+ "pretty_assertions",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "static_init",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "wgg_picnic"
 version = "0.1.0"
 dependencies = [
@@ -2636,7 +2660,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "tower",
  "tracing",
  "urlencoding",
 ]

@@ -366,7 +366,7 @@ impl PicnicApi {
     async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
         let response = self
             .client
-            .get(self.get_full_url(url_suffix))
+            .get(self.config.get_full_url(url_suffix))
             .header("x-picnic-auth", &self.credentials.auth_token)
             .query(payload)
             .send()
@@ -378,17 +378,13 @@ impl PicnicApi {
     async fn post<T: Serialize + ?Sized>(&self, url: &str, payload: &T) -> Result<Response> {
         let response = self
             .client
-            .post(self.get_full_url(url))
+            .post(self.config.get_full_url(url))
             .header("x-picnic-auth", &self.credentials.auth_token)
             .json(payload)
             .send()
             .await?;
 
         Ok(response)
-    }
-
-    fn get_full_url(&self, suffix: &str) -> String {
-        self.config.get_full_url(suffix)
     }
 }
 #[derive(Clone)]
