@@ -1,5 +1,5 @@
-use crate::ids::{Id, PromotionId, RuntimeId, TabId};
-use crate::models::{PartialProduct, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery};
+use crate::ids::{Id, ProductId, PromotionId, RuntimeId, TabId};
+use crate::models::{FullProductResponse, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery};
 use crate::Config;
 use crate::Result;
 use reqwest::Response;
@@ -95,6 +95,15 @@ pub trait BaseApi {
         let offset = offset.map(|s| s.to_string());
         let query = crate::utils::build_map([("count", count.as_deref()), ("offset", offset.as_deref())]);
         let response = self.endpoint_get("/products", &query).await?;
+
+        Ok(response.json().await?)
+    }
+
+    /// Retrieve the full details of a product.
+    async fn product(&self, product_id: &ProductId) -> Result<FullProductResponse> {
+        let response = self
+            .endpoint_get(&format!("/products/{}", product_id), &Default::default())
+            .await?;
 
         Ok(response.json().await?)
     }

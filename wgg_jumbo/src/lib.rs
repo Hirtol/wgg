@@ -125,7 +125,7 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
 }
 
 mod tests {
-    use crate::ids::PromotionId;
+    use crate::ids::{ProductId, PromotionId};
     use crate::models::SortedByQuery;
     use crate::{BaseApi, BaseJumboApi};
 
@@ -134,9 +134,10 @@ mod tests {
         let api = BaseJumboApi::new(Default::default());
 
         // let response = api.promotion_tabs().await.unwrap();
-        let promotion_id: PromotionId = "1222049-A-1".parse().unwrap();
-        let response = api.products_promotion(10, 0, Some(&promotion_id)).await.unwrap();
-
+        // let promotion_id: PromotionId = "1222049-A-1".parse().unwrap();
+        // let response = api.products_promotion(10, 0, Some(&promotion_id)).await.unwrap();
+        let product_id: ProductId = "302238STK".parse().unwrap();
+        let response = api.product(&product_id).await.unwrap();
         println!("{:#?}", response)
     }
 }

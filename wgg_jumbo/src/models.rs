@@ -1,5 +1,6 @@
 use crate::ids::{ProductId, PromotionId, RuntimeId, TabId};
 use chrono::{DateTime, Utc};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -190,4 +191,158 @@ pub struct Availability {
     pub availability: String,
     pub reason: Option<String>,
     pub label: Option<String>,
+}
+
+// ** Full Product **
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FullProductResponse {
+    pub product: ProductInfo,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductInfo {
+    pub data: Product,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Product {
+    pub id: ProductId,
+    pub title: String,
+    pub quantity_options: Vec<QuantityOption>,
+    pub prices: Prices,
+    pub available: bool,
+    pub product_type: String,
+    pub quantity: Option<String>,
+    pub image_info: ImageInfo,
+    pub top_level_category: String,
+    pub top_level_category_id: String,
+    pub sample: bool,
+    pub availability: Availability,
+    pub has_related_products: bool,
+    pub nutritional_information: Vec<NutritionalInformation>,
+    pub number_of_servings: Option<String>,
+    pub regulated_title: String,
+    #[serde(default)]
+    pub ingredient_info: Vec<IngredientInfo>,
+    pub allergy_text: Option<String>,
+    pub allergy_info: Option<AllergyInfo>,
+    pub usage_and_safety_info: UsageAndSafetyInfo,
+    pub origin_info: Option<OriginInfo>,
+    pub brand_info: BrandInfo,
+    pub promotion: Option<ProductPromotion>,
+    #[serde(default)]
+    pub sticker_badges: Vec<String>,
+    pub badge_description: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NutritionalInformation {
+    pub product_title: String,
+    pub nutritional_guidelines: ProductNutritionalGuidelines,
+    pub nutritional_data: NutritionalData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductNutritionalGuidelines {
+    #[serde(default)]
+    pub entries: Vec<ProductNutritionalGuideline>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductNutritionalGuideline {
+    pub name: String,
+    pub percentage: Option<String>,
+    pub quantity: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NutritionalData {
+    pub entries: Vec<ProductNutrition>,
+    pub portion_size: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductNutrition {
+    pub name: String,
+    pub value_per100g: String,
+    pub value_per_portion: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IngredientInfo {
+    pub product_title: String,
+    pub ingredients: Vec<Ingredient>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Ingredient {
+    pub name: String,
+    pub contains_allergens: bool,
+    #[serde(default)]
+    pub highlights: Vec<HighlightRange>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HighlightRange {
+    pub length: i64,
+    pub offset: i64,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AllergyInfo {
+    pub allergy_text: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageAndSafetyInfo {
+    pub storage_type: String,
+    pub safety_warning: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OriginInfo {
+    pub fishing_area: Option<String>,
+    pub country_of_origin: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrandInfo {
+    pub manufacturer_address: String,
+    pub web_address: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductPromotion {
+    pub id: String,
+    pub name: String,
+    pub label: String,
+    #[serde(rename = "image")]
+    pub image_url: String,
+    pub validity_period: String,
+    pub summary: String,
+    pub offline: bool,
+    pub tags: Vec<Tag>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tag {
+    pub text: String,
 }
