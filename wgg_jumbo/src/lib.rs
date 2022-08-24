@@ -8,7 +8,9 @@ use std::time::Duration;
 pub mod clients;
 pub mod config;
 pub mod error;
+pub mod ids;
 pub mod models;
+mod utils;
 
 pub type Result<T> = std::result::Result<T, error::ApiError>;
 pub type ProductId = str;
@@ -67,8 +69,28 @@ impl FullJumboApi {
         }
     }
 
-    fn get_full_url(&self, suffix: &str) -> String {
-        self.config.get_full_url(suffix)
+    async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
+        let response = self
+            .client
+            .get(self.config.get_full_url(url_suffix))
+            .header("x-jumbo-token", &self.credentials.auth_token)
+            .query(payload)
+            .send()
+            .await?;
+
+        Ok(response)
+    }
+
+    async fn post<T: Serialize + ?Sized>(&self, url: &str, payload: &T) -> Result<Response> {
+        let response = self
+            .client
+            .post(self.config.get_full_url(url))
+            .header("x-jumbo-token", &self.credentials.auth_token)
+            .json(payload)
+            .send()
+            .await?;
+
+        Ok(response)
     }
 }
 
@@ -103,6 +125,7 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
 }
 
 mod tests {
+    use crate::models::SortedByQuery;
     use crate::{BaseApi, BaseJumboApi};
 
     #[tokio::test]
@@ -110,6 +133,11 @@ mod tests {
         let api = BaseJumboApi::new(Default::default());
 
         let response = api.promotion_tabs().await.unwrap();
+        let tab = &response.tabs[0];
+        let response = api
+            .promotion_group(&tab.id, &tab.runtimes[0].id, None, Some(SortedByQuery::Product))
+            .await
+            .unwrap();
 
         println!("{:#?}", response)
     }
