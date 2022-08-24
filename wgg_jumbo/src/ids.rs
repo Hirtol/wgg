@@ -60,6 +60,12 @@ macro_rules! impl_types {
                     Self::from_id(s)
                 }
             }
+        
+            impl PartialEq<&str> for $id {
+                fn eq(&self, other: &&str) -> bool {
+                    self.0.eq(other)
+                }
+            }
         )+
     };
 }
