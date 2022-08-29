@@ -82,7 +82,7 @@ pub struct PromotionImage {
     pub relative_path: String,
 }
 
-// ** Products **
+// ** Partial Products **
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -108,8 +108,11 @@ pub struct PartialProduct {
     pub available: bool,
     pub product_type: ProductType,
     pub image_info: ImageInfo,
-    pub top_level_category: String,
-    pub top_level_category_id: String,
+    /// Contains the information regarding the category of this product.
+    ///
+    /// Only available when queried from the `/products` endpoint.
+    #[serde(flatten)]
+    pub category: Option<CategoryInfo>,
     pub sample: bool,
     pub availability: Availability,
     pub quantity: Option<String>,
@@ -121,8 +124,16 @@ pub struct PartialProduct {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CategoryInfo {
+    pub top_level_category: String,
+    pub top_level_category_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ProductType {
     Product,
+    PartOfRetailSet,
     RetailSet,
     #[serde(other)]
     Other,
@@ -216,7 +227,7 @@ pub struct Product {
     pub quantity_options: Vec<QuantityOption>,
     pub prices: Prices,
     pub available: bool,
-    pub product_type: String,
+    pub product_type: ProductType,
     pub quantity: Option<String>,
     pub image_info: ImageInfo,
     pub top_level_category: String,
@@ -226,15 +237,17 @@ pub struct Product {
     pub has_related_products: bool,
     pub nutritional_information: Vec<NutritionalInformation>,
     pub number_of_servings: Option<String>,
-    pub regulated_title: String,
+    pub regulated_title: Option<String>,
     #[serde(default)]
     pub ingredient_info: Vec<IngredientInfo>,
     pub allergy_text: Option<String>,
     pub allergy_info: Option<AllergyInfo>,
-    pub usage_and_safety_info: UsageAndSafetyInfo,
+    pub usage_and_safety_info: Option<UsageAndSafetyInfo>,
     pub origin_info: Option<OriginInfo>,
-    pub brand_info: BrandInfo,
+    pub brand_info: Option<BrandInfo>,
     pub promotion: Option<ProductPromotion>,
+    /// Will only show up if `product_type == ProductType::RetailSet`.
+    pub retail_set_products: Option<Vec<PartialProduct>>,
     #[serde(default)]
     pub sticker_badges: Vec<String>,
     pub badge_description: Option<String>,
@@ -346,4 +359,21 @@ pub struct ProductPromotion {
 #[serde(rename_all = "camelCase")]
 pub struct Tag {
     pub text: String,
+}
+
+// ** Search **
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoCompleteResponse {
+    pub autocomplete: Autocomplete,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Autocomplete {
+    /// Contains *all* the various terms Jumbo deems as part of potential auto-complete features.
+    /// Filtering is a client-side task!
+    /// This is an incredibly stupid endpoint...
+    pub data: Vec<String>,
+    pub total: u32,
 }

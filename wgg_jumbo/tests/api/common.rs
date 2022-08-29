@@ -23,18 +23,6 @@ pub fn base_jumbo_api() -> BaseJumboApi {
     BaseJumboApi::new(Default::default())
 }
 
-#[macro_export]
-macro_rules! function {
-    () => {{
-        fn f() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
-        }
-        let name = type_name_of(f);
-        &name[..name.len() - 3]
-    }};
-}
-
 /// Check whether live testing is enabled for this run.
 ///
 /// If it is enabled, the provided function will be called and the result returned.
@@ -80,5 +68,17 @@ macro_rules! conditional_test {
 macro_rules! auth_conditional_test {
     ($fns:ident) => {{
         $crate::conditional_test!($fns, $crate::common::LIVE_AUTH_TESTING_ENV)
+    }};
+}
+
+#[macro_export]
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        &name[..name.len() - 3]
     }};
 }

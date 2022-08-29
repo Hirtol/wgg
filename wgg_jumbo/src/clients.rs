@@ -1,5 +1,7 @@
 use crate::ids::{Id, ProductId, PromotionId, RuntimeId, TabId};
-use crate::models::{FullProductResponse, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery};
+use crate::models::{
+    AutoCompleteResponse, FullProductResponse, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery,
+};
 use crate::Config;
 use crate::Result;
 use reqwest::Response;
@@ -109,6 +111,35 @@ pub trait BaseApi {
         let response = self
             .endpoint_get(&format!("/products/{}", product_id), &Default::default())
             .await?;
+
+        Ok(response.json().await?)
+    }
+
+    /// Get a full list of terms that one could use for auto complete.
+    ///
+    /// Note that there is no sorting/filtering server-side.
+    /// The client will receive a long list of terms, and it is the client's responsibility to filter as the user types.
+    ///
+    /// Yes, this is a stupid endpoint, you'd most likely prefer to use [BaseApi::search] directly.
+    async fn autocomplete(&self) -> Result<AutoCompleteResponse> {
+        let response = self.endpoint_get("/autocomplete", &Default::default()).await?;
+
+        Ok(response.json().await?)
+    }
+
+    /// Search for the provided product.
+    ///
+    /// Note that the search functionality provided by Jumbo is not great (`croiss` will not match `croissant` for example), and items present in [BaseApi::autocomplete]
+    /// will give you the best results.
+    async fn search(&self, query: &str, offset: Option<u32>, limit: Option<u32>) -> Result<ProductList> {
+        let limit = limit.map(|s| s.to_string());
+        let offset = offset.map(|s| s.to_string());
+        let query = crate::utils::build_map([
+            ("q", query.into()),
+            ("limit", limit.as_deref()),
+            ("offset", offset.as_deref()),
+        ]);
+        let response = self.endpoint_get("/search", &query).await?;
 
         Ok(response.json().await?)
     }

@@ -29,3 +29,21 @@ pub async fn test_promotion_group() {
 
     assert!(!result.promotions.is_empty())
 }
+
+#[tokio::test]
+pub async fn test_autocomplete() {
+    let api = conditional_test!(base_jumbo_api);
+
+    let result = api.autocomplete().await.unwrap();
+
+    assert!(result.autocomplete.data.contains(&"eieren".into()))
+}
+
+#[tokio::test]
+pub async fn test_search() {
+    let api = conditional_test!(base_jumbo_api);
+
+    let result = api.search("croissant", None, None).await.unwrap();
+
+    assert!(result.products.total > 0)
+}

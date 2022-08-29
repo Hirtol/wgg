@@ -136,7 +136,8 @@ mod tests {
         // let response = api.promotion_tabs().await.unwrap();
         // let promotion_id: PromotionId = "1222049-A-1".parse().unwrap();
         // let response = api.products_promotion(10, 0, Some(&promotion_id)).await.unwrap();
-        let product_id: ProductId = "302238STK".parse().unwrap();
+        let product_id: ProductId = "441710STK".parse().unwrap();
+        // let response = api.search("komkommer", None, None).await.unwrap();
         let response = api.product(&product_id).await.unwrap();
         println!("{:#?}", response)
     }
