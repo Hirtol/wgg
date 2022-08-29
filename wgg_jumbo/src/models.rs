@@ -1,6 +1,5 @@
 use crate::ids::{ProductId, PromotionId, RuntimeId, TabId};
 use chrono::{DateTime, Utc};
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -376,4 +375,98 @@ pub struct Autocomplete {
     /// This is an incredibly stupid endpoint...
     pub data: Vec<String>,
     pub total: u32,
+}
+
+// ** Auth **
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UserResponse {
+    pub user: User,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct User {
+    pub data: UserData,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserData {
+    pub first_name: String,
+    pub suffix: String,
+    pub last_name: String,
+    pub identifier: String,
+    pub gender: String,
+    pub phone_number: PhoneNumber,
+    pub email: String,
+    pub address: Address,
+    pub allow_profiling: bool,
+    pub communication: Communication,
+    #[serde(rename = "type")]
+    pub user_type: String,
+    pub transactional_optin: bool,
+    pub commercial_optin: bool,
+    pub social_list_optin: bool,
+    pub active: bool,
+    pub store: Store,
+    pub has_placed_order: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PhoneNumber {
+    pub number: String,
+    pub country_code: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Address {
+    pub country: String,
+    pub country_code: String,
+    pub postalcode: String,
+    pub address_line: String,
+    pub house_number: String,
+    pub city: String,
+    pub house_number_addition: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Store {
+    pub id: String,
+    pub complex_number: String,
+    pub name: String,
+    pub r#type: String,
+    pub street_address: String,
+    pub city_name: String,
+    pub zip_code: String,
+    pub longitude: f64,
+    pub latitude: f64,
+    pub new_location: bool,
+    pub is_last_order_store: bool,
+    pub opening_times: Vec<OpeningTimes>,
+    pub phone_number: String,
+    pub facilities: Vec<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpeningTimes {
+    pub date: i64,
+    pub time: String,
+    pub today: Option<bool>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Communication {
+    #[serde(rename = "MobileApp")]
+    pub mobile_app: bool,
+    #[serde(rename = "SMS")]
+    pub sms: bool,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
 }

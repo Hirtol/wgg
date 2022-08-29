@@ -2,12 +2,9 @@ use crate::ids::{Id, ProductId, PromotionId, RuntimeId, TabId};
 use crate::models::{
     AutoCompleteResponse, FullProductResponse, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery,
 };
-use crate::Config;
 use crate::Result;
+use crate::{Config, Query};
 use reqwest::Response;
-use std::collections::HashMap;
-
-type Query<'key, 'value> = HashMap<&'key str, &'value str>;
 
 #[async_trait::async_trait]
 pub trait BaseApi {

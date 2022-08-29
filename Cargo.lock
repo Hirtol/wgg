@@ -2683,6 +2683,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "wgg_jumbo",
  "wgg_picnic",
 ]
 

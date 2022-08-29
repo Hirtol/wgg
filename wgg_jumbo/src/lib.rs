@@ -1,8 +1,12 @@
 use crate::config::Config;
 use reqwest::{Client, Response, Url};
 use serde::Serialize;
+use std::collections::HashMap;
 
 use crate::clients::BaseApi;
+use crate::error::ApiError;
+use crate::models::{LoginRequest, UserResponse};
+use anyhow::anyhow;
 use std::time::Duration;
 
 pub mod clients;
@@ -20,7 +24,7 @@ pub type DeliveryId = str;
 pub type OrderId = str;
 pub type ListId = str;
 
-type Query<'a> = [(&'a str, &'a str)];
+type Query<'key, 'value> = HashMap<&'key str, &'value str>;
 
 pub struct BaseJumboApi {
     config: Config,
@@ -69,7 +73,54 @@ impl FullJumboApi {
         }
     }
 
-    async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
+    /// Create a new [JumboApi] instance by logging in.
+    ///
+    /// It is recommended to save the [Credentials] in a secure place to avoid having to log in with username/password
+    /// every time. One could in the future then call [JumboApi::new].
+    pub async fn from_login(username: impl Into<String>, password: impl Into<String>, config: Config) -> Result<Self> {
+        let client = get_reqwest_client(&config.user_agent)?;
+        let login = LoginRequest {
+            username: username.into(),
+            password: password.into(),
+        };
+
+        let response = client
+            .post(config.get_full_url("/users/login"))
+            .json(&login)
+            .send()
+            .await?;
+
+        if response.status().is_client_error() {
+            return Err(ApiError::LoginFailed(format!(
+                "Status: {} - Body: {}",
+                response.status(),
+                response.text().await?
+            )));
+        }
+
+        let auth_token = response
+            .headers()
+            .get("x-jumbo-token")
+            .ok_or_else(|| {
+                ApiError::LoginFailed(format!("No Jumbo auth token available in response: {:#?}", response))
+            })?
+            .to_str()
+            .map_err(|e| anyhow!(e))?
+            .to_string();
+
+        let credentials = Credentials { auth_token };
+
+        Ok(Self::new(credentials, config))
+    }
+
+    /// Return all user details associated with this account.
+    async fn me(&self) -> Result<UserResponse> {
+        let response = self.get("/users/me", &Default::default()).await?;
+
+        Ok(response.json().await?)
+    }
+
+    async fn get(&self, url_suffix: &str, payload: &Query<'_, '_>) -> Result<Response> {
         let response = self
             .client
             .get(self.config.get_full_url(url_suffix))
@@ -127,12 +178,11 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
 mod tests {
     use crate::ids::{ProductId, PromotionId};
     use crate::models::SortedByQuery;
-    use crate::{BaseApi, BaseJumboApi};
+    use crate::{BaseApi, BaseJumboApi, FullJumboApi};
 
     #[tokio::test]
     pub async fn testo() {
         let api = BaseJumboApi::new(Default::default());
-
         // let response = api.promotion_tabs().await.unwrap();
         // let promotion_id: PromotionId = "1222049-A-1".parse().unwrap();
         // let response = api.products_promotion(10, 0, Some(&promotion_id)).await.unwrap();
