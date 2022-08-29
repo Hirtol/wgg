@@ -1,5 +1,5 @@
 use crate::config::Config;
-use reqwest::{Client, Response, Url};
+use reqwest::{Client, Response};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -114,7 +114,7 @@ impl FullJumboApi {
     }
 
     /// Return all user details associated with this account.
-    async fn me(&self) -> Result<UserResponse> {
+    pub async fn me(&self) -> Result<UserResponse> {
         let response = self.get("/users/me", &Default::default()).await?;
 
         Ok(response.json().await?)
@@ -175,10 +175,11 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
         .build()?)
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::ids::{ProductId, PromotionId};
-    use crate::models::SortedByQuery;
-    use crate::{BaseApi, BaseJumboApi, FullJumboApi};
+    use crate::clients::BaseApi;
+    use crate::ids::ProductId;
+    use crate::BaseJumboApi;
 
     #[tokio::test]
     pub async fn testo() {

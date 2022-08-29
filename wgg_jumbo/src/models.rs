@@ -1,7 +1,6 @@
 use crate::ids::{ProductId, PromotionId, RuntimeId, TabId};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
 
 // ** Promotions **
 
