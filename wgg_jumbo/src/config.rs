@@ -37,7 +37,7 @@ impl Config {
     /// # use wgg_jumbo::config::Config;
     /// let config = Config::default();
     ///
-    /// assert_eq!(config.get_full_url("/categories"), "https://mobileapi.jumbo.com/17/cart")
+    /// assert_eq!(config.get_full_url("/categories"), "https://mobileapi.jumbo.com/v17/categories")
     /// ```
     pub fn get_full_url(&self, suffix: &str) -> String {
         format!("{}{}", self.url(), suffix)

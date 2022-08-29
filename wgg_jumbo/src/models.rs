@@ -41,6 +41,7 @@ pub enum SortedByQuery {
 #[serde(rename_all = "camelCase")]
 pub struct PromotionGroup {
     pub categories: Vec<PromotionCategory>,
+    pub promotions: Vec<Promotion>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

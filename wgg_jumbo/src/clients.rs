@@ -36,6 +36,11 @@ pub trait BaseApi {
     /// Note that the promotions returned by this endpoint are the fully detailed representations, no need for a separate
     /// query to [BaseApi::promotion].
     ///
+    /// # Notice
+    /// There are several [TabId]s commonly available ('alle', 'weekaanbiedingen', etc).
+    /// 'Alle' is a special case it would seem, as [PromotionGroup]'s `category` field will have the promotions, instead
+    /// of the `promotions` field. For all other tabs the `promotions` field is used instead, and the `category` field is empty.
+    ///
     /// # Arguments
     /// * `store_id` - Local store Id for the specific pricing/availability.
     /// * `sorted_by` - How to sort the results, seems ineffective in the back-end at the moment.

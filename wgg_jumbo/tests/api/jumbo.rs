@@ -27,5 +27,5 @@ pub async fn test_promotion_group() {
         .await
         .unwrap();
 
-    assert!(!result.categories.is_empty())
+    assert!(!result.promotions.is_empty())
 }
