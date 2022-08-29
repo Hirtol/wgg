@@ -6,6 +6,7 @@ use crate::Result;
 use crate::{Config, Query};
 use reqwest::Response;
 
+/// Contains all unauthenticated routes for the `Jumbo` API.
 #[async_trait::async_trait]
 pub trait BaseApi {
     fn get_config(&self) -> &Config;

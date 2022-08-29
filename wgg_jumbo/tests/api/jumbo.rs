@@ -1,6 +1,6 @@
 use crate::common::base_jumbo_api;
 use crate::conditional_test;
-use wgg_jumbo::clients::BaseApi;
+use wgg_jumbo::BaseApi;
 
 #[tokio::test]
 pub async fn test_promotion_tabs() {

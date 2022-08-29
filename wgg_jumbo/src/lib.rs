@@ -1,37 +1,41 @@
-use crate::config::Config;
 use reqwest::{Client, Response};
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::clients::BaseApi;
-use crate::error::ApiError;
 use crate::models::{LoginRequest, UserResponse};
 use anyhow::anyhow;
 use std::time::Duration;
 
-pub mod clients;
-pub mod config;
-pub mod error;
+pub use crate::{base_client::BaseApi, config::Config, error::ApiError};
+
+mod base_client;
+mod config;
+mod error;
 pub mod ids;
 pub mod models;
 mod utils;
 
-pub type Result<T> = std::result::Result<T, error::ApiError>;
-pub type ProductId = str;
-pub type ImageId = str;
-pub type DeliverySlotId = str;
-pub type DeliveryId = str;
-pub type OrderId = str;
-pub type ListId = str;
-
+pub type Result<T> = std::result::Result<T, ApiError>;
 type Query<'key, 'value> = HashMap<&'key str, &'value str>;
 
+/// The interface to the `Jumbo` API without authenticated routes.
 pub struct BaseJumboApi {
     config: Config,
     client: reqwest::Client,
 }
 
+/// The root struct for accessing the full `Jumbo` API.
+/// Contains both the authenticated and unauthenticated routes.
+///
+/// See [FullJumboApi::new] or [FullJumboApi::from_login] for creating a new instance.
+pub struct FullJumboApi {
+    config: Config,
+    credentials: Credentials,
+    client: reqwest::Client,
+}
+
 impl BaseJumboApi {
+    /// Create a new unauthenticated interface to the Jumbo API.
     pub fn new(config: Config) -> Self {
         Self {
             client: get_reqwest_client(&config.user_agent).unwrap(),
@@ -48,15 +52,6 @@ impl BaseApi for BaseJumboApi {
     fn get_http(&self) -> &Client {
         &self.client
     }
-}
-
-/// The root struct for accessing the `Picnic` API.
-///
-/// See [PicnicApi::new] or [PicnicApi::from_login] for creating a new instance.
-pub struct FullJumboApi {
-    config: Config,
-    credentials: Credentials,
-    client: reqwest::Client,
 }
 
 impl FullJumboApi {
@@ -120,6 +115,13 @@ impl FullJumboApi {
         Ok(response.json().await?)
     }
 
+    /// Return the current credentials used by the [FullJumboApi].
+    ///
+    /// Can be useful to save separately to avoid having to log in every restart.
+    pub fn credentials(&self) -> &Credentials {
+        &self.credentials
+    }
+
     async fn get(&self, url_suffix: &str, payload: &Query<'_, '_>) -> Result<Response> {
         let response = self
             .client
@@ -132,6 +134,7 @@ impl FullJumboApi {
         Ok(response)
     }
 
+    #[allow(dead_code)]
     async fn post<T: Serialize + ?Sized>(&self, url: &str, payload: &T) -> Result<Response> {
         let response = self
             .client
@@ -173,23 +176,4 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
         .gzip(true)
         .user_agent(user_agent)
         .build()?)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::clients::BaseApi;
-    use crate::ids::ProductId;
-    use crate::BaseJumboApi;
-
-    #[tokio::test]
-    pub async fn testo() {
-        let api = BaseJumboApi::new(Default::default());
-        // let response = api.promotion_tabs().await.unwrap();
-        // let promotion_id: PromotionId = "1222049-A-1".parse().unwrap();
-        // let response = api.products_promotion(10, 0, Some(&promotion_id)).await.unwrap();
-        let product_id: ProductId = "441710STK".parse().unwrap();
-        // let response = api.search("komkommer", None, None).await.unwrap();
-        let response = api.product(&product_id).await.unwrap();
-        println!("{:#?}", response)
-    }
 }

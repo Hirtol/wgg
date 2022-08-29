@@ -1,5 +1,3 @@
-use crate::config::Config;
-use crate::error::ApiError;
 use crate::models::{
     Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct,
     MyStore, Order, OrderStatus, PartialDelivery, ProductResult, SearchResult, SubCategory, Suggestion, UserInfo,
@@ -11,8 +9,10 @@ use serde::Serialize;
 
 use std::time::Duration;
 
-pub mod config;
-pub mod error;
+pub use crate::{config::Config, error::ApiError};
+
+mod config;
+mod error;
 pub mod models;
 
 pub type Result<T> = std::result::Result<T, error::ApiError>;

@@ -1,4 +1,4 @@
-use wgg_picnic::config::Config;
+use wgg_picnic::Config;
 use wgg_picnic::{Credentials, PicnicApi};
 
 /// The environment variable that needs to be set to start live testing.

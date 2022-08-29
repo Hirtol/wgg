@@ -1,4 +1,4 @@
-use wgg_jumbo::config::Config;
+use wgg_jumbo::Config;
 use wgg_jumbo::{BaseJumboApi, Credentials, FullJumboApi};
 
 /// The environment variable that needs to be set to start live testing.
