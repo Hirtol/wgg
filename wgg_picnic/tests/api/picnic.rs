@@ -4,8 +4,7 @@ use wgg_picnic::models::{ImageSize, SearchItem};
 
 #[tokio::test]
 pub async fn test_user_data() {
-    conditional_test!();
-    let api = picnic_api();
+    let api = conditional_test!(picnic_api);
 
     let result = api.user_details().await.unwrap();
 
@@ -14,8 +13,7 @@ pub async fn test_user_data() {
 
 #[tokio::test]
 pub async fn test_search() {
-    conditional_test!();
-    let api = picnic_api();
+    let api = conditional_test!(picnic_api);
 
     let result = api.search("melk").await.unwrap();
     // Picnic halfvolle melk, the Vec always seems to have just one item in it.
@@ -33,8 +31,7 @@ pub async fn test_search() {
 
 #[tokio::test]
 pub async fn test_suggestion() {
-    conditional_test!();
-    let api = picnic_api();
+    let api = conditional_test!(picnic_api);
 
     let result = api.suggestions("melk").await.unwrap();
     // halfvolle melk
@@ -44,8 +41,7 @@ pub async fn test_suggestion() {
 
 #[tokio::test]
 pub async fn test_product() {
-    conditional_test!();
-    let api = picnic_api();
+    let api = conditional_test!(picnic_api);
 
     let result = api.product("11470254").await.unwrap();
     assert_eq!(result.product_details.name, "Picnic halfvolle melk");
@@ -53,8 +49,7 @@ pub async fn test_product() {
 
 #[tokio::test]
 pub async fn test_product_image() {
-    conditional_test!();
-    let api = picnic_api();
+    let api = conditional_test!(picnic_api);
 
     // Halfvolle melk
     let product = api.product("11470254").await.unwrap();

@@ -45,7 +45,7 @@ pub fn base_jumbo_api() -> BaseJumboApi {
 /// ```
 #[macro_export]
 macro_rules! conditional_test {
-    ($fns:ident, $name:expr) => {{
+    ($fns:path, $name:expr) => {{
         let is_live = std::env::var($name).is_ok();
         let fn_name = $crate::function!();
 
@@ -59,14 +59,14 @@ macro_rules! conditional_test {
 
         $fns()
     }};
-    ($fns:ident) => {{
+    ($fns:path) => {{
         $crate::conditional_test!($fns, $crate::common::LIVE_TESTING_ENV)
     }};
 }
 
 #[macro_export]
 macro_rules! auth_conditional_test {
-    ($fns:ident) => {{
+    ($fns:path) => {{
         $crate::conditional_test!($fns, $crate::common::LIVE_AUTH_TESTING_ENV)
     }};
 }

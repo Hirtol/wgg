@@ -30,13 +30,19 @@ macro_rules! function {
 
 /// Check whether live testing is enabled for this run.
 ///
+/// If it is enabled, the provided function will be called and the result returned.
+///
 /// # Example
 ///
 /// ```norun
 ///
+/// pub fn get_api() -> Api {
+///     ...
+/// }
+///
 /// #[tokio::test]
 /// pub async fn test() {
-///     conditional_test!();
+///     conditional_test!(get_api);
 ///
 ///     ...
 /// }
@@ -44,17 +50,21 @@ macro_rules! function {
 /// ```
 #[macro_export]
 macro_rules! conditional_test {
-    () => {
-        let is_live = std::env::var($crate::common::LIVE_TESTING_ENV).is_ok();
+    ($fns:path, $name:expr) => {{
+        let is_live = std::env::var($name).is_ok();
         let fn_name = $crate::function!();
 
         if !is_live {
             println!(
                 "Skipping: {} - Set the environment variable {}=() to enable",
-                fn_name,
-                $crate::common::LIVE_TESTING_ENV
+                fn_name, $name
             );
             return;
         }
-    };
+
+        $fns()
+    }};
+    ($fns:path) => {{
+        $crate::conditional_test!($fns, $crate::common::LIVE_TESTING_ENV)
+    }};
 }
