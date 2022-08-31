@@ -39,6 +39,9 @@ serde_json = "1.0.82"
 
 
 # Database
+diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "serde_json", "chrono", "uuid"] }
+diesel_migrations = { version = "2.0.0", features = ["sqlite"] }
+rusqlite = { version = "0.28.0", features = ["bundled"] }
 
 # Crypto
 argon2 = "0.4.1"
