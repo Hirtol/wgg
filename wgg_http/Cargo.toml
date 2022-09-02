@@ -26,6 +26,7 @@ futures = "0.3"
 async-graphql = { version = "4.0.6", features = ["time", "dataloader"] }
 async-graphql-axum = "4.0.6"
 axum = { version = "0.5.13", features = ["ws", "headers", "tower-log", "multipart"] }
+axum-extra = { version = "0.3.7", features = ["spa"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["full"] }
 
@@ -41,7 +42,7 @@ serde_json = "1.0.82"
 
 # Database
 sqlx = { version = "0.6", features = ["runtime-tokio-rustls", "sqlite"] }
-sea-orm = { version = "0.9.2", features = ["runtime-tokio-rustls", "sqlx-sqlite"] }
+sea-orm = { version = "0.9.2", features = ["runtime-tokio-rustls", "sqlx-sqlite", "with-chrono", "with-json", "with-uuid"] }
 
 
 # Crypto
@@ -52,9 +53,11 @@ rand = "0.8.5"
 figment = { version = "0.10.6", features = ["toml", "env"] }
 platform-dirs = "0.3.0"
 toml = "0.5.9"
+arc-swap = "1.5"
 
 # Providers
 wgg_providers = { path = "../wgg_providers" }
+wgg_db_entity = { path = "../wgg_db_entity" }
 
 [dev-dependencies]
 static_init = "1"

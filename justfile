@@ -8,7 +8,7 @@ clippy:
   cargo clippy
 
 generate-entity:
-  sea-orm-cli generate entity -o .\wgg_db_entity\src\entity
+  sea-orm-cli generate entity --with-copy-enums -o .\wgg_db_entity\src\entity
 
 migrate:
   sqlx migrate run
