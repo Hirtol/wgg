@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS agg_ingredients
     FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS agg_ingredients_link
+CREATE TABLE IF NOT EXISTS agg_ingredients_links
 (
     id               INTEGER NOT NULL,
     provider_id      INTEGER NOT NULL,
