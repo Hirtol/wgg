@@ -43,7 +43,7 @@ async fn index(schema: Extension<WggSchema>, req: GraphQLRequest, user: Option<A
     schema.execute(req.0.data(user)).await.into()
 }
 
-async fn index_playground(_: AuthContext) -> GraphqlResult<impl IntoResponse> {
+async fn index_playground(_: Option<AuthContext>) -> GraphqlResult<impl IntoResponse> {
     Ok(axum::response::Html(playground_source(
         GraphQLPlaygroundConfig::new("/api/graphql").subscription_endpoint("/api/graphql/ws"),
     )))

@@ -1,7 +1,7 @@
-use async_graphql::Context;
 use crate::api::State;
+use async_graphql::Context;
 
-/// Retrive the [`State`] from the context
+/// Retrieve the [`State`] from the context
 #[inline]
 pub(crate) fn get_state_from_ctx<'a>(ctx: &Context<'a>) -> &'a State {
     ctx.data_unchecked()

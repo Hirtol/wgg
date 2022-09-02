@@ -33,7 +33,7 @@ impl Application {
         let tcp = TcpListener::bind(config.app.bind_address())?;
         let db = initialise_database(&config.db).await?;
 
-        setup_schema(&db).await?;
+        setup_db_schema(&db).await?;
 
         let sea_db = SqlxSqliteConnector::from_sqlx_sqlite_pool(db);
 
@@ -105,7 +105,7 @@ fn create_graphql_schema(state: State) -> crate::api::WggSchema {
 fn api_router(static_dir: &Path, schema: crate::api::WggSchema) -> axum::Router {
     let spa = axum_extra::routing::SpaRouter::new("/assets", static_dir);
 
-    axum::Router::new().merge(crate::api::config(schema)).merge(spa)
+    axum::Router::new().nest("/api", crate::api::config(schema)).merge(spa)
 }
 
 async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {
@@ -120,7 +120,6 @@ async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {
         .pragma("wal_autocheckpoint", "1000")
         .busy_timeout(Duration::from_secs(10));
 
-    tracing::info!("Available Parallelism: {}", std::thread::available_parallelism()?);
     let pool = SqlitePoolOptions::new()
         .max_connections(std::thread::available_parallelism()?.get() as u32)
         .connect_with(options)
@@ -129,7 +128,7 @@ async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {
     Ok(pool)
 }
 
-async fn setup_schema(db: &SqlitePool) -> anyhow::Result<()> {
+async fn setup_db_schema(db: &SqlitePool) -> anyhow::Result<()> {
     tracing::info!("Running server database migrations");
 
     sqlx::migrate!("../migrations")
