@@ -22,8 +22,6 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Users,
-    #[sea_orm(has_many = "super::agg_ingredients_link::Entity")]
-    AggIngredientsLink,
     #[sea_orm(has_many = "super::agg_ingredients_links::Entity")]
     AggIngredientsLinks,
 }
@@ -31,12 +29,6 @@ pub enum Relation {
 impl Related<super::users::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Users.def()
-    }
-}
-
-impl Related<super::agg_ingredients_link::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::AggIngredientsLink.def()
     }
 }
 

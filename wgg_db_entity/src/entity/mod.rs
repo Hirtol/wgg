@@ -3,7 +3,6 @@
 pub mod prelude;
 
 pub mod agg_ingredients;
-pub mod agg_ingredients_link;
 pub mod agg_ingredients_links;
 pub mod providers;
 pub mod users;

@@ -12,16 +12,8 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::agg_ingredients_link::Entity")]
-    AggIngredientsLink,
     #[sea_orm(has_many = "super::agg_ingredients_links::Entity")]
     AggIngredientsLinks,
-}
-
-impl Related<super::agg_ingredients_link::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::AggIngredientsLink.def()
-    }
 }
 
 impl Related<super::agg_ingredients_links::Entity> for Entity {
