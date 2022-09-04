@@ -32,29 +32,34 @@ pub trait ProviderInfo {
 }
 
 pub struct WggProvider {
-    pub(crate) picnic: PicnicBridge,
+    pub(crate) picnic: Option<PicnicBridge>,
     pub(crate) jumbo: JumboBridge,
 }
 
 impl WggProvider {
-    /// Create a new provider instance with a username and password combo.
-    ///
-    /// Ideally one would persist the credentials in a safe location to avoid having to log-in to Picnic every restart.
-    pub async fn new(picnic_username: &str, picnic_password: &str) -> Result<Self> {
-        let picnic = PicnicApi::from_login(picnic_username, picnic_password, Default::default()).await?;
-
-        Ok(Self {
-            picnic: PicnicBridge::new(picnic),
+    pub fn new() -> Self {
+        WggProvider {
+            picnic: None,
             jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
-        })
+        }
     }
 
     /// Create a new provider from pre-existing *valid* [wgg_picnic::Credentials].
-    pub fn from_credentials(picnic_credentials: wgg_picnic::Credentials) -> Result<Self> {
-        Ok(Self {
-            picnic: PicnicBridge::new(PicnicApi::new(picnic_credentials, Default::default())),
-            jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
-        })
+    pub fn with_picnic(mut self, picnic_credentials: wgg_picnic::Credentials) -> Self {
+        self.picnic = PicnicBridge::new(PicnicApi::new(picnic_credentials, Default::default())).into();
+
+        self
+    }
+
+    /// Initialise the Picnic API provider.
+    ///
+    /// Ideally one would persist the acquired credentials to disk.
+    pub async fn with_picnic_login(mut self, username: &str, password: &str) -> Result<Self> {
+        let picnic = PicnicApi::from_login(username, password, Default::default()).await?;
+
+        self.picnic = Some(PicnicBridge::new(picnic));
+
+        Ok(self)
     }
 
     /// Provide autocomplete results from the requested [Provider].
@@ -62,7 +67,7 @@ impl WggProvider {
     /// Note that for some providers it is *very* important to use their returned suggestions, or else the [Self::search] will perform poorly
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
     pub async fn autocomplete(&self, provider: Provider, query: impl AsRef<str>) -> Result<Vec<Autocomplete>> {
-        let provider = self.find_provider(provider);
+        let provider = self.find_provider(provider)?;
 
         provider.autocomplete(query.as_ref()).await
     }
@@ -77,7 +82,7 @@ impl WggProvider {
         query: impl AsRef<str>,
         offset: Option<u32>,
     ) -> Result<OffsetPagination<SearchItem>> {
-        let provider = self.find_provider(provider);
+        let provider = self.find_provider(provider)?;
 
         provider.search(query.as_ref(), offset).await
     }
@@ -99,10 +104,14 @@ impl WggProvider {
     }
 
     /// Return a reference to the requested provider.
-    fn find_provider(&self, provider: Provider) -> &dyn ProviderInfo {
+    fn find_provider(&self, provider: Provider) -> Result<&(dyn ProviderInfo + Send + Sync)> {
         match provider {
-            Provider::Picnic => &self.picnic,
-            Provider::Jumbo => &self.jumbo,
+            Provider::Picnic => self
+                .picnic
+                .as_ref()
+                .map(|p| p as &(dyn ProviderInfo + Send + Sync))
+                .ok_or(ProviderError::ProviderUninitialised(Provider::Picnic)),
+            Provider::Jumbo => Ok(&self.jumbo),
         }
     }
 
@@ -118,11 +127,20 @@ struct ProvidersIter<'a> {
 }
 
 impl<'a> Iterator for ProvidersIter<'a> {
-    type Item = &'a dyn ProviderInfo;
+    type Item = &'a (dyn ProviderInfo + Send + Sync);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let result: Option<&dyn ProviderInfo> = match self.i {
-            0 => Some(&self.providers.picnic),
+        let result: Option<&(dyn ProviderInfo + Send + Sync)> = match self.i {
+            0 => {
+                let provider = self.providers.find_provider(Provider::Picnic);
+
+                if provider.is_err() {
+                    self.i += 1;
+                    self.next()
+                } else {
+                    provider.ok()
+                }
+            }
             1 => Some(&self.providers.jumbo),
             _ => None,
         };

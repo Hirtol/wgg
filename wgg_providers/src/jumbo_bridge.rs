@@ -22,6 +22,7 @@ impl ProviderInfo for JumboBridge {
         Provider::Jumbo
     }
 
+    #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]
     async fn autocomplete(&self, query: &str) -> crate::Result<Vec<Autocomplete>> {
         // Cache the response for a day at a time, as the Jumbo autocomplete is just a giant list of terms.
         #[once(time = 86400, result = true)]
@@ -41,6 +42,7 @@ impl ProviderInfo for JumboBridge {
         Ok(response.into_iter().filter(|c| c.name.contains(query)).collect())
     }
 
+    #[tracing::instrument(name = "jumbo_search", level = "debug", skip(self))]
     async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchItem>> {
         let search_results = self.api.search(query, offset, None).await?;
 

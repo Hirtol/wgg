@@ -21,14 +21,17 @@ use tower_cookies::CookieManagerLayer;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::trace::TraceLayer;
+use wgg_providers::WggProvider;
 
 pub struct Application {
-    tcp: TcpListener,
-    config: SharedConfig,
-    db: DatabaseConnection,
+    pub tcp: TcpListener,
+    pub config: SharedConfig,
+    pub db: DatabaseConnection,
+    pub providers: WggProvider,
 }
 
 impl Application {
+    #[tracing::instrument(name = "Create application", skip(config), fields(addr = config.app.host, port = config.app.port))]
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         let tcp = TcpListener::bind(config.app.bind_address())?;
         let db = initialise_database(&config.db).await?;
@@ -36,11 +39,14 @@ impl Application {
         setup_db_schema(&db).await?;
 
         let sea_db = SqlxSqliteConnector::from_sqlx_sqlite_pool(db);
+        tracing::debug!("Creating Providers...");
+        let providers = WggProvider::new();
 
         let result = Application {
             tcp,
             config: Arc::new(ArcSwap::from_pointee(config)),
             db: sea_db,
+            providers,
         };
 
         Ok(result)
@@ -54,7 +60,8 @@ impl Application {
     /// * `quitter` - A way to inform the spawned runtime to shut down. Especially useful for tests
     /// where we won't provide a signal for shutdown.
     pub async fn run(self, quitter: Arc<tokio::sync::Notify>) -> anyhow::Result<()> {
-        let app = construct_server(self.db, self.config).await?;
+        let app = construct_server(self.db, self.config, self.providers).await?;
+        tracing::info!("Listening on {:?}", self.tcp);
         let server = axum::Server::from_tcp(self.tcp)?.serve(app.into_make_service());
 
         let result = tokio::select! {
@@ -70,11 +77,19 @@ impl Application {
     }
 }
 
-async fn construct_server(db: DatabaseConnection, config: SharedConfig) -> anyhow::Result<axum::Router> {
+async fn construct_server(
+    db: DatabaseConnection,
+    config: SharedConfig,
+    providers: WggProvider,
+) -> anyhow::Result<axum::Router> {
     let cfg: DynGuard<Config> = config.load();
     let secret_key = tower_cookies::Key::from(cfg.app.cookie_secret_key.as_bytes());
 
-    let state = State { db, config };
+    let state = State {
+        db,
+        config,
+        providers: Arc::new(providers),
+    };
     let schema = create_graphql_schema(state.clone());
 
     let app = api_router(&cfg.app.static_dir, schema.clone()).layer(

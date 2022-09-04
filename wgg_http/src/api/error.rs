@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use std::fmt::Debug;
 
 use async_graphql::ErrorExtensions;
@@ -6,6 +7,7 @@ use axum::response::{IntoResponse, Response};
 use thiserror::Error;
 use tokio::task::JoinError;
 use tracing::log;
+use wgg_providers::ProviderError;
 
 #[derive(Error, Debug)]
 pub enum GraphqlError {
@@ -152,5 +154,21 @@ impl From<&str> for GraphqlError {
 impl From<JoinError> for GraphqlError {
     fn from(e: JoinError) -> Self {
         Self::InternalError(e.to_string())
+    }
+}
+
+impl From<wgg_providers::ProviderError> for GraphqlError {
+    fn from(e: ProviderError) -> Self {
+        match e {
+            ProviderError::InitialisationFailed(e) => GraphqlError::InternalError(e),
+            ProviderError::NothingFound => GraphqlError::ResourceNotFound,
+            ProviderError::ProviderUninitialised(provider) => {
+                GraphqlError::InternalError(format!("Provider uninitialised: {:?}", provider))
+            }
+            ProviderError::PicnicError(_) => GraphqlError::Other(anyhow!(e)),
+            ProviderError::JumboError(_) => GraphqlError::Other(anyhow!(e)),
+            ProviderError::Other(e) => GraphqlError::Other(e),
+            ProviderError::Reqwest(e) => GraphqlError::Other(anyhow!(e)),
+        }
     }
 }

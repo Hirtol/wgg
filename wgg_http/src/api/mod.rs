@@ -9,6 +9,8 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Extension, Router};
 use sea_orm::DatabaseConnection;
+use std::sync::Arc;
+use wgg_providers::WggProvider;
 
 mod auth;
 mod ctx;
@@ -24,6 +26,7 @@ pub type GraphqlResult<T, E = GraphqlError> = std::result::Result<T, E>;
 pub struct State {
     pub(crate) db: DatabaseConnection,
     pub(crate) config: SharedConfig,
+    pub(crate) providers: Arc<WggProvider>,
 }
 
 #[derive(MergedObject, Default)]

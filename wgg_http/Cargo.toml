@@ -52,6 +52,7 @@ rand = "0.8.5"
 
 # Config
 figment = { version = "0.10.6", features = ["toml", "env"] }
+dotenv = "0.15.0"
 platform-dirs = "0.3.0"
 toml = "0.5.9"
 arc-swap = "1.5"

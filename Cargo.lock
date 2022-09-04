@@ -3336,6 +3336,7 @@ dependencies = [
  "chrono",
  "const_format",
  "cookie",
+ "dotenv",
  "figment",
  "futures",
  "httpdate",
@@ -3436,6 +3437,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "tracing-subscriber",
  "wgg_jumbo",
  "wgg_picnic",
 ]

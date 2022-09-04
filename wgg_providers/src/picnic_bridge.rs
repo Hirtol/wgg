@@ -24,6 +24,7 @@ impl ProviderInfo for PicnicBridge {
         Provider::Picnic
     }
 
+    #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
     async fn autocomplete(&self, query: &str) -> Result<Vec<Autocomplete>> {
         let result = self.api.suggestions(query).await?;
 
@@ -33,7 +34,8 @@ impl ProviderInfo for PicnicBridge {
             .collect())
     }
 
-    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchItem>> {
+    #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self, _offset))]
+    async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<SearchItem>> {
         let result = self.api.search(query).await?;
 
         let result: Vec<SearchItem> = result

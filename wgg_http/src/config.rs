@@ -4,6 +4,7 @@ use figment::providers::{Env, Format, Serialized, Toml};
 use figment::Figment;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
@@ -52,7 +53,7 @@ pub fn save_config(app_settings: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Clone, Hash, PartialOrd, PartialEq, Eq, Default)]
 #[serde(default)]
 pub struct Config {
     /// Contains all settings related to app hosting/config values.
@@ -62,6 +63,15 @@ pub struct Config {
     /// Contains all settings relevant for authentication with external services.
     #[serde(skip)]
     pub auth: AuthConfig,
+}
+
+impl Debug for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("app", &self.app)
+            .field("db", &self.db)
+            .finish()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -83,7 +93,7 @@ pub struct DbConfig {
     pub in_memory: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
+#[derive(Deserialize, Clone, Hash, PartialOrd, PartialEq, Eq, Default)]
 pub struct AuthConfig {
     pub picnic_auth_token: Option<String>,
     pub picnic_username: Option<String>,
@@ -155,5 +165,5 @@ pub fn get_config_directory() -> PathBuf {
 
 fn get_environment_provider() -> Figment {
     // This rather hacky workaround is needed to make variables using `_` work. (otherwise we'd just split on `_`)
-    Figment::from(Env::prefixed("RP__").split("__"))
+    Figment::from(Env::prefixed("WGG__").split("__"))
 }
