@@ -37,6 +37,9 @@ pub struct WggProvider {
 }
 
 impl WggProvider {
+    /// Create a new collection of providers.
+    ///
+    /// By default only the `JumboApi` is enabled, see [Self::with_picnic] or [Self::with_picnic_login] to enable `Picnic`.
     pub fn new() -> Self {
         WggProvider {
             picnic: None,
@@ -118,6 +121,12 @@ impl WggProvider {
     /// Iterate over all providers allowing an action to be performed on all of them
     fn iter(&self) -> ProvidersIter<'_> {
         ProvidersIter { providers: self, i: 0 }
+    }
+}
+
+impl Default for WggProvider {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

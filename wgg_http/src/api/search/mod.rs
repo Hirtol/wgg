@@ -19,4 +19,16 @@ impl SearchQuery {
 
         Ok(response)
     }
+
+    #[tracing::instrument(skip(self, ctx))]
+    async fn search(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The product query")] query: String,
+    ) -> GraphqlResult<Vec<SearchItem>> {
+        let state = ctx.wgg_state();
+        let response = state.providers.search_all(query).await?;
+
+        Ok(response.items)
+    }
 }
