@@ -67,8 +67,8 @@ pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: Cen
 
 #[cfg(test)]
 mod tests {
-    use crate::common_bridge::parse_quantity;
-    use crate::models::{Unit, UnitQuantity};
+    use crate::common_bridge::{derive_unit_price, parse_quantity};
+    use crate::models::{Unit, UnitPrice, UnitQuantity};
 
     #[test]
     pub fn test_parse_quantity() {
@@ -92,5 +92,32 @@ mod tests {
             quantities.into_iter().flat_map(parse_quantity).collect::<Vec<_>>(),
             expected
         )
+    }
+
+    #[test]
+    pub fn test_derive_unit_price() {
+        let unit_prices = vec![("250 gram", 242), ("10 stuks M/L", 379), ("1.5 liter", 150)];
+        let expected = vec![
+            UnitPrice {
+                unit: Unit::KiloGram,
+                price: 968,
+            },
+            UnitPrice {
+                unit: Unit::Piece,
+                price: 38,
+            },
+            UnitPrice {
+                unit: Unit::Liter,
+                price: 100,
+            },
+        ];
+
+        assert_eq!(
+            unit_prices
+                .into_iter()
+                .flat_map(|(quantity, price)| derive_unit_price(&parse_quantity(quantity).unwrap_or_default(), price))
+                .collect::<Vec<_>>(),
+            expected
+        );
     }
 }
