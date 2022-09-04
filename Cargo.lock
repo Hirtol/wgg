@@ -173,6 +173,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "bytes",
+ "chrono",
  "fast_chemail",
  "fnv",
  "futures-channel",
@@ -2666,7 +2667,6 @@ dependencies = [
  "js-sys",
  "libc",
  "num_threads",
- "serde",
  "time-macros",
 ]
 
@@ -3309,7 +3309,11 @@ name = "wgg_providers"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-graphql",
+ "async-trait",
+ "chrono",
  "const_format",
+ "dotenv",
  "futures",
  "itertools",
  "pretty_assertions",
@@ -3319,7 +3323,6 @@ dependencies = [
  "static_init",
  "tempfile",
  "thiserror",
- "time 0.3.12",
  "tokio",
  "tower",
  "tracing",

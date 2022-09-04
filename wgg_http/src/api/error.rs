@@ -36,46 +36,6 @@ impl ErrorExtensions for GraphqlError {
     }
 }
 
-impl From<sqlx::Error> for GraphqlError {
-    fn from(e: sqlx::Error) -> Self {
-        use sqlx::Error;
-        match e {
-            Error::RowNotFound => GraphqlError::ResourceNotFound,
-            _ => GraphqlError::InternalError(e.to_string()),
-        }
-    }
-}
-
-impl From<std::io::Error> for GraphqlError {
-    fn from(e: std::io::Error) -> Self {
-        GraphqlError::InternalError(e.to_string())
-    }
-}
-
-impl From<async_graphql::Error> for GraphqlError {
-    fn from(e: async_graphql::Error) -> Self {
-        Self::InternalError(e.message)
-    }
-}
-
-impl From<String> for GraphqlError {
-    fn from(e: String) -> Self {
-        Self::UserError(e)
-    }
-}
-
-impl From<&str> for GraphqlError {
-    fn from(e: &str) -> Self {
-        Self::UserError(e.to_string())
-    }
-}
-
-impl From<JoinError> for GraphqlError {
-    fn from(e: JoinError) -> Self {
-        Self::InternalError(e.to_string())
-    }
-}
-
 impl GraphqlError {
     fn status_code(&self) -> axum::http::StatusCode {
         match self {
@@ -139,5 +99,58 @@ impl<T> ApiResponseError<T> {
             message,
             details: None,
         }
+    }
+}
+
+impl Clone for GraphqlError {
+    fn clone(&self) -> Self {
+        match self {
+            GraphqlError::ResourceNotFound => GraphqlError::ResourceNotFound,
+            GraphqlError::InternalError(e) => GraphqlError::InternalError(e.clone()),
+            GraphqlError::UserError(e) => GraphqlError::UserError(e.clone()),
+            GraphqlError::Unauthorized => GraphqlError::Unauthorized,
+            GraphqlError::InvalidInput(e) => GraphqlError::InvalidInput(e.clone()),
+            GraphqlError::Other(e) => GraphqlError::Other(anyhow::Error::msg(e.to_string())),
+        }
+    }
+}
+
+impl From<sqlx::Error> for GraphqlError {
+    fn from(e: sqlx::Error) -> Self {
+        use sqlx::Error;
+        match e {
+            Error::RowNotFound => GraphqlError::ResourceNotFound,
+            _ => GraphqlError::InternalError(e.to_string()),
+        }
+    }
+}
+
+impl From<std::io::Error> for GraphqlError {
+    fn from(e: std::io::Error) -> Self {
+        GraphqlError::InternalError(e.to_string())
+    }
+}
+
+impl From<async_graphql::Error> for GraphqlError {
+    fn from(e: async_graphql::Error) -> Self {
+        Self::InternalError(e.message)
+    }
+}
+
+impl From<String> for GraphqlError {
+    fn from(e: String) -> Self {
+        Self::UserError(e)
+    }
+}
+
+impl From<&str> for GraphqlError {
+    fn from(e: &str) -> Self {
+        Self::UserError(e.to_string())
+    }
+}
+
+impl From<JoinError> for GraphqlError {
+    fn from(e: JoinError) -> Self {
+        Self::InternalError(e.to_string())
     }
 }

@@ -59,6 +59,9 @@ pub struct Config {
     pub app: AppConfig,
     /// Contains all settings relevant for DB initialisation.
     pub db: DbConfig,
+    /// Contains all settings relevant for authentication with external services.
+    #[serde(skip)]
+    pub auth: AuthConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -78,6 +81,13 @@ pub struct DbConfig {
     /// Full path to the DB file.
     pub db_path: PathBuf,
     pub in_memory: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
+pub struct AuthConfig {
+    pub picnic_auth_token: Option<String>,
+    pub picnic_username: Option<String>,
+    pub picnic_password: Option<String>,
 }
 
 impl Default for AppConfig {

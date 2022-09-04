@@ -1,5 +1,6 @@
 use crate::api::auth::AuthContext;
 use crate::api::error::GraphqlError;
+use crate::api::search::SearchQuery;
 use crate::config::SharedConfig;
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
 use async_graphql::{EmptyMutation, EmptySubscription, MergedObject, Schema};
@@ -13,6 +14,7 @@ mod auth;
 mod ctx;
 pub(crate) mod dataloader;
 mod error;
+mod search;
 
 pub type WggSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 pub type GraphqlResult<T, E = GraphqlError> = std::result::Result<T, E>;
@@ -25,10 +27,20 @@ pub struct State {
 }
 
 #[derive(MergedObject, Default)]
-pub struct QueryRoot;
+pub struct QueryRoot(SearchQuery);
 
 #[derive(MergedObject, Default)]
-pub struct MutationRoot(EmptyMutation);
+pub struct MutationRoot(BookMutation);
+
+#[derive(Default)]
+pub struct BookMutation;
+
+#[async_graphql::Object]
+impl BookMutation {
+    async fn testo(&self, ctx: &async_graphql::Context<'_>) -> GraphqlResult<String> {
+        Ok("to".to_string())
+    }
+}
 
 pub fn config(schema: WggSchema) -> Router {
     Router::new().nest(

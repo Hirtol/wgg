@@ -36,6 +36,7 @@ pub async fn test_suggestion() {
     let result = api.suggestions("melk").await.unwrap();
     // halfvolle melk
     let milk_exists = result.iter().find(|x| x.suggestion == "halfvolle melk");
+
     assert!(milk_exists.is_some())
 }
 

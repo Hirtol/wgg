@@ -128,15 +128,14 @@ pub struct SingleArticle {
     #[serde(default)]
     pub decorators: Vec<Decorator>,
     pub name: String,
-    pub display_price: i64,
-    pub price: Option<i64>,
+    pub display_price: u32,
+    pub price: Option<u32>,
     #[serde(default)]
     pub image_id: String,
-    pub max_count: i64,
+    pub max_count: u32,
     #[serde(default)]
     pub unit_quantity: String,
-    #[serde(default)]
-    pub unit_quantity_sub: String,
+    pub unit_quantity_sub: Option<String>,
     pub tags: Vec<Value>,
 }
 
@@ -156,7 +155,7 @@ pub enum Decorator {
         text: String,
     },
     Price {
-        display_price: i32,
+        display_price: u32,
     },
     BackgroundImage {
         image_ids: Vec<String>,
@@ -170,7 +169,7 @@ pub enum Decorator {
         unit_quantity_text: String,
     },
     ValidityLabel {
-        valid_until: String,
+        valid_until: chrono::NaiveDate,
     },
     TitleStyle {
         styles: Vec<Style>,
@@ -178,11 +177,12 @@ pub enum Decorator {
     MoreButton {
         link: Link,
         images: Vec<String>,
-        sellable_item_count: i32,
+        sellable_item_count: u32,
     },
     Unavailable {
-        reason: String,
-        replacements: Vec<Replacement>,
+        reason: UnavailableReason,
+        #[serde(default)]
+        replacements: Vec<SingleArticle>,
         explanation: Explanation,
     },
     ArticleDeliveryIssues {
@@ -224,24 +224,22 @@ pub struct Position {
     pub length: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UnavailableReason {
+    Available,
+    OutOfAssortment,
+    OutOfSeason,
+    TemporarilyUnavailable,
+    Unknown,
+    #[serde(other)]
+    Other,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Explanation {
     pub short_explanation: String,
     pub long_explanation: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Replacement {
-    id: String,
-    decorators: Vec<Decorator>,
-    name: String,
-    display_price: i32,
-    price: i32,
-    image_id: String,
-    max_count: i32,
-    unit_quantity: String,
-    tags: Value,
-    replacement_type: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
