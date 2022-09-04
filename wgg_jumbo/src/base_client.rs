@@ -19,7 +19,6 @@ pub trait BaseApi {
         let url = self.get_config().get_full_url(url_suffix);
 
         let response = self.get_http().get(url).query(payload).send().await?;
-        println!("URL: {}", response.url());
 
         Ok(response)
     }

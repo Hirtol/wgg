@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 /// The price listed as cents.
 pub type CentPrice = u32;
 
-#[derive(Serialize, Deserialize, async_graphql::Enum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, async_graphql::Enum, Hash, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Provider {
     Picnic,
     Jumbo,
@@ -15,7 +15,7 @@ pub struct Autocomplete {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct SearchItem {
     pub id: String,
     pub name: String,
@@ -24,14 +24,14 @@ pub struct SearchItem {
     /// The present display price (taking into account active sales).
     pub display_price: CentPrice,
     /// The amount of weight/liters/pieces this product represents.
-    pub unit_quantity: String,
+    pub unit_quantity: UnitQuantity,
     pub unit_price: Option<UnitPrice>,
     /// A small check to see if the current item is unavailable.
     ///
     /// `decorators` might contains more information as to the nature of the disruption.
-    pub unavailable: bool,
+    pub available: bool,
     /// Direct URL to product image.
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub decorators: Vec<Decorator>,
     /// The grocery store this item is provided from.
     pub provider: Provider,
@@ -43,14 +43,31 @@ pub struct UnitPrice {
     pub price: CentPrice,
 }
 
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+pub struct UnitQuantity {
+    pub unit: Unit,
+    pub amount: f64,
+}
+
+impl Default for UnitQuantity {
+    fn default() -> Self {
+        UnitQuantity {
+            unit: Unit::Piece,
+            amount: 1.0,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, async_graphql::Enum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Unit {
     Piece,
     Liter,
-    Kg,
+    MilliLiter,
+    KiloGram,
+    Gram,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Decorator {
@@ -76,11 +93,12 @@ pub struct SaleLabel {
 /// Until what date (inclusive) the attached sale is valid.
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SaleValidity {
+    pub valid_from: DateTime<Utc>,
     pub valid_until: DateTime<Utc>,
 }
 
 /// If the item is unavailable
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct UnavailableItem {
     pub reason: UnavailableReason,
     pub explanation_short: Option<String>,

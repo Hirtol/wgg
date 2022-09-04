@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum ProviderError {
     #[error("Could not initialise providers: {0}")]
     InitialisationFailed(String),
+    #[error("No responses had any content")]
+    NothingFound,
     #[error(transparent)]
     PicnicError(#[from] wgg_picnic::ApiError),
     #[error(transparent)]

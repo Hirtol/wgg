@@ -66,6 +66,12 @@ macro_rules! impl_types {
                     self.0.eq(other)
                 }
             }
+
+            impl From<$id> for String {
+                fn from(i: $id) -> Self {
+                    i.0
+                }
+            }
         )+
     };
 }
