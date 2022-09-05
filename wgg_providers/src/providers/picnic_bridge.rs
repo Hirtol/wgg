@@ -1,9 +1,12 @@
-use crate::models::{CentPrice, FreshLabel, PrepTime, SaleLabel, SaleValidity, UnavailableItem, UnitPrice};
+use crate::models::{
+    AllergyTags, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo, NutritionalItem, PrepTime,
+    Product, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem, UnitPrice,
+};
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
 use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
-use wgg_picnic::models::{Decorator, UnavailableReason};
+use wgg_picnic::models::{Decorator, ImageSize, UnavailableReason};
 use wgg_picnic::PicnicApi;
 
 use crate::Result;
@@ -25,9 +28,16 @@ impl ProviderInfo for PicnicBridge {
         Provider::Picnic
     }
 
+    fn logo_url(&self) -> String {
+        todo!()
+    }
+
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
     async fn autocomplete(&self, query: &str) -> Result<Vec<Autocomplete>> {
         let result = self.api.suggestions(query).await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Picnic Autocomplete: {:#?}", result);
 
         Ok(result
             .into_iter()
@@ -38,6 +48,9 @@ impl ProviderInfo for PicnicBridge {
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self, _offset))]
     async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
         let result = self.api.search(query).await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Picnic Search: {:#?}", result);
 
         let result: Vec<SearchProduct> = result
             .into_iter()
@@ -60,6 +73,240 @@ impl ProviderInfo for PicnicBridge {
 
         Ok(offset)
     }
+
+    async fn product(&self, product_id: &str) -> Result<Product> {
+        let result = self.api.product(product_id).await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Picnic Product: {:#?}", result);
+
+        parse_picnic_full_product_to_product(&self.api, result.product_details)
+    }
+}
+
+/// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
+fn parse_picnic_full_product_to_product(
+    picnic_api: &PicnicApi,
+    product: wgg_picnic::models::ProductDetails,
+) -> Result<Product> {
+    // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
+    let mut result = Product {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        full_price: product.original_price.unwrap_or(product.display_price),
+        display_price: product.display_price,
+        // Will be parsed
+        unit_quantity: Default::default(),
+        // Will be parsed
+        unit_price: None,
+        // Will be parsed
+        available: true,
+        image_urls: product
+            .image_ids
+            .into_iter()
+            .map(|url| picnic_api.image_url(url, ImageSize::Large))
+            .collect(),
+        // Will be parsed
+        ingredients: Vec::new(),
+        // Will be parsed
+        nutritional: None,
+        // Will be parsed
+        allergy_info: Vec::new(),
+        // Will be parsed
+        decorators: Vec::new(),
+        // Will be parsed
+        additional_items: Vec::new(),
+        provider: Provider::Picnic,
+    };
+
+    // Parse unit quantity
+    if let Some(quantity) = parse_quantity(&product.unit_quantity) {
+        result.unit_quantity = quantity;
+    } else {
+        // Since we couldn't parse a 'normal' quantity it might be of an unconventional form such as:
+        // `4-6 pers | 30 mins`, we can extract the prep time!
+        if let Some(minutes) = parse_prep_time(&product.unit_quantity) {
+            result
+                .decorators
+                .push(crate::models::Decorator::PrepTime(PrepTime { time_minutes: minutes }));
+        }
+    }
+
+    // Parse unit price quantity
+    if let Some(unit_price_str) = &product.unit_quantity_sub {
+        result.unit_price = parse_unit_price(unit_price_str)
+            .or_else(|| common_bridge::derive_unit_price(&result.unit_quantity, result.display_price));
+    } else {
+        result.unit_price = common_bridge::derive_unit_price(&result.unit_quantity, result.display_price)
+    }
+
+    // Parse Ingredients
+    if let Some(blob) = product.ingredients_blob {
+        result.ingredients = parse_picnic_ingredient_blob(&blob);
+    }
+
+    // Parse nutritional, only parse if there is something of note.
+    if product.nutritional_info_unit.is_some() || !product.nutritional_values.is_empty() {
+        result.nutritional = NutritionalInfo {
+            info_unit: product.nutritional_info_unit,
+            items: product
+                .nutritional_values
+                .into_iter()
+                .map(|item| NutritionalItem {
+                    name: item.name,
+                    value: item.value,
+                    sub_values: item
+                        .sub_values
+                        .into_iter()
+                        .map(|item| SubNutritionalItem {
+                            name: item.name,
+                            value: item.value,
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+        .into();
+    }
+
+    // Parse allergy info
+    result.allergy_info = product
+        .tags
+        .into_iter()
+        .map(|item| AllergyTags { name: item.name })
+        .collect();
+
+    // Parse fresh label
+    if let Some(fresh) = product.fresh_label {
+        let multiplier = match &*fresh.unit {
+            "DAYS" | "days" | "day" => 1,
+            "WEEKS" | "weeks" | "week" => 7,
+            "MONTHS" | "months" | "month" => 30,
+            "YEARS" | "years" | "year" => 365,
+            _ => 1,
+        };
+
+        let fresh_label = FreshLabel {
+            days_fresh: fresh.number * multiplier,
+        };
+
+        result
+            .decorators
+            .push(crate::models::Decorator::FreshLabel(fresh_label))
+    }
+
+    // Parse remaining decorators
+    for dec in product.decorators {
+        match dec {
+            // If we already parsed it above, we don't want to do it again!
+            Decorator::FreshLabel { period }
+                if !result
+                    .decorators
+                    .iter()
+                    .any(|i| matches!(i, crate::models::Decorator::FreshLabel(_))) =>
+            {
+                if let Some(days_fresh) = parse_days_fresh(&period) {
+                    let fresh_label = FreshLabel { days_fresh };
+
+                    result
+                        .decorators
+                        .push(crate::models::Decorator::FreshLabel(fresh_label))
+                }
+            }
+            Decorator::Label { text } => {
+                let sale_label = SaleLabel { text };
+
+                result.decorators.push(crate::models::Decorator::SaleLabel(sale_label))
+            }
+            Decorator::Price { display_price } => {
+                // Decorator price is the price *including* current sales if available.
+                result.display_price = display_price
+            }
+            Decorator::ValidityLabel { valid_until } => {
+                if let LocalResult::Single(valid_until) =
+                    chrono::Utc.from_local_datetime(&valid_until.and_hms(23, 59, 59))
+                {
+                    let valid_from =
+                        NaiveDate::from_isoywd(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
+                            .and_hms(0, 0, 0);
+                    let valid_from = if let Some(time) = chrono::Utc.from_local_datetime(&valid_from).single() {
+                        time
+                    } else {
+                        continue;
+                    };
+                    let sale_validity = SaleValidity {
+                        valid_from,
+                        valid_until,
+                    };
+
+                    result
+                        .decorators
+                        .push(crate::models::Decorator::SaleValidity(sale_validity))
+                }
+            }
+            Decorator::Unavailable {
+                reason,
+                replacements,
+                explanation,
+            } => {
+                let unavailable = UnavailableItem {
+                    reason: match reason {
+                        UnavailableReason::OutOfAssortment => crate::models::UnavailableReason::OutOfAssortment,
+                        UnavailableReason::OutOfSeason => crate::models::UnavailableReason::OutOfSeason,
+                        UnavailableReason::TemporarilyUnavailable => {
+                            crate::models::UnavailableReason::TemporarilyUnavailable
+                        }
+                        _ => crate::models::UnavailableReason::Unknown,
+                    },
+                    explanation_short: explanation.short_explanation.into(),
+                    explanation_long: explanation.long_explanation.into(),
+                    replacements: replacements
+                        .into_iter()
+                        .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
+                        .collect(),
+                };
+
+                result.available = false;
+                result
+                    .decorators
+                    .push(crate::models::Decorator::Unavailable(unavailable))
+            }
+            _ => {}
+        }
+    }
+
+    // Parse items
+    result.additional_items = product
+        .items
+        .into_iter()
+        .flat_map(|mut item| {
+            // We already parse ingredients earlier.
+            if item.id == "ingredients" {
+                return None;
+            }
+            // Picnic only ever seems to return one item in the sub-items list, so we'll just assume that's ok!
+            let item_of_interest = item.items.pop()?;
+
+            let item_type = match &*item_of_interest.id {
+                "preparation_advice" => Some(ItemType::PreparationAdvice),
+                "countries_of_origin" => Some(ItemType::CountryOfOrigin),
+                _ => Some(ItemType::AdditionalInfo),
+            };
+
+            item_of_interest.text.map(|text| ItemInfo { item_type, text })
+        })
+        .collect();
+
+    // Filter out duplicate country_of_origin
+    if !product.additional_info.is_empty() && !product.additional_info.contains("herkomst") {
+        result.additional_items.push(ItemInfo {
+            item_type: Some(ItemType::AdditionalInfo),
+            text: product.additional_info,
+        })
+    }
+
+    Ok(result)
 }
 
 /// Parse a full picnic [wgg_picnic::models::SingleArticle] to our normalised [SearchItem]
@@ -76,11 +323,7 @@ fn parse_picnic_item_to_search_item(
         unit_quantity: Default::default(),
         unit_price: None,
         available: true,
-        image_url: Some(
-            picnic_api
-                .image_url(article.image_id, wgg_picnic::models::ImageSize::Large)
-                .to_string(),
-        ),
+        image_url: Some(picnic_api.image_url(article.image_id, wgg_picnic::models::ImageSize::Large)),
         decorators: Vec::new(),
         provider: Provider::Picnic,
     };
@@ -179,6 +422,20 @@ fn parse_picnic_item_to_search_item(
     } else {
         result.unit_price = common_bridge::derive_unit_price(&result.unit_quantity, result.display_price)
     }
+
+    result
+}
+
+/// Try to parse ingredient blob in the form: `71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc`
+fn parse_picnic_ingredient_blob(blob: &str) -> Vec<IngredientInfo> {
+    // Picnic's ingredient blob is uncharacteristically unstructured, so we have to break it apart ourselves.
+    // It has the form "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc"
+    let result = blob
+        .split(',')
+        .map(|ingr| IngredientInfo {
+            name: ingr.trim().trim_end_matches('.').to_string(),
+        })
+        .collect();
 
     result
 }

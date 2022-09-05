@@ -58,7 +58,7 @@ toml = "0.5.9"
 arc-swap = "1.5"
 
 # Providers
-wgg_providers = { path = "../wgg_providers" }
+wgg_providers = { path = "../wgg_providers", features = ["trace-original-api"] }
 wgg_db_entity = { path = "../wgg_db_entity" }
 
 [dev-dependencies]

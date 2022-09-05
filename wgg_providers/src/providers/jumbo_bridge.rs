@@ -1,4 +1,4 @@
-use crate::models::{Decorator, SaleLabel, SaleValidity, UnavailableItem, UnavailableReason, UnitPrice};
+use crate::models::{Decorator, Product, SaleLabel, SaleValidity, UnavailableItem, UnavailableReason, UnitPrice};
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
 use crate::Result;
@@ -21,6 +21,10 @@ impl JumboBridge {
 impl ProviderInfo for JumboBridge {
     fn provider() -> Provider {
         Provider::Jumbo
+    }
+
+    fn logo_url(&self) -> String {
+        todo!()
     }
 
     #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]
@@ -47,6 +51,9 @@ impl ProviderInfo for JumboBridge {
     async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
         let search_results = self.api.search(query, offset, None).await?;
 
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Jumbo Search: {:#?}", search_results);
+
         Ok(OffsetPagination {
             items: search_results
                 .products
@@ -57,6 +64,10 @@ impl ProviderInfo for JumboBridge {
             total_items: search_results.products.total as usize,
             offset: search_results.products.offset,
         })
+    }
+
+    async fn product(&self, product_id: &str) -> Result<Product> {
+        todo!()
     }
 }
 

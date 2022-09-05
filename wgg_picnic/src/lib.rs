@@ -4,7 +4,7 @@ use crate::models::{
 };
 use anyhow::anyhow;
 use md5::Digest;
-use reqwest::{Response, Url};
+use reqwest::Response;
 use serde::Serialize;
 
 use std::time::Duration;
@@ -148,10 +148,8 @@ impl PicnicApi {
     /// Retrieve the image url for the provided image.
     ///
     /// Note that no credentials are needed to retrieve these images, and can therefore be used at will.
-    pub fn image_url(&self, image_id: impl AsRef<str>, size: ImageSize) -> Url {
-        let url = format!("{}/images/{}/{}.png", self.config.static_url(), image_id.as_ref(), size);
-        // We know that the URL will be valid
-        url.parse().unwrap()
+    pub fn image_url(&self, image_id: impl AsRef<str>, size: ImageSize) -> String {
+        format!("{}/images/{}/{}.png", self.config.static_url(), image_id.as_ref(), size)
     }
 
     /// Returns your store, with all categories (Promotions, Recipes, and actual categories like 'Fruit from Dutch Ground').

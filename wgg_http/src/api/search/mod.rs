@@ -1,7 +1,7 @@
 use crate::api::ctx::ContextExt;
 use crate::api::GraphqlResult;
 use async_graphql::*;
-use wgg_providers::models::{Autocomplete, Provider, SearchProduct};
+use wgg_providers::models::{Autocomplete, Product, Provider, SearchProduct};
 
 #[derive(Default)]
 pub struct SearchQuery;
@@ -30,5 +30,18 @@ impl SearchQuery {
         let response = state.providers.search_all(query).await?;
 
         Ok(response.items)
+    }
+
+    #[tracing::instrument(skip(self, ctx))]
+    async fn product(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The product vendor/provider")] provider: Provider,
+        #[graphql(desc = "The product id")] product_id: String,
+    ) -> GraphqlResult<Product> {
+        let state = ctx.wgg_state();
+        let response = state.providers.product(provider, product_id).await?;
+
+        Ok(response)
     }
 }

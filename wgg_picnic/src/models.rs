@@ -298,14 +298,14 @@ pub struct Suggestion {
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Product {
-    pub current_count: i64,
-    pub max_count: i64,
-    pub price: i64,
+    pub current_count: u32,
+    pub max_count: u32,
+    pub price: u32,
     pub name: String,
-    pub fresh_label: FreshLabel,
+    pub fresh_label: Option<FreshLabel>,
     pub product_id: String,
-    pub unit_quantity_sub: String,
-    pub deposit: i64,
+    pub unit_quantity_sub: Option<String>,
+    pub deposit: u32,
     pub image_id: String,
     pub unit_quantity: String,
 }
@@ -313,7 +313,8 @@ pub struct Product {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SubItemDetails {
     pub id: String,
-    pub text: String,
+    pub title: Option<String>,
+    pub text: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -342,7 +343,7 @@ pub struct SubValue {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FreshLabel {
     pub unit: String,
-    pub number: i32,
+    pub number: u32,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -357,24 +358,26 @@ pub struct ProductDetails {
     pub id: String,
     pub decorators: Vec<Decorator>,
     pub name: String,
-    pub display_price: i32,
-    pub price: i32,
+    pub display_price: u32,
+    pub price: u32,
+    pub original_price: Option<u32>,
     pub image_id: String,
     pub max_count: i32,
     pub unit_quantity: String,
-    pub unit_quantity_sub: String,
+    pub unit_quantity_sub: Option<String>,
     pub tags: Vec<DietTags>,
     pub product_id: String,
     pub description: String,
     pub canonical_name: Option<String>,
     pub image_ids: Vec<String>,
-    pub fresh_label: FreshLabel,
+    pub fresh_label: Option<FreshLabel>,
     pub nutritional_values: Vec<NutritionalValue>,
-    pub ingredients_blob: String,
+    pub ingredients_blob: Option<String>,
+    #[serde(default)]
     pub additional_info: String,
-    pub label_holder: String,
+    pub label_holder: Option<String>,
     pub items: Vec<ItemDetails>,
-    pub nutritional_info_unit: String,
+    pub nutritional_info_unit: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

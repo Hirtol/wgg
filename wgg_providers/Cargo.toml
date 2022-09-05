@@ -3,6 +3,9 @@ name = "wgg_providers"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+trace-original-api = []
 
 [dependencies]
 anyhow = "1.0.60"

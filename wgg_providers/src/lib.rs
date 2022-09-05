@@ -1,10 +1,11 @@
-use crate::models::{Autocomplete, Provider, SearchProduct};
+use crate::models::{Autocomplete, Product, Provider, SearchProduct};
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
 use crate::pagination::OffsetPagination;
 pub use error::ProviderError;
 use providers::{JumboBridge, PicnicBridge, ProviderInfo};
+pub use wgg_picnic::Credentials as PicnicCredentials;
 
 mod error;
 pub mod models;
@@ -30,7 +31,7 @@ impl WggProvider {
     }
 
     /// Create a new provider from pre-existing *valid* [wgg_picnic::Credentials].
-    pub fn with_picnic(mut self, picnic_credentials: wgg_picnic::Credentials) -> Self {
+    pub fn with_picnic(mut self, picnic_credentials: PicnicCredentials) -> Self {
         self.picnic = PicnicBridge::new(PicnicApi::new(picnic_credentials, Default::default())).into();
 
         self
@@ -89,6 +90,16 @@ impl WggProvider {
                 accum
             })
             .ok_or(ProviderError::NothingFound)
+    }
+
+    /// Retrieve the provided `product_id` from the `provider`.
+    ///
+    /// Note that this `product_id` needs to be obtained from this specific `provider`. Product ids do not cross provider boundaries.
+    #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
+    pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<Product> {
+        let provider = self.find_provider(provider)?;
+
+        provider.product(product_id.as_ref()).await
     }
 
     /// Return a reference to the requested provider.

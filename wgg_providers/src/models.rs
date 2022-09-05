@@ -133,8 +133,6 @@ pub struct Product {
     pub name: String,
     /// Full product description.
     pub description: String,
-    /// Any additional info relevant for the consumer.
-    pub additional_info: Option<String>,
     /// The full price of an article, ignoring any sales
     pub full_price: CentPrice,
     /// The present display price (taking into account active sales).
@@ -149,10 +147,14 @@ pub struct Product {
     /// Direct URL to product image.
     pub image_urls: Vec<String>,
     /// All ingredients in a structured format.
+    ///
+    /// Can be empty for base ingredients such as cucumbers, for example.
     pub ingredients: Vec<IngredientInfo>,
     /// Denotes the nutritional info, normalised to 100g.
-    pub nutritional: Vec<NutritionalInfo>,
+    pub nutritional: Option<NutritionalInfo>,
     /// All information for allergy tags.
+    ///
+    /// Can be empty if the product has no allergens.
     pub allergy_info: Vec<AllergyTags>,
     /// Denotes all optional bits of information, such as preparation instructions or supplier information.
     ///
@@ -166,20 +168,26 @@ pub struct Product {
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct IngredientInfo {
-    name: String,
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct NutritionalInfo {
-    name: String,
-    value: String,
-    sub_values: Vec<SubNutritionalInfo>,
+    pub info_unit: Option<String>,
+    pub items: Vec<NutritionalItem>,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct SubNutritionalInfo {
-    name: String,
-    value: String,
+pub struct NutritionalItem {
+    pub name: String,
+    pub value: String,
+    pub sub_values: Vec<SubNutritionalItem>,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+pub struct SubNutritionalItem {
+    pub name: String,
+    pub value: String,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
@@ -192,14 +200,14 @@ pub struct AllergyTags {
 /// Examples include: Preparation instructions, Supplier info
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct ItemInfo {
-    title: String,
-    item_type: Option<ItemType>,
-    text: String,
+    pub item_type: Option<ItemType>,
+    pub text: String,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Enum, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ItemType {
     PreparationAdvice,
     AdditionalInfo,
-    SupplierInfo,
+    StorageAdvice,
+    CountryOfOrigin,
 }
