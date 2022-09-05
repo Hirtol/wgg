@@ -1,7 +1,8 @@
-use crate::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::models::{Decorator, SaleLabel, SaleValidity, UnavailableItem, UnavailableReason, UnitPrice};
+use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
+use crate::providers::{common_bridge, ProviderInfo};
 use crate::Result;
-use crate::{common_bridge, Autocomplete, OffsetPagination, Provider, ProviderInfo, SearchItem};
+use crate::{Autocomplete, OffsetPagination, Provider, SearchItem};
 use cached::proc_macro::once;
 use wgg_jumbo::models::AvailabilityType;
 use wgg_jumbo::{BaseApi, BaseJumboApi};

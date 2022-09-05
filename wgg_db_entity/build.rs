@@ -50,7 +50,7 @@ async fn run(current_dir: &Path, compile_db: &Path) {
         database_schema: "".to_string(),
         database_url: database_url(compile_db),
         with_serde: "none".to_string(),
-        with_copy_enums: false,
+        with_copy_enums: true,
         date_time_crate: DateTimeCrate::Chrono,
     };
 

@@ -67,8 +67,8 @@ pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: Cen
 
 #[cfg(test)]
 mod tests {
-    use crate::common_bridge::{derive_unit_price, parse_quantity};
     use crate::models::{Unit, UnitPrice, UnitQuantity};
+    use crate::providers::common_bridge::{derive_unit_price, parse_quantity};
 
     #[test]
     pub fn test_parse_quantity() {

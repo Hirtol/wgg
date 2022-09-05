@@ -2,34 +2,16 @@ use crate::models::{Autocomplete, Provider, SearchItem};
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
-use crate::jumbo_bridge::JumboBridge;
 use crate::pagination::OffsetPagination;
-use crate::picnic_bridge::PicnicBridge;
 pub use error::ProviderError;
+use providers::{JumboBridge, PicnicBridge, ProviderInfo};
 
 mod error;
 pub mod models;
 pub mod pagination;
-
-mod common_bridge;
-mod jumbo_bridge;
-mod picnic_bridge;
+mod providers;
 
 type Result<T> = std::result::Result<T, ProviderError>;
-
-#[async_trait::async_trait]
-pub trait ProviderInfo {
-    fn provider() -> Provider
-    where
-        Self: Sized;
-
-    /// Perform an autocomplete match for the provided query.
-    ///
-    /// Some APIs will perform a network call, whilst others will do in-process filtering to provide a list of terms.
-    async fn autocomplete(&self, query: &str) -> Result<Vec<Autocomplete>>;
-
-    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchItem>>;
-}
 
 pub struct WggProvider {
     pub(crate) picnic: Option<PicnicBridge>,
@@ -90,6 +72,9 @@ impl WggProvider {
         provider.search(query.as_ref(), offset).await
     }
 
+    /// Search all providers for the given query.
+    ///
+    /// The [OffsetPagination] will have no `offset` listed, but the `total_items` will be the sum of all APIs' total items.
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
     pub async fn search_all(&self, query: impl AsRef<str>) -> Result<OffsetPagination<SearchItem>> {
         let provider = self.iter().map(|i| i.search(query.as_ref(), None));

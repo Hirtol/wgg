@@ -1,6 +1,7 @@
-use crate::common_bridge::parse_quantity;
 use crate::models::{CentPrice, FreshLabel, SaleLabel, SaleValidity, UnavailableItem, UnitPrice};
-use crate::{common_bridge, Autocomplete, OffsetPagination, Provider, ProviderInfo, SearchItem};
+use crate::providers::common_bridge::parse_quantity;
+use crate::providers::{common_bridge, ProviderInfo};
+use crate::{Autocomplete, OffsetPagination, Provider, SearchItem};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use wgg_picnic::models::{Decorator, UnavailableReason};
 use wgg_picnic::PicnicApi;
@@ -200,9 +201,8 @@ fn parse_days_fresh(period: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod test {
-    use crate::common_bridge::{derive_unit_price, parse_quantity};
     use crate::models::{Unit, UnitPrice};
-    use crate::picnic_bridge::{parse_days_fresh, parse_euro_price, parse_unit_price};
+    use crate::providers::picnic_bridge::{parse_days_fresh, parse_euro_price, parse_unit_price};
 
     #[test]
     pub fn test_parse_price() {
