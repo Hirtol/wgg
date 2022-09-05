@@ -1,7 +1,7 @@
-use crate::models::{CentPrice, FreshLabel, SaleLabel, SaleValidity, UnavailableItem, UnitPrice};
+use crate::models::{CentPrice, FreshLabel, PrepTime, SaleLabel, SaleValidity, UnavailableItem, UnitPrice};
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
-use crate::{Autocomplete, OffsetPagination, Provider, SearchItem};
+use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use wgg_picnic::models::{Decorator, UnavailableReason};
 use wgg_picnic::PicnicApi;
@@ -36,10 +36,10 @@ impl ProviderInfo for PicnicBridge {
     }
 
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self, _offset))]
-    async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<SearchItem>> {
+    async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
         let result = self.api.search(query).await?;
 
-        let result: Vec<SearchItem> = result
+        let result: Vec<SearchProduct> = result
             .into_iter()
             .flat_map(|res| {
                 res.items.into_iter().filter_map(|item| {
@@ -63,14 +63,17 @@ impl ProviderInfo for PicnicBridge {
 }
 
 /// Parse a full picnic [wgg_picnic::models::SingleArticle] to our normalised [SearchItem]
-fn parse_picnic_item_to_search_item(picnic_api: &PicnicApi, article: wgg_picnic::models::SingleArticle) -> SearchItem {
+fn parse_picnic_item_to_search_item(
+    picnic_api: &PicnicApi,
+    article: wgg_picnic::models::SingleArticle,
+) -> SearchProduct {
     // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
-    let mut result = SearchItem {
+    let mut result = SearchProduct {
         id: article.id,
         name: article.name,
         full_price: article.display_price,
         display_price: article.display_price,
-        unit_quantity: parse_quantity(&article.unit_quantity).unwrap_or_default(),
+        unit_quantity: Default::default(),
         unit_price: None,
         available: true,
         image_url: Some(
@@ -157,6 +160,19 @@ fn parse_picnic_item_to_search_item(picnic_api: &PicnicApi, article: wgg_picnic:
     }
 
     // Parse unit quantity
+    if let Some(quantity) = parse_quantity(&article.unit_quantity) {
+        result.unit_quantity = quantity;
+    } else {
+        // Since we couldn't parse a 'normal' quantity it might be of an unconventional form such as:
+        // `4-6 pers | 30 mins`, we can extract the prep time!
+        if let Some(minutes) = parse_prep_time(&article.unit_quantity) {
+            result
+                .decorators
+                .push(crate::models::Decorator::PrepTime(PrepTime { time_minutes: minutes }));
+        }
+    }
+
+    // Parse unit price quantity
     if let Some(unit_price_str) = &article.unit_quantity_sub {
         result.unit_price = parse_unit_price(unit_price_str)
             .or_else(|| common_bridge::derive_unit_price(&result.unit_quantity, result.display_price));
@@ -165,6 +181,14 @@ fn parse_picnic_item_to_search_item(picnic_api: &PicnicApi, article: wgg_picnic:
     }
 
     result
+}
+
+/// Try to parse the unit string as a prep time in minutes
+fn parse_prep_time(unit_str: &str) -> Option<u32> {
+    // Split from `4-6 pers | 30 mins`
+    let (_, minutes) = unit_str.split_once('|')?;
+    // Remainder: ` 30 mins` -> `30` -> u32
+    minutes.split_whitespace().next()?.parse().ok()
 }
 
 /// Try to parse the provided unit price in the format `€16.54/l` or `€13.54/kg`.
@@ -202,7 +226,7 @@ fn parse_days_fresh(period: &str) -> Option<u32> {
 #[cfg(test)]
 mod test {
     use crate::models::{Unit, UnitPrice};
-    use crate::providers::picnic_bridge::{parse_days_fresh, parse_euro_price, parse_unit_price};
+    use crate::providers::picnic_bridge::{parse_days_fresh, parse_euro_price, parse_prep_time, parse_unit_price};
 
     #[test]
     pub fn test_parse_price() {
@@ -245,6 +269,16 @@ mod test {
         assert_eq!(
             periods.into_iter().flat_map(parse_days_fresh).collect::<Vec<_>>(),
             vec![5, 7]
+        );
+    }
+
+    #[test]
+    fn test_parse_prep_time() {
+        let periods = vec!["4-6 pers | 30 min", "4 pers |  25 min", "3-4 pers | 40 min"];
+
+        assert_eq!(
+            periods.into_iter().flat_map(parse_prep_time).collect::<Vec<_>>(),
+            vec![30, 25, 40]
         );
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Autocomplete, OffsetPagination, Provider, SearchItem};
+use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 
 mod common_bridge;
 mod jumbo_bridge;
@@ -22,5 +22,5 @@ pub trait ProviderInfo {
     ///
     /// # Arguments
     /// * `offset` - Can be `None` for APIs which don't support pagination, but should be used for others which do.
-    async fn search(&self, query: &str, offset: Option<u32>) -> crate::Result<OffsetPagination<SearchItem>>;
+    async fn search(&self, query: &str, offset: Option<u32>) -> crate::Result<OffsetPagination<SearchProduct>>;
 }

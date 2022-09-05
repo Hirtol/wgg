@@ -16,7 +16,7 @@ pub struct Autocomplete {
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct SearchItem {
+pub struct SearchProduct {
     pub id: String,
     pub name: String,
     /// The full price of an article, ignoring any sales
@@ -75,6 +75,7 @@ pub enum Decorator {
     SaleLabel(SaleLabel),
     SaleValidity(SaleValidity),
     Unavailable(UnavailableItem),
+    PrepTime(PrepTime),
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -106,7 +107,12 @@ pub struct UnavailableItem {
     /// Lists replacements if the store has suggested any.
     ///
     /// Some stores won't support this functionality, and this would therefore remain empty.
-    pub replacements: Vec<SearchItem>,
+    pub replacements: Vec<SearchProduct>,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PrepTime {
+    pub time_minutes: u32,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Enum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

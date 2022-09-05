@@ -2,7 +2,7 @@ use crate::models::{Decorator, SaleLabel, SaleValidity, UnavailableItem, Unavail
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
 use crate::Result;
-use crate::{Autocomplete, OffsetPagination, Provider, SearchItem};
+use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 use cached::proc_macro::once;
 use wgg_jumbo::models::AvailabilityType;
 use wgg_jumbo::{BaseApi, BaseJumboApi};
@@ -44,7 +44,7 @@ impl ProviderInfo for JumboBridge {
     }
 
     #[tracing::instrument(name = "jumbo_search", level = "debug", skip(self))]
-    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchItem>> {
+    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
         let search_results = self.api.search(query, offset, None).await?;
 
         Ok(OffsetPagination {
@@ -61,8 +61,8 @@ impl ProviderInfo for JumboBridge {
 }
 
 /// Parse a full picnic [wgg_jumbo::models::SingleArticle] to our normalised [SearchItem]
-fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -> SearchItem {
-    let mut result = SearchItem {
+fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -> SearchProduct {
+    let mut result = SearchProduct {
         id: article.id.into(),
         name: article.title,
         full_price: article.prices.price.amount,

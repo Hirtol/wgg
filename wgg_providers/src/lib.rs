@@ -1,4 +1,4 @@
-use crate::models::{Autocomplete, Provider, SearchItem};
+use crate::models::{Autocomplete, Provider, SearchProduct};
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
@@ -66,7 +66,7 @@ impl WggProvider {
         provider: Provider,
         query: impl AsRef<str>,
         offset: Option<u32>,
-    ) -> Result<OffsetPagination<SearchItem>> {
+    ) -> Result<OffsetPagination<SearchProduct>> {
         let provider = self.find_provider(provider)?;
 
         provider.search(query.as_ref(), offset).await
@@ -76,7 +76,7 @@ impl WggProvider {
     ///
     /// The [OffsetPagination] will have no `offset` listed, but the `total_items` will be the sum of all APIs' total items.
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
-    pub async fn search_all(&self, query: impl AsRef<str>) -> Result<OffsetPagination<SearchItem>> {
+    pub async fn search_all(&self, query: impl AsRef<str>) -> Result<OffsetPagination<SearchProduct>> {
         let provider = self.iter().map(|i| i.search(query.as_ref(), None));
 
         futures::future::join_all(provider)

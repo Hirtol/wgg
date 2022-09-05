@@ -1,7 +1,7 @@
 use crate::api::ctx::ContextExt;
 use crate::api::GraphqlResult;
 use async_graphql::*;
-use wgg_providers::models::{Autocomplete, Provider, SearchItem};
+use wgg_providers::models::{Autocomplete, Provider, SearchProduct};
 
 #[derive(Default)]
 pub struct SearchQuery;
@@ -25,7 +25,7 @@ impl SearchQuery {
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "The product query")] query: String,
-    ) -> GraphqlResult<Vec<SearchItem>> {
+    ) -> GraphqlResult<Vec<SearchProduct>> {
         let state = ctx.wgg_state();
         let response = state.providers.search_all(query).await?;
 
