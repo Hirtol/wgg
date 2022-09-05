@@ -10,7 +10,7 @@ use std::path::Path;
 use std::time::Duration;
 
 #[tokio::main]
-pub async fn main() {
+pub async fn main() -> anyhow::Result<()> {
     // First establish re-run rules.
     let current_dir = env::var_os("CARGO_MANIFEST_DIR").unwrap();
     println!("cargo:rerun-if-changed=../migrations");
@@ -19,15 +19,15 @@ pub async fn main() {
     let compile_db = Path::new(&out_dir).join("compile.db");
     // Delete old DB
     if compile_db.exists() {
-        std::fs::remove_file(&compile_db).unwrap();
+        std::fs::remove_file(&compile_db)?;
     }
 
-    run(Path::new(&current_dir), &compile_db).await;
+    run(Path::new(&current_dir), &compile_db).await
 }
 
-async fn run(current_dir: &Path, compile_db: &Path) {
+async fn run(current_dir: &Path, compile_db: &Path) -> anyhow::Result<()> {
     // Create the compile-database
-    initialise_database(compile_db).await;
+    initialise_database(compile_db).await?;
 
     // Run the entity generation.
     // Note, Cargo docs generally recommend *not* changing anything outside of OUT_DIR, so we're breaking that guideline here.
@@ -56,10 +56,12 @@ async fn run(current_dir: &Path, compile_db: &Path) {
 
     sea_orm_cli::commands::run_generate_command(generate_cmd, false)
         .await
-        .unwrap()
+        .unwrap();
+
+    Ok(())
 }
 
-async fn initialise_database(db_path: &Path) {
+async fn initialise_database(db_path: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(&db_path.parent().unwrap()).unwrap();
 
     let options = database_url(db_path)
@@ -72,10 +74,9 @@ async fn initialise_database(db_path: &Path) {
     let pool = SqlitePoolOptions::new()
         .max_connections(std::thread::available_parallelism().unwrap().get() as u32)
         .connect_with(options)
-        .await
-        .unwrap();
+        .await?;
 
-    sqlx::migrate!("../migrations").run(&pool).await.unwrap();
+    Ok(sqlx::migrate!("../migrations").run(&pool).await?)
 }
 
 fn database_url(db_path: &Path) -> String {
