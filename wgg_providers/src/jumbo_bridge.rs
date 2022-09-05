@@ -1,5 +1,5 @@
 use crate::common_bridge::{derive_unit_price, parse_unit_component};
-use crate::models::{Decorator, SaleLabel, SaleValidity, UnavailableItem, UnavailableReason, UnitPrice, UnitQuantity};
+use crate::models::{Decorator, SaleLabel, SaleValidity, UnavailableItem, UnavailableReason, UnitPrice};
 use crate::Result;
 use crate::{common_bridge, Autocomplete, OffsetPagination, Provider, ProviderInfo, SearchItem};
 use cached::proc_macro::once;
@@ -51,7 +51,7 @@ impl ProviderInfo for JumboBridge {
                 .products
                 .data
                 .into_iter()
-                .map(|i| parse_jumbo_item_to_search_item(&self.api, i))
+                .map(parse_jumbo_item_to_search_item)
                 .collect(),
             total_items: search_results.products.total as usize,
             offset: search_results.products.offset,
@@ -60,7 +60,7 @@ impl ProviderInfo for JumboBridge {
 }
 
 /// Parse a full picnic [wgg_jumbo::models::SingleArticle] to our normalised [SearchItem]
-fn parse_jumbo_item_to_search_item(jumbo_api: &BaseJumboApi, article: wgg_jumbo::models::PartialProduct) -> SearchItem {
+fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -> SearchItem {
     let mut result = SearchItem {
         id: article.id.into(),
         name: article.title,

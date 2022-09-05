@@ -2,10 +2,17 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
-#[sea_orm(table_name = "users")]
+#[derive(Copy, Clone, Default, Debug, DeriveEntity)]
+pub struct Entity;
+
+impl EntityName for Entity {
+    fn table_name(&self) -> &str {
+        "users"
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel)]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
     pub id: i32,
     pub email: String,
     pub username: String,
@@ -13,12 +20,53 @@ pub struct Model {
     pub created_at: DateTime,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
+pub enum Column {
+    Id,
+    Email,
+    Username,
+    Hash,
+    CreatedAt,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
+pub enum PrimaryKey {
+    Id,
+}
+
+impl PrimaryKeyTrait for PrimaryKey {
+    type ValueType = i32;
+    fn auto_increment() -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::agg_ingredients::Entity")]
     AggIngredients,
-    #[sea_orm(has_many = "super::users_tokens::Entity")]
     UsersTokens,
+}
+
+impl ColumnTrait for Column {
+    type EntityName = Entity;
+    fn def(&self) -> ColumnDef {
+        match self {
+            Self::Id => ColumnType::Integer.def(),
+            Self::Email => ColumnType::String(None).def(),
+            Self::Username => ColumnType::String(None).def(),
+            Self::Hash => ColumnType::String(None).def(),
+            Self::CreatedAt => ColumnType::DateTime.def(),
+        }
+    }
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::AggIngredients => Entity::has_many(super::agg_ingredients::Entity).into(),
+            Self::UsersTokens => Entity::has_many(super::users_tokens::Entity).into(),
+        }
+    }
 }
 
 impl Related<super::agg_ingredients::Entity> for Entity {
