@@ -76,6 +76,7 @@ pub enum Decorator {
     SaleValidity(SaleValidity),
     Unavailable(UnavailableItem),
     PrepTime(PrepTime),
+    NumberOfServings(NumberOfServings),
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -113,6 +114,11 @@ pub struct UnavailableItem {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PrepTime {
     pub time_minutes: u32,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct NumberOfServings {
+    pub amount: u32,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Enum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -173,7 +179,8 @@ pub struct IngredientInfo {
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct NutritionalInfo {
-    pub info_unit: Option<String>,
+    /// For what unit (e.g, `per 100g`) these items are valid.
+    pub info_unit: String,
     pub items: Vec<NutritionalItem>,
 }
 
@@ -193,6 +200,13 @@ pub struct SubNutritionalItem {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct AllergyTags {
     pub name: String,
+    pub contains: AllergyType,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::Enum, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AllergyType {
+    Contains,
+    MayContain,
 }
 
 /// Contains additional information relevant for an item.
@@ -200,7 +214,7 @@ pub struct AllergyTags {
 /// Examples include: Preparation instructions, Supplier info
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct ItemInfo {
-    pub item_type: Option<ItemType>,
+    pub item_type: ItemType,
     pub text: String,
 }
 
@@ -210,4 +224,5 @@ pub enum ItemType {
     AdditionalInfo,
     StorageAdvice,
     CountryOfOrigin,
+    SafetyWarning,
 }

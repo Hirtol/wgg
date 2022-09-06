@@ -186,6 +186,11 @@ pub struct UnitPrice {
 #[serde(rename_all = "camelCase")]
 pub struct ImageInfo {
     pub primary_view: Vec<ProductImage>,
+    /// Shown under the description in the Jumbo app as additional images.
+    ///
+    /// May sometimes be unavailable for unauthenticated users.
+    #[serde(default)]
+    pub life_style: Vec<ProductImage>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -237,6 +242,7 @@ pub struct Product {
     pub quantity_options: Vec<QuantityOption>,
     pub prices: Prices,
     pub available: bool,
+    pub details_text: Option<String>,
     pub product_type: ProductType,
     pub quantity: Option<String>,
     pub image_info: ImageInfo,
@@ -333,7 +339,8 @@ pub struct AllergyInfo {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageAndSafetyInfo {
-    pub storage_type: String,
+    pub storage_type: Option<String>,
+    pub preparation_and_usage: Option<String>,
     pub safety_warning: Option<String>,
 }
 
@@ -348,7 +355,7 @@ pub struct OriginInfo {
 #[serde(rename_all = "camelCase")]
 pub struct BrandInfo {
     pub manufacturer_address: String,
-    pub web_address: String,
+    pub web_address: Option<String>,
 }
 
 #[serde_with::serde_as]

@@ -1,6 +1,6 @@
 use crate::models::{
-    AllergyTags, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo, NutritionalItem, PrepTime,
-    Product, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem, UnitPrice,
+    AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo,
+    NutritionalItem, PrepTime, Product, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem, UnitPrice,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
@@ -45,7 +45,7 @@ impl ProviderInfo for PicnicBridge {
             .collect())
     }
 
-    #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self, _offset))]
+    #[tracing::instrument(name = "picnic_search", level = "debug", skip(self, _offset))]
     async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
         let result = self.api.search(query).await?;
 
@@ -149,7 +149,7 @@ fn parse_picnic_full_product_to_product(
     // Parse nutritional, only parse if there is something of note.
     if product.nutritional_info_unit.is_some() || !product.nutritional_values.is_empty() {
         result.nutritional = NutritionalInfo {
-            info_unit: product.nutritional_info_unit,
+            info_unit: product.nutritional_info_unit.unwrap_or_else(|| "per 100g".to_string()),
             items: product
                 .nutritional_values
                 .into_iter()
@@ -174,7 +174,17 @@ fn parse_picnic_full_product_to_product(
     result.allergy_info = product
         .tags
         .into_iter()
-        .map(|item| AllergyTags { name: item.name })
+        .map(|item| AllergyTags {
+            name: item.name,
+            contains: {
+                // Examples: "Dit product bevat soja." vs. "Dit product kan selderij bevatten."
+                if item.description.contains("kan") {
+                    AllergyType::MayContain
+                } else {
+                    AllergyType::Contains
+                }
+            },
+        })
         .collect();
 
     // Parse fresh label
@@ -289,9 +299,9 @@ fn parse_picnic_full_product_to_product(
             let item_of_interest = item.items.pop()?;
 
             let item_type = match &*item_of_interest.id {
-                "preparation_advice" => Some(ItemType::PreparationAdvice),
-                "countries_of_origin" => Some(ItemType::CountryOfOrigin),
-                _ => Some(ItemType::AdditionalInfo),
+                "preparation_advice" => ItemType::PreparationAdvice,
+                "countries_of_origin" => ItemType::CountryOfOrigin,
+                _ => ItemType::AdditionalInfo,
             };
 
             item_of_interest.text.map(|text| ItemInfo { item_type, text })
@@ -301,7 +311,7 @@ fn parse_picnic_full_product_to_product(
     // Filter out duplicate country_of_origin
     if !product.additional_info.is_empty() && !product.additional_info.contains("herkomst") {
         result.additional_items.push(ItemInfo {
-            item_type: Some(ItemType::AdditionalInfo),
+            item_type: ItemType::AdditionalInfo,
             text: product.additional_info,
         })
     }
@@ -430,6 +440,8 @@ fn parse_picnic_item_to_search_item(
 fn parse_picnic_ingredient_blob(blob: &str) -> Vec<IngredientInfo> {
     // Picnic's ingredient blob is uncharacteristically unstructured, so we have to break it apart ourselves.
     // It has the form "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc"
+
+    //TODO: FIX STUFF BETWEEN BRACKETS!
     let result = blob
         .split(',')
         .map(|ingr| IngredientInfo {

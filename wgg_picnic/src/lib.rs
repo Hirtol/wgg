@@ -4,7 +4,7 @@ use crate::models::{
 };
 use anyhow::anyhow;
 use md5::Digest;
-use reqwest::Response;
+use reqwest::{Response, StatusCode};
 use serde::Serialize;
 
 use std::time::Duration;
@@ -370,7 +370,14 @@ impl PicnicApi {
             .send()
             .await?;
 
-        Ok(response)
+        match response.status() {
+            StatusCode::OK => Ok(response),
+            StatusCode::NOT_FOUND => Err(ApiError::NotFound),
+            _ => {
+                tracing::warn!(status = %response.status(), ?response, "Picnic API Error");
+                Err(anyhow!("Error occurred: {}", response.status()).into())
+            },
+        }
     }
 
     async fn post<T: Serialize + ?Sized>(&self, url: &str, payload: &T) -> Result<Response> {

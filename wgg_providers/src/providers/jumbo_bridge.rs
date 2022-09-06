@@ -1,9 +1,15 @@
-use crate::models::{Decorator, Product, SaleLabel, SaleValidity, UnavailableItem, UnavailableReason, UnitPrice};
+use crate::models::{
+    AllergyTags, AllergyType, Decorator, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
+    NutritionalInfo, NutritionalItem, Product, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem,
+    UnavailableReason, UnitPrice,
+};
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
 use crate::Result;
 use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 use cached::proc_macro::once;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use wgg_jumbo::models::AvailabilityType;
 use wgg_jumbo::{BaseApi, BaseJumboApi};
 
@@ -67,8 +73,173 @@ impl ProviderInfo for JumboBridge {
     }
 
     async fn product(&self, product_id: &str) -> Result<Product> {
-        todo!()
+        let result = self.api.product(&product_id.parse()?).await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Jumbo Product: {:#?}", result);
+
+        Ok(parse_jumbo_product_to_crate_product(result.product.data))
     }
+}
+
+fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product) -> Product {
+    let mut result = Product {
+        id: product.id.into(),
+        name: product.title,
+        description: product
+            .regulated_title
+            .map(|title| format!("{}\n{}", title, product.details_text.as_deref().unwrap_or_default()))
+            .or(product.details_text)
+            .unwrap_or_default(),
+        full_price: product.prices.price.amount,
+        display_price: product
+            .prices
+            .promotional_price
+            .map(|price| price.amount)
+            .unwrap_or(product.prices.price.amount),
+        unit_quantity: product
+            .quantity
+            .as_deref()
+            .and_then(common_bridge::parse_quantity)
+            .unwrap_or_default(),
+        // Will be parsed
+        unit_price: None,
+        available: product.available,
+        image_urls: product
+            .image_info
+            .primary_view
+            .into_iter()
+            .map(|i| i.url.clone())
+            .collect(),
+        // Will be parsed
+        ingredients: vec![],
+        // Will be parsed
+        nutritional: None,
+        // Will be parsed
+        allergy_info: vec![],
+        // Will be parsed
+        additional_items: vec![],
+        // Will be parsed
+        decorators: vec![],
+        provider: Provider::Jumbo,
+    };
+
+    // Unit Pricing
+    if let Some(price) = product.prices.unit_price {
+        if let Some(unit) = parse_unit_component(&price.unit) {
+            result.unit_price = UnitPrice {
+                unit,
+                price: price.price.amount,
+            }
+            .into()
+        }
+    } else {
+        result.unit_price = derive_unit_price(&result.unit_quantity, result.display_price);
+    }
+
+    // Promotions
+    if let Some(promotion) = product.promotion {
+        result.decorators.extend(
+            promotion
+                .tags
+                .into_iter()
+                .map(|t| SaleLabel { text: t.text })
+                .map(Decorator::SaleLabel),
+        );
+
+        result.decorators.push(Decorator::SaleValidity(SaleValidity {
+            valid_from: promotion.from_date,
+            valid_until: promotion.to_date,
+        }));
+    }
+
+    // Availability
+    if product.availability.availability != AvailabilityType::Available {
+        let unavailable = UnavailableItem {
+            reason: match product.availability.availability {
+                AvailabilityType::TemporarilyUnavailable => UnavailableReason::TemporarilyUnavailable,
+                AvailabilityType::Unavailable => UnavailableReason::OutOfAssortment,
+                _ => UnavailableReason::Unknown,
+            },
+            explanation_short: product.availability.label,
+            explanation_long: product.availability.reason,
+            replacements: Vec::new(),
+        };
+
+        result.decorators.push(Decorator::Unavailable(unavailable));
+    }
+
+    // Freshness
+    if let Some(fresh) = product.badge_description.as_deref().and_then(parse_badge_description) {
+        result.decorators.push(Decorator::FreshLabel(fresh))
+    }
+
+    // Ingredients
+    if let Some(primary_ingredients) = product.ingredient_info.pop() {
+        result.ingredients = primary_ingredients
+            .ingredients
+            .into_iter()
+            .map(|item| IngredientInfo { name: item.name })
+            .collect();
+    }
+
+    // Nutritional
+    if let Some(primary_nutrition) = product.nutritional_information.first() {
+        result.nutritional = NutritionalInfo {
+            info_unit: "per 100g".to_string(),
+            items: parse_nutritional_info(primary_nutrition),
+        }
+        .into()
+    }
+
+    // Allergies
+    if let Some(text) = product.allergy_text {
+        result.allergy_info = parse_allergy_info(&text);
+    }
+
+    // Servings
+    if let Some(servings) = product.number_of_servings {
+        if let Ok(amount) = servings.parse() {
+            result
+                .decorators
+                .push(Decorator::NumberOfServings(NumberOfServings { amount }));
+        }
+    }
+
+    // Additional items
+    if let Some(usage_and_safety) = product.usage_and_safety_info {
+        if let Some(prep_advice) = usage_and_safety.preparation_and_usage {
+            result.additional_items.push(ItemInfo {
+                item_type: ItemType::PreparationAdvice,
+                text: prep_advice,
+            })
+        }
+
+        if let Some(storage) = usage_and_safety.storage_type {
+            result.additional_items.push(ItemInfo {
+                item_type: ItemType::StorageAdvice,
+                text: storage,
+            })
+        }
+
+        if let Some(safety) = usage_and_safety.safety_warning {
+            result.additional_items.push(ItemInfo {
+                item_type: ItemType::SafetyWarning,
+                text: safety,
+            })
+        }
+    }
+
+    if let Some(origin) = product.origin_info {
+        if let Some(origin) = origin.country_of_origin.or(origin.fishing_area) {
+            result.additional_items.push(ItemInfo {
+                item_type: ItemType::CountryOfOrigin,
+                text: origin,
+            })
+        }
+    }
+
+    result
 }
 
 /// Parse a full picnic [wgg_jumbo::models::SingleArticle] to our normalised [SearchItem]
@@ -138,5 +309,163 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
         result.decorators.push(Decorator::Unavailable(unavailable));
     }
 
+    // Freshness
+    if let Some(fresh) = article.badge_description.as_deref().and_then(parse_badge_description) {
+        result.decorators.push(Decorator::FreshLabel(fresh))
+    }
+
     result
+}
+
+/// Parse the Jumbo `badge_description` element, which frequently contains a [FreshLabel] decorator.
+///
+/// Format expected: `7+ dagen vers`
+fn parse_badge_description(badge_desc: &str) -> Option<FreshLabel> {
+    if badge_desc.contains("dagen vers") {
+        let days_fresh = badge_desc.split_whitespace().next()?;
+        // Filter out the `+`
+        let days_fresh = days_fresh.trim_end_matches('+').parse().ok()?;
+
+        let fresh_label = FreshLabel { days_fresh };
+
+        Some(fresh_label)
+    } else {
+        None
+    }
+}
+
+/// Parse nutritional information of part of the product.
+///
+/// Will try to ensure related entries are grouped in a parent/child relation, f.e, fats & saturated fats.
+fn parse_nutritional_info(nut_info: &wgg_jumbo::models::NutritionalInformation) -> Vec<NutritionalItem> {
+    let mut nut_result = vec![];
+
+    let len = nut_info.nutritional_data.entries.len();
+    let mut i = 0;
+
+    while i < len {
+        let parent_item = &nut_info.nutritional_data.entries[i];
+        let mut to_add = NutritionalItem {
+            name: parent_item.name.clone(),
+            value: parent_item.value_per100g.clone(),
+            sub_values: vec![],
+        };
+
+        // Not the last element
+        if i < len - 1 {
+            let next_i = i + 1;
+            // Perform a bounded look-ahead to gather sub-items for nutrition
+            // This is mainly related to entries for fat/carbohydrates where you have a 'parent' item such as "Fats"
+            // and a child item such as "Saturated Fat".
+            for j in next_i..len {
+                let current_item = &nut_info.nutritional_data.entries[j];
+                if current_item.name.is_empty() || current_item.name.contains("Waarvan") {
+                    to_add.sub_values.push(SubNutritionalItem {
+                        name: current_item.name.clone(),
+                        value: current_item.value_per100g.clone(),
+                    })
+                } else {
+                    // Skip the previous items
+                    i = j - 1;
+                    break;
+                }
+            }
+        }
+
+        nut_result.push(to_add);
+        i += 1;
+    }
+
+    nut_result
+}
+
+/// Parse the allergy text blob from Jumbo.
+///
+/// Simple list similar to `Bevat Selderij,Kan het volgende bevatten Eieren,etc`
+fn parse_allergy_info(allergy_text: &str) -> Vec<AllergyTags> {
+    static ALLERGY_RX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r#"[Bb]evat(ten)? (\w+)"#).expect("Could not compile regex"));
+
+    ALLERGY_RX
+        .captures_iter(allergy_text)
+        .flat_map(|cap| cap.get(2).map(|i| (i, cap.get(1))))
+        .map(|(item, may_contain)| AllergyTags {
+            name: item.as_str().to_string(),
+            contains: {
+                if may_contain.is_some() {
+                    AllergyType::MayContain
+                } else {
+                    AllergyType::Contains
+                }
+            },
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{AllergyTags, AllergyType, FreshLabel};
+    use crate::providers::jumbo_bridge::{parse_allergy_info, parse_badge_description};
+
+    #[test]
+    pub fn test_parse_badge_description() {
+        let examples = vec!["7+ dagen vers", "2+ dagen vers", "20+ dagen vers"];
+        let expected = vec![
+            FreshLabel { days_fresh: 7 },
+            FreshLabel { days_fresh: 2 },
+            FreshLabel { days_fresh: 20 },
+        ];
+
+        assert_eq!(
+            examples
+                .into_iter()
+                .flat_map(parse_badge_description)
+                .collect::<Vec<_>>(),
+            expected
+        );
+    }
+
+    #[test]
+    pub fn test_allergy_text() {
+        let example = "Bevat Selderij,\
+        Kan het volgende bevatten Eieren,\
+        Kan het volgende bevatten Melk,\
+        Kan het volgende bevatten Mosterd,\
+        Kan het volgende bevatten Tarwe,\
+        Kan het volgende bevatten Gluten,\
+        Kan het volgende bevatten Soja";
+
+        let expected = vec![
+            AllergyTags {
+                name: "Selderij".to_string(),
+                contains: AllergyType::Contains,
+            },
+            AllergyTags {
+                name: "Eieren".to_string(),
+                contains: AllergyType::MayContain,
+            },
+            AllergyTags {
+                name: "Melk".to_string(),
+                contains: AllergyType::MayContain,
+            },
+            AllergyTags {
+                name: "Mosterd".to_string(),
+                contains: AllergyType::MayContain,
+            },
+            AllergyTags {
+                name: "Tarwe".to_string(),
+                contains: AllergyType::MayContain,
+            },
+            AllergyTags {
+                name: "Gluten".to_string(),
+                contains: AllergyType::MayContain,
+            },
+            AllergyTags {
+                name: "Soja".to_string(),
+                contains: AllergyType::MayContain,
+            },
+        ];
+
+        assert_eq!(parse_allergy_info(example), expected);
+    }
 }

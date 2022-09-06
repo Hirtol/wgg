@@ -6,10 +6,14 @@ use crate::models::{CentPrice, Unit, UnitPrice, UnitQuantity};
 pub(crate) fn parse_unit_component(unit: &str) -> Option<Unit> {
     match unit {
         "l" => Some(Unit::Liter),
+        "L" => Some(Unit::Liter),
         "liter" => Some(Unit::Liter),
         "ml" => Some(Unit::MilliLiter),
         "kg" => Some(Unit::KiloGram),
+        "Kg" => Some(Unit::KiloGram),
+        "KG" => Some(Unit::KiloGram),
         "g" => Some(Unit::Gram),
+        "G" => Some(Unit::Gram),
         "gram" => Some(Unit::Gram),
         "stuk" => Some(Unit::Piece),
         "stuks" => Some(Unit::Piece),

@@ -2,9 +2,10 @@ use crate::ids::{Id, ProductId, PromotionId, RuntimeId, TabId};
 use crate::models::{
     AutoCompleteResponse, FullProductResponse, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery,
 };
-use crate::Result;
+use crate::{ApiError, Result};
 use crate::{Config, Query};
-use reqwest::Response;
+use anyhow::anyhow;
+use reqwest::{Response, StatusCode};
 
 /// Contains all unauthenticated routes for the `Jumbo` API.
 #[async_trait::async_trait]
@@ -20,7 +21,14 @@ pub trait BaseApi {
 
         let response = self.get_http().get(url).query(payload).send().await?;
 
-        Ok(response)
+        match response.status() {
+            StatusCode::OK => Ok(response),
+            StatusCode::NOT_FOUND => Err(ApiError::NotFound),
+            _ => {
+                tracing::warn!(status = %response.status(), ?response, "Jumbo API Error occurred");
+                Err(anyhow!("Error occurred: {}", response.status()).into())
+            }
+        }
     }
 
     /// Retrieve the promotion tabs (promotion groups, aka, weekly promotions/seasonal/etc), and the associated run-times.
