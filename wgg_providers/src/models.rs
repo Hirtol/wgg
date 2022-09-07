@@ -74,9 +74,11 @@ pub enum Decorator {
     FreshLabel(FreshLabel),
     SaleLabel(SaleLabel),
     SaleValidity(SaleValidity),
+    SaleDescription(SaleDescription),
     Unavailable(UnavailableItem),
     PrepTime(PrepTime),
     NumberOfServings(NumberOfServings),
+    MoreButton(MoreButton),
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -99,6 +101,12 @@ pub struct SaleValidity {
     pub valid_until: DateTime<Utc>,
 }
 
+/// A subtitle for a particular sale.
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SaleDescription {
+    pub text: String,
+}
+
 /// If the item is unavailable
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct UnavailableItem {
@@ -119,6 +127,11 @@ pub struct PrepTime {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NumberOfServings {
     pub amount: u32,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MoreButton {
+    pub images: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Enum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -225,4 +238,30 @@ pub enum ItemType {
     StorageAdvice,
     CountryOfOrigin,
     SafetyWarning,
+}
+
+// ** Promotions **
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+pub struct PromotionCategory {
+    pub id: String,
+    pub name: String,
+    pub image_urls: Vec<String>,
+    /// A potentially limited selection of items, only supported for certain [Provider]s.
+    ///
+    /// Picnic is one example of such a provider.
+    /// Generally recommended to query for more detailed information when needed.
+    pub limited_items: Vec<PromotionProduct>,
+    pub decorators: Vec<Decorator>,
+    pub provider: Provider,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
+pub enum PromotionProduct {
+    Product(SearchProduct),
+    ProductId(ProductId),
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+pub struct ProductId {
+    pub id: String,
 }

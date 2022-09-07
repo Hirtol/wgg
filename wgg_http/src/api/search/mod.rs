@@ -1,7 +1,7 @@
 use crate::api::ctx::ContextExt;
 use crate::api::GraphqlResult;
 use async_graphql::*;
-use wgg_providers::models::{Autocomplete, Product, Provider, SearchProduct};
+use wgg_providers::models::{Autocomplete, Product, PromotionCategory, Provider, SearchProduct};
 
 #[derive(Default)]
 pub struct SearchQuery;
@@ -43,5 +43,30 @@ impl SearchQuery {
         let response = state.providers.product(provider, product_id).await?;
 
         Ok(response)
+    }
+
+    #[tracing::instrument(skip(self, ctx))]
+    async fn promotions(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The product vendor/provider")] provider: Provider,
+    ) -> GraphqlResult<Vec<PromotionCategory>> {
+        let state = ctx.wgg_state();
+        let response = state.providers.promotions(provider).await?;
+
+        Ok(response)
+    }
+
+    #[tracing::instrument(skip(self, ctx))]
+    async fn promotions_sublist(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "The product vendor/provider")] provider: Provider,
+        #[graphql(desc = "The sublist id")] sublist_id: String,
+    ) -> GraphqlResult<Vec<SearchProduct>> {
+        let state = ctx.wgg_state();
+        let response = state.providers.promotions_sublist(provider, sublist_id).await?;
+
+        Ok(response.items)
     }
 }

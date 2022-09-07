@@ -1,4 +1,4 @@
-use crate::models::{Autocomplete, Product, Provider, SearchProduct};
+use crate::models::{Autocomplete, Product, PromotionCategory, Provider, SearchProduct};
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
@@ -100,6 +100,39 @@ impl WggProvider {
         let provider = self.find_provider(provider)?;
 
         provider.product(product_id.as_ref()).await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all, fields(provider))]
+    pub async fn promotions(&self, provider: Provider) -> Result<Vec<PromotionCategory>> {
+        let provider = self.find_provider(provider)?;
+
+        provider.promotions().await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub async fn promotions_all(&self) -> Result<Vec<PromotionCategory>> {
+        let provider = self.iter().map(|i| i.promotions());
+
+        futures::future::join_all(provider)
+            .await
+            .into_iter()
+            .flatten()
+            .reduce(|mut accum, mut item| {
+                accum.append(&mut item);
+                accum
+            })
+            .ok_or(ProviderError::NothingFound)
+    }
+
+    #[tracing::instrument(level = "debug", skip_all, fields(provider, sublist_id))]
+    pub async fn promotions_sublist(
+        &self,
+        provider: Provider,
+        sublist_id: impl AsRef<str>,
+    ) -> Result<OffsetPagination<SearchProduct>> {
+        let provider = self.find_provider(provider)?;
+
+        provider.promotions_sublist(sublist_id.as_ref()).await
     }
 
     /// Return a reference to the requested provider.

@@ -177,7 +177,7 @@ pub enum Decorator {
     MoreButton {
         link: Link,
         images: Vec<String>,
-        sellable_item_count: u32,
+        sellable_item_count: i32,
     },
     Unavailable {
         reason: UnavailableReason,

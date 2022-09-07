@@ -1,10 +1,11 @@
 use crate::{Autocomplete, OffsetPagination, Provider, Result, SearchProduct};
+use std::borrow::Cow;
 
 mod common_bridge;
 mod jumbo_bridge;
 mod picnic_bridge;
 
-use crate::models::Product;
+use crate::models::{Product, PromotionCategory};
 pub(crate) use jumbo_bridge::*;
 pub(crate) use picnic_bridge::*;
 
@@ -14,7 +15,7 @@ pub trait ProviderInfo {
     where
         Self: Sized;
 
-    fn logo_url(&self) -> String;
+    fn logo_url(&self) -> Cow<'static, str>;
 
     /// Perform an autocomplete match for the provided query.
     ///
@@ -29,4 +30,10 @@ pub trait ProviderInfo {
 
     /// Retrieve the full product info for the provided `product_id`.
     async fn product(&self, product_id: &str) -> Result<Product>;
+
+    /// Retrieve all current promotions
+    async fn promotions(&self) -> Result<Vec<PromotionCategory>>;
+
+    /// Retrieve a specific promotion
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>>;
 }

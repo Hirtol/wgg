@@ -1,12 +1,14 @@
 use crate::models::{
-    AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo,
-    NutritionalItem, PrepTime, Product, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem, UnitPrice,
+    AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton, NutritionalInfo,
+    NutritionalItem, PrepTime, Product, PromotionCategory, PromotionProduct, SaleLabel, SaleValidity,
+    SubNutritionalItem, UnavailableItem, UnitPrice,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
-use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
+use crate::{Autocomplete, OffsetPagination, Provider, ProviderError, SearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
-use wgg_picnic::models::{Decorator, ImageSize, UnavailableReason};
+use std::borrow::Cow;
+use wgg_picnic::models::{Decorator, ImageSize, SubCategory, UnavailableReason};
 use wgg_picnic::PicnicApi;
 
 use crate::Result;
@@ -28,8 +30,8 @@ impl ProviderInfo for PicnicBridge {
         Provider::Picnic
     }
 
-    fn logo_url(&self) -> String {
-        todo!()
+    fn logo_url(&self) -> Cow<'static, str> {
+        "https://upload.wikimedia.org/wikipedia/commons/0/01/Picnic_logo.svg".into()
     }
 
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
@@ -82,6 +84,98 @@ impl ProviderInfo for PicnicBridge {
 
         parse_picnic_full_product_to_product(&self.api, result.product_details)
     }
+
+    async fn promotions(&self) -> Result<Vec<PromotionCategory>> {
+        let result = self.api.promotions(None, 3).await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Picnic Promotions: {:#?}", result);
+
+        parse_picnic_promotions(&self.api, result)
+    }
+
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>> {
+        let mut result = self.api.promotions(Some(sublist_id), 3).await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
+        // When querying for a sublist with depth>0 we just get a raw array of SingleArticles
+        let result: Vec<SearchProduct> = result
+            .into_iter()
+            .flat_map(|res| {
+                if let SubCategory::SingleArticle(article) = res {
+                    Some(parse_picnic_item_to_search_item(&self.api, article))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let offset = OffsetPagination {
+            total_items: result.len(),
+            items: result,
+            offset: 0,
+        };
+
+        Ok(offset)
+    }
+}
+
+fn parse_picnic_promotions(
+    picnic_api: &wgg_picnic::PicnicApi,
+    promotions: Vec<SubCategory>,
+) -> Result<Vec<PromotionCategory>> {
+    Ok(promotions
+        .into_iter()
+        .flat_map(|item| match item {
+            SubCategory::Category(cat) => Some(cat),
+            _ => {
+                tracing::warn!(?item, "Expected categories in promotion parsing, but found articles");
+                None
+            }
+        })
+        .map(|category| {
+            let mut result = PromotionCategory {
+                id: category.id,
+                name: category.name,
+                image_urls: vec![],
+                limited_items: vec![],
+                decorators: vec![],
+                provider: Provider::Picnic,
+            };
+
+            // Decorators
+            for dec in category.decorators {
+                if let Decorator::MoreButton { images, .. } = &dec {
+                    result.image_urls = images
+                        .iter()
+                        .map(|id| picnic_api.image_url(id, ImageSize::Medium))
+                        .collect();
+                }
+
+                parse_decorator(picnic_api, dec, &mut result.decorators, None, None);
+            }
+
+            result.limited_items = category
+                .items
+                .into_iter()
+                .flat_map(|item| match item {
+                    SubCategory::SingleArticle(itm) => Some(itm),
+                    _ => {
+                        tracing::warn!(
+                            ?item,
+                            "Expected single article in promotion parsing, but found articles"
+                        );
+                        None
+                    }
+                })
+                .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
+                .map(PromotionProduct::Product)
+                .collect();
+
+            result
+        })
+        .collect())
 }
 
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
@@ -208,82 +302,13 @@ fn parse_picnic_full_product_to_product(
 
     // Parse remaining decorators
     for dec in product.decorators {
-        match dec {
-            // If we already parsed it above, we don't want to do it again!
-            Decorator::FreshLabel { period }
-                if !result
-                    .decorators
-                    .iter()
-                    .any(|i| matches!(i, crate::models::Decorator::FreshLabel(_))) =>
-            {
-                if let Some(days_fresh) = parse_days_fresh(&period) {
-                    let fresh_label = FreshLabel { days_fresh };
-
-                    result
-                        .decorators
-                        .push(crate::models::Decorator::FreshLabel(fresh_label))
-                }
-            }
-            Decorator::Label { text } => {
-                let sale_label = SaleLabel { text };
-
-                result.decorators.push(crate::models::Decorator::SaleLabel(sale_label))
-            }
-            Decorator::Price { display_price } => {
-                // Decorator price is the price *including* current sales if available.
-                result.display_price = display_price
-            }
-            Decorator::ValidityLabel { valid_until } => {
-                if let LocalResult::Single(valid_until) =
-                    chrono::Utc.from_local_datetime(&valid_until.and_hms(23, 59, 59))
-                {
-                    let valid_from =
-                        NaiveDate::from_isoywd(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
-                            .and_hms(0, 0, 0);
-                    let valid_from = if let Some(time) = chrono::Utc.from_local_datetime(&valid_from).single() {
-                        time
-                    } else {
-                        continue;
-                    };
-                    let sale_validity = SaleValidity {
-                        valid_from,
-                        valid_until,
-                    };
-
-                    result
-                        .decorators
-                        .push(crate::models::Decorator::SaleValidity(sale_validity))
-                }
-            }
-            Decorator::Unavailable {
-                reason,
-                replacements,
-                explanation,
-            } => {
-                let unavailable = UnavailableItem {
-                    reason: match reason {
-                        UnavailableReason::OutOfAssortment => crate::models::UnavailableReason::OutOfAssortment,
-                        UnavailableReason::OutOfSeason => crate::models::UnavailableReason::OutOfSeason,
-                        UnavailableReason::TemporarilyUnavailable => {
-                            crate::models::UnavailableReason::TemporarilyUnavailable
-                        }
-                        _ => crate::models::UnavailableReason::Unknown,
-                    },
-                    explanation_short: explanation.short_explanation.into(),
-                    explanation_long: explanation.long_explanation.into(),
-                    replacements: replacements
-                        .into_iter()
-                        .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
-                        .collect(),
-                };
-
-                result.available = false;
-                result
-                    .decorators
-                    .push(crate::models::Decorator::Unavailable(unavailable))
-            }
-            _ => {}
-        }
+        parse_decorator(
+            picnic_api,
+            dec,
+            &mut result.decorators,
+            Some(&mut result.display_price),
+            Some(&mut result.available),
+        )
     }
 
     // Parse items
@@ -340,76 +365,13 @@ fn parse_picnic_item_to_search_item(
 
     // Parse remaining decorators
     for dec in article.decorators {
-        match dec {
-            Decorator::FreshLabel { period } => {
-                if let Some(days_fresh) = parse_days_fresh(&period) {
-                    let fresh_label = FreshLabel { days_fresh };
-
-                    result
-                        .decorators
-                        .push(crate::models::Decorator::FreshLabel(fresh_label))
-                }
-            }
-            Decorator::Label { text } => {
-                let sale_label = SaleLabel { text };
-
-                result.decorators.push(crate::models::Decorator::SaleLabel(sale_label))
-            }
-            Decorator::Price { display_price } => {
-                // Decorator price is the price *including* current sales if available.
-                result.display_price = display_price
-            }
-            Decorator::ValidityLabel { valid_until } => {
-                if let LocalResult::Single(valid_until) =
-                    chrono::Utc.from_local_datetime(&valid_until.and_hms(23, 59, 59))
-                {
-                    let valid_from =
-                        NaiveDate::from_isoywd(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
-                            .and_hms(0, 0, 0);
-                    let valid_from = if let Some(time) = chrono::Utc.from_local_datetime(&valid_from).single() {
-                        time
-                    } else {
-                        continue;
-                    };
-                    let sale_validity = SaleValidity {
-                        valid_from,
-                        valid_until,
-                    };
-
-                    result
-                        .decorators
-                        .push(crate::models::Decorator::SaleValidity(sale_validity))
-                }
-            }
-            Decorator::Unavailable {
-                reason,
-                replacements,
-                explanation,
-            } => {
-                let unavailable = UnavailableItem {
-                    reason: match reason {
-                        UnavailableReason::OutOfAssortment => crate::models::UnavailableReason::OutOfAssortment,
-                        UnavailableReason::OutOfSeason => crate::models::UnavailableReason::OutOfSeason,
-                        UnavailableReason::TemporarilyUnavailable => {
-                            crate::models::UnavailableReason::TemporarilyUnavailable
-                        }
-                        _ => crate::models::UnavailableReason::Unknown,
-                    },
-                    explanation_short: explanation.short_explanation.into(),
-                    explanation_long: explanation.long_explanation.into(),
-                    replacements: replacements
-                        .into_iter()
-                        .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
-                        .collect(),
-                };
-
-                result.available = false;
-                result
-                    .decorators
-                    .push(crate::models::Decorator::Unavailable(unavailable))
-            }
-            _ => {}
-        }
+        parse_decorator(
+            picnic_api,
+            dec,
+            &mut result.decorators,
+            Some(&mut result.display_price),
+            Some(&mut result.available),
+        )
     }
 
     // Parse unit quantity
@@ -434,6 +396,99 @@ fn parse_picnic_item_to_search_item(
     }
 
     result
+}
+
+// Encourage inlining to get rid of the Option costs.
+#[inline(always)]
+pub fn parse_decorator(
+    picnic_api: &PicnicApi,
+    decorator: Decorator,
+    result: &mut Vec<crate::models::Decorator>,
+    set_display_price: Option<&mut u32>,
+    set_available: Option<&mut bool>,
+) {
+    match decorator {
+        // If we already parsed it above, we don't want to do it again!
+        Decorator::FreshLabel { period }
+            if !result
+                .iter()
+                .any(|i| matches!(i, crate::models::Decorator::FreshLabel(_))) =>
+        {
+            if let Some(days_fresh) = parse_days_fresh(&period) {
+                let fresh_label = FreshLabel { days_fresh };
+
+                result.push(crate::models::Decorator::FreshLabel(fresh_label))
+            }
+        }
+        Decorator::Label { text } => {
+            let sale_label = SaleLabel { text };
+
+            result.push(crate::models::Decorator::SaleLabel(sale_label))
+        }
+        Decorator::Price { display_price } => {
+            // Decorator price is the price *including* current sales if available.
+            if let Some(dp) = set_display_price {
+                *dp = display_price
+            }
+        }
+        Decorator::ValidityLabel { valid_until } => {
+            if let LocalResult::Single(valid_until) = chrono::Utc.from_local_datetime(&valid_until.and_hms(23, 59, 59))
+            {
+                let valid_from =
+                    NaiveDate::from_isoywd(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
+                        .and_hms(0, 0, 0);
+                let valid_from = if let Some(time) = chrono::Utc.from_local_datetime(&valid_from).single() {
+                    time
+                } else {
+                    return;
+                };
+                let sale_validity = SaleValidity {
+                    valid_from,
+                    valid_until,
+                };
+
+                result.push(crate::models::Decorator::SaleValidity(sale_validity))
+            }
+        }
+        Decorator::Unavailable {
+            reason,
+            replacements,
+            explanation,
+        } => {
+            let unavailable = UnavailableItem {
+                reason: match reason {
+                    UnavailableReason::OutOfAssortment => crate::models::UnavailableReason::OutOfAssortment,
+                    UnavailableReason::OutOfSeason => crate::models::UnavailableReason::OutOfSeason,
+                    UnavailableReason::TemporarilyUnavailable => {
+                        crate::models::UnavailableReason::TemporarilyUnavailable
+                    }
+                    _ => crate::models::UnavailableReason::Unknown,
+                },
+                explanation_short: explanation.short_explanation.into(),
+                explanation_long: explanation.long_explanation.into(),
+                replacements: replacements
+                    .into_iter()
+                    .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
+                    .collect(),
+            };
+
+            if let Some(available) = set_available {
+                *available = false;
+            }
+            result.push(crate::models::Decorator::Unavailable(unavailable))
+        }
+        Decorator::MoreButton { images, .. } => {
+            let more_button = MoreButton {
+                images: images
+                    .into_iter()
+                    .map(|id| picnic_api.image_url(id, ImageSize::Medium))
+                    .collect(),
+            };
+
+            result.push(crate::models::Decorator::MoreButton(more_button))
+        }
+        _ => {}
+    }
 }
 
 /// Try to parse ingredient blob in the form: `71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc`

@@ -1,7 +1,7 @@
 use crate::models::{
     AllergyTags, AllergyType, Decorator, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, Product, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem,
-    UnavailableReason, UnitPrice,
+    NutritionalInfo, NutritionalItem, Product, PromotionCategory, SaleLabel, SaleValidity, SubNutritionalItem,
+    UnavailableItem, UnavailableReason, UnitPrice,
 };
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
@@ -10,6 +10,7 @@ use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::borrow::Cow;
 use wgg_jumbo::models::AvailabilityType;
 use wgg_jumbo::{BaseApi, BaseJumboApi};
 
@@ -29,8 +30,8 @@ impl ProviderInfo for JumboBridge {
         Provider::Jumbo
     }
 
-    fn logo_url(&self) -> String {
-        todo!()
+    fn logo_url(&self) -> Cow<'static, str> {
+        "https://upload.wikimedia.org/wikipedia/commons/8/8d/Jumbo_Logo.svg".into()
     }
 
     #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]
@@ -79,6 +80,14 @@ impl ProviderInfo for JumboBridge {
         tracing::trace!("Jumbo Product: {:#?}", result);
 
         Ok(parse_jumbo_product_to_crate_product(result.product.data))
+    }
+
+    async fn promotions(&self) -> Result<Vec<PromotionCategory>> {
+        todo!()
+    }
+
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>> {
+        todo!()
     }
 }
 
