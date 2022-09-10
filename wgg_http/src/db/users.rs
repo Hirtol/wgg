@@ -11,7 +11,7 @@ pub fn find_user_by_token(token: &str) -> Select<Entity> {
             db::users_tokens::find_by_token(token)
                 .filter(db::users_tokens::non_expired())
                 .select_only()
-                .column(db::users_tokens::Column::Id)
+                .column(db::users_tokens::Column::UserId)
                 .into_query(),
         ),
     )

@@ -1,4 +1,3 @@
-use crate::api::auth::mutation::UserCreateInput;
 use crate::api::error::GraphqlError;
 use crate::api::{GraphqlResult, State};
 use crate::db;
@@ -8,7 +7,7 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
 use axum::extract::{FromRequest, RequestParts};
 use cookie::Key;
-use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, IntoActiveValue, QueryTrait};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use tower_cookies::{Cookies, PrivateCookies};
 use wgg_db_entity::users::Model;
@@ -18,7 +17,7 @@ static SESSION_KEY: &str = "session_key";
 mod mutation;
 mod query;
 
-pub use mutation::AuthMutation;
+pub use mutation::{AuthMutation, UserCreateInput};
 pub use query::AuthQuery;
 
 /// Represents a user that is already logged in.
@@ -61,7 +60,7 @@ pub async fn login_user(
 
     tx.commit().await?;
 
-    tracing::trace!("Login success");
+    tracing::debug!(id=%user.id, "Login success");
 
     Ok((user.into(), session_token))
 }
@@ -117,19 +116,15 @@ impl<B: Send> FromRequest<B> for AuthContext {
     type Rejection = GraphqlError;
 
     async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+        let cookies = Cookies::from_request(req).await.unwrap();
         let extensions = req.extensions();
-
-        let cookies = extensions
-            .get::<Cookies>()
-            .cloned()
-            .ok_or_else(|| GraphqlError::InternalError("Cookie extract failure".to_string()))?;
 
         let key = extensions
             .get::<Key>()
             .cloned()
             .ok_or_else(|| GraphqlError::InternalError("Key extract failure".to_string()))?;
 
-        let cookies = RepubCookies::from_cookies(cookies, &key);
+        let cookies = WggCookies::from_cookies(&cookies, &key);
         let state = extensions
             .get::<State>()
             .ok_or_else(|| GraphqlError::InternalError("DB extract failure".to_string()))?;
@@ -152,13 +147,13 @@ async fn verify_login_status(db: &DatabaseConnection, session_token: &str) -> Gr
     Ok(user.into())
 }
 
-pub struct RepubCookies<'a> {
+pub struct WggCookies<'a> {
     pub cookies: PrivateCookies<'a>,
 }
 
-impl RepubCookies<'_> {
-    pub fn from_cookies(cookies: Cookies, key: &Key) -> RepubCookies<'_> {
-        RepubCookies {
+impl WggCookies<'_> {
+    pub fn from_cookies<'a>(cookies: &'a Cookies, key: &'a Key) -> WggCookies<'a> {
+        WggCookies {
             cookies: cookies.private(key),
         }
     }

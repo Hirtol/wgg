@@ -1,11 +1,14 @@
-use crate::api::auth::AuthContext;
+use crate::api::auth::{AuthContext, LoginInput};
 use crate::api::ctx::ContextExt;
 use crate::api::error::GraphqlError;
 use crate::api::GraphqlResult;
 use crate::db;
 use crate::db::{Id, IntoActiveValueExt, SelectExt};
-use async_graphql::{Context, MaybeUndefined, Object};
-use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, TransactionTrait};
+use async_graphql::{Context, Object};
+use cookie::time::OffsetDateTime;
+use cookie::{Cookie, SameSite};
+use sea_orm::ActiveValue::Set;
+use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, QueryFilter, TransactionTrait};
 
 #[derive(Default)]
 pub struct AuthMutation;
@@ -90,6 +93,52 @@ impl AuthMutation {
 
         Ok(UserDeletePayload { id })
     }
+
+    /// Attempt to log in as the provided user
+    ///
+    /// # Accesible By
+    ///
+    /// Everyone (also unauthenticated users)
+    async fn login(&self, ctx: &Context<'_>, input: LoginInput) -> GraphqlResult<UserLoginPayload> {
+        let state = ctx.wgg_state();
+        let cookies = ctx.wgg_cookies();
+
+        let (user, session_token) = super::login_user(&state.db, &input).await?;
+
+        let mut cookie = tower_cookies::Cookie::new(super::SESSION_KEY, session_token.token);
+        let expiry = cookie::Expiration::DateTime(
+            OffsetDateTime::from_unix_timestamp(session_token.expires.timestamp()).unwrap(),
+        );
+
+        cookie.set_http_only(true);
+        cookie.set_path("/");
+        cookie.set_expires(expiry);
+        cookie.set_same_site(Some(SameSite::Lax));
+        cookie.set_secure(false);
+
+        cookies.cookies.add(cookie);
+
+        Ok(UserLoginPayload { user })
+    }
+
+    /// Log out with the current account
+    async fn logout(&self, ctx: &Context<'_>) -> GraphqlResult<Id> {
+        let state = ctx.wgg_state();
+        let cookies = ctx.wgg_cookies();
+        let session_token = cookies
+            .cookies
+            .get(super::SESSION_KEY)
+            .ok_or(GraphqlError::ResourceNotFound)?;
+
+        cookies.cookies.remove(Cookie::named(super::SESSION_KEY));
+
+        let _ = db::users_tokens::Entity::delete_many()
+            .filter(db::users_tokens::has_token(session_token.value()))
+            .exec(&state.db)
+            .await?;
+
+        Ok(1)
+    }
 }
 
 #[derive(Debug, Clone, async_graphql::InputObject)]
@@ -99,7 +148,6 @@ pub struct UserCreateInput {
     pub email: String,
     /// The account's password
     pub password: String,
-    #[graphql(skip)]
     pub is_admin: bool,
 }
 
@@ -124,6 +172,12 @@ pub struct UserUpdateChangeSet {
 
 #[derive(async_graphql::SimpleObject)]
 pub struct UserUpdatePayload {
-    /// The newly created user.
+    /// The newly updated user.
+    pub user: AuthContext,
+}
+
+#[derive(async_graphql::SimpleObject)]
+pub struct UserLoginPayload {
+    /// The newly logged-in user.
     pub user: AuthContext,
 }

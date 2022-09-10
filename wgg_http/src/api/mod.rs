@@ -19,6 +19,7 @@ mod error;
 mod macros;
 mod search;
 
+pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 
 pub type WggSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
@@ -57,8 +58,15 @@ pub fn config(schema: WggSchema) -> Router {
     )
 }
 
-async fn index(schema: Extension<WggSchema>, req: GraphQLRequest, user: Option<AuthContext>) -> GraphQLResponse {
-    schema.execute(req.0.data(user)).await.into()
+async fn index(
+    schema: Extension<WggSchema>,
+    req: GraphQLRequest,
+    cookies: tower_cookies::Cookies,
+    user: Option<AuthContext>,
+) -> GraphQLResponse {
+    let req = req.0.data(cookies).data(user);
+
+    schema.execute(req).await.into()
 }
 
 async fn index_playground(_: Option<AuthContext>) -> GraphqlResult<impl IntoResponse> {

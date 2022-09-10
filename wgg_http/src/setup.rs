@@ -39,6 +39,8 @@ impl Application {
         setup_db_schema(&db).await?;
 
         let sea_db = SqlxSqliteConnector::from_sqlx_sqlite_pool(db);
+        crate::utils::first_time_setup(&sea_db).await?;
+
         tracing::debug!("Creating Providers...");
         let providers = WggProvider::new();
 
@@ -90,7 +92,7 @@ async fn construct_server(
         config,
         providers: Arc::new(providers),
     };
-    let schema = create_graphql_schema(state.clone());
+    let schema = create_graphql_schema(state.clone(), secret_key.clone());
 
     let app = api_router(&cfg.app.static_dir, schema.clone()).layer(
         ServiceBuilder::new()
@@ -105,7 +107,7 @@ async fn construct_server(
     Ok(app)
 }
 
-fn create_graphql_schema(state: State) -> crate::api::WggSchema {
+fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate::api::WggSchema {
     Schema::build(
         crate::api::QueryRoot::default(),
         crate::api::MutationRoot::default(),
@@ -113,6 +115,7 @@ fn create_graphql_schema(state: State) -> crate::api::WggSchema {
     )
     .data(DataLoaders::new())
     .data(state)
+    .data(secret_key)
     .limit_depth(50)
     .finish()
 }

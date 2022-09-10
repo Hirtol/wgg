@@ -32,7 +32,12 @@ pub async fn create_session_token(db: &impl ConnectionTrait, user: &db::users::M
 
 /// Create a select for finding a User Token from any `token`.
 pub fn find_by_token(token: &str) -> Select<Entity> {
-    Entity::find().filter(Column::Token.eq(token))
+    Entity::find().filter(has_token(token))
+}
+
+/// Condition for selecting entities with the provided token.
+pub fn has_token(token: &str) -> impl IntoCondition {
+    Column::Token.eq(token)
 }
 
 /// Condition for selecting entities which have not yet expired
