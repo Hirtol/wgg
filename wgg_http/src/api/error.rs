@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use async_graphql::ErrorExtensions;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use sea_orm::DbErr;
 use thiserror::Error;
 use tokio::task::JoinError;
 use tracing::log;
@@ -154,6 +155,15 @@ impl From<&str> for GraphqlError {
 impl From<JoinError> for GraphqlError {
     fn from(e: JoinError) -> Self {
         Self::InternalError(e.to_string())
+    }
+}
+
+impl From<sea_orm::DbErr> for GraphqlError {
+    fn from(e: sea_orm::DbErr) -> Self {
+        match e {
+            DbErr::RecordNotFound(_) => Self::ResourceNotFound,
+            _ => Self::InternalError(e.to_string()),
+        }
     }
 }
 

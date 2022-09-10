@@ -161,9 +161,9 @@ impl WggProvider {
             time = 86400,
             result = true,
             key = "Provider",
-            convert = r#"{provider}"#
+            convert = r#"{_provider}"#
         )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), provider: Provider) -> Result<Vec<PromotionCategory>> {
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), _provider: Provider) -> Result<Vec<PromotionCategory>> {
             prov.promotions().await
         }
 

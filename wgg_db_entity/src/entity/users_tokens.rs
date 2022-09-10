@@ -16,8 +16,8 @@ pub struct Model {
     pub id: i32,
     pub user_id: i32,
     pub token: String,
-    pub created: DateTime,
-    pub expires: DateTime,
+    pub created: DateTimeUtc,
+    pub expires: DateTimeUtc,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -53,8 +53,8 @@ impl ColumnTrait for Column {
             Self::Id => ColumnType::Integer.def(),
             Self::UserId => ColumnType::Integer.def(),
             Self::Token => ColumnType::String(None).def(),
-            Self::Created => ColumnType::DateTime.def(),
-            Self::Expires => ColumnType::DateTime.def(),
+            Self::Created => ColumnType::Timestamp.def(),
+            Self::Expires => ColumnType::Timestamp.def(),
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::api::error::GraphqlError;
 use crate::api::{GraphqlResult, State};
+use crate::db;
 use crate::db::Id;
 use async_graphql::async_trait;
 use axum::extract::{FromRequest, RequestParts};
@@ -47,6 +48,23 @@ impl<B: Send> FromRequest<B> for AuthContext {
     }
 }
 
+pub async fn check_login_status(db: &DatabaseConnection, cookies: RepubCookies<'_>) -> GraphqlResult<AuthContext> {
+    if let Some(session_token) = cookies.cookies.get(SESSION_KEY) {
+        let user = db::users::find_user_by_token(session_token.value())
+            .one(db)
+            .await?
+            .ok_or(GraphqlError::Unauthorized)?;
+
+        Ok(AuthContext {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+        })
+    } else {
+        Err(GraphqlError::Unauthorized)
+    }
+}
+
 pub struct RepubCookies<'a> {
     pub cookies: PrivateCookies<'a>,
 }
@@ -56,31 +74,5 @@ impl RepubCookies<'_> {
         RepubCookies {
             cookies: cookies.private(key),
         }
-    }
-}
-
-pub async fn check_login_status(db: &DatabaseConnection, cookies: RepubCookies<'_>) -> GraphqlResult<AuthContext> {
-    if let Some(session_token) = cookies.cookies.get(SESSION_KEY) {
-        // let mut connection = db
-        //     .reader()
-        //     .acquire()
-        //     .await
-        //     .map_err(|_| ApiError::InternalError("DB Error".to_string()))?;
-        // let user = UserRepository::get_user_from_token(&mut *connection, session_token.value())
-        //     .await
-        //     .map_err(|_| ApiError::Unauthorized("Need login".to_string()))?;
-        //
-        // let result = UserRepository::get_entity_with_permissions(&mut *connection, user)
-        //     .await
-        //     .map_err(|_| ApiError::InternalError("Permission Error".to_string()))?;
-
-        // return Ok(result.into());
-        Ok(AuthContext {
-            id: 0,
-            email: "".to_string(),
-            username: "".to_string(),
-        })
-    } else {
-        Err(GraphqlError::Unauthorized)
     }
 }

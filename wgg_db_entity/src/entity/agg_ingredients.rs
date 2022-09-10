@@ -16,7 +16,7 @@ pub struct Model {
     pub id: i32,
     pub name: String,
     pub created_by: i32,
-    pub created_at: DateTime,
+    pub created_at: DateTimeUtc,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -52,7 +52,7 @@ impl ColumnTrait for Column {
             Self::Id => ColumnType::Integer.def(),
             Self::Name => ColumnType::String(None).def(),
             Self::CreatedBy => ColumnType::Integer.def(),
-            Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::CreatedAt => ColumnType::Timestamp.def(),
         }
     }
 }

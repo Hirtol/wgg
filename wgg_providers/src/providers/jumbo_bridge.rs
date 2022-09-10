@@ -182,12 +182,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
         // Will be parsed
         unit_price: None,
         available: product.available,
-        image_urls: product
-            .image_info
-            .primary_view
-            .into_iter()
-            .map(|i| i.url.clone())
-            .collect(),
+        image_urls: product.image_info.primary_view.into_iter().map(|i| i.url).collect(),
         // Will be parsed
         ingredients: vec![],
         // Will be parsed

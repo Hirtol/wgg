@@ -17,7 +17,7 @@ pub struct Model {
     pub email: String,
     pub username: String,
     pub hash: String,
-    pub created_at: DateTime,
+    pub created_at: DateTimeUtc,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -55,7 +55,7 @@ impl ColumnTrait for Column {
             Self::Email => ColumnType::String(None).def(),
             Self::Username => ColumnType::String(None).def(),
             Self::Hash => ColumnType::String(None).def(),
-            Self::CreatedAt => ColumnType::DateTime.def(),
+            Self::CreatedAt => ColumnType::Timestamp.def(),
         }
     }
 }
