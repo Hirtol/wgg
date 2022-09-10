@@ -7,8 +7,12 @@ pub mod providers;
 pub mod users;
 pub mod users_tokens;
 
+use async_graphql::async_trait;
 use sea_orm::strum::IntoEnumIterator;
-use sea_orm::{ColumnTrait, EntityTrait, PrimaryKeyToColumn, PrimaryKeyTrait, QueryFilter, Select};
+use sea_orm::{
+    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, IntoActiveValue, ModelTrait, PrimaryKeyToColumn,
+    PrimaryKeyTrait, QueryFilter, QueryResult, Select, SelectorTrait, Value,
+};
 
 pub trait EntityExt: EntityTrait {
     /// Find all entities which have their primary key in the provided iterator.
@@ -35,3 +39,45 @@ pub trait EntityExt: EntityTrait {
 
 // Blanket implementation for everything with an [Id] as primary key
 impl<T: EntityTrait> EntityExt for T where <Self::PrimaryKey as PrimaryKeyTrait>::ValueType: From<Id> {}
+
+// Needed to ensure we don't repeat ourselves everywhere...
+#[async_trait::async_trait]
+pub trait SelectExt {
+    type Model: ModelTrait;
+    async fn one_or_err<'a, C>(self, db: &C) -> Result<Self::Model, DbErr>
+    where
+        C: ConnectionTrait;
+}
+
+#[async_trait::async_trait]
+impl<T: EntityTrait> SelectExt for Select<T> {
+    type Model = T::Model;
+
+    async fn one_or_err<'a, C>(self, db: &C) -> Result<Self::Model, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        self.one(db)
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("No record found".to_string()))
+    }
+}
+
+pub trait IntoActiveValueExt<V: Into<Value>> {
+    /// The default `into_active_value` converts an `Option<T> -> ActiveValue<Option<T>>`.
+    ///
+    /// This is undesired for our use-case, where we frequently have optional, updates for non-nullable values (aka, single `Option`)
+    ///
+    /// There is probably an existing trait/method which does what we want, but it has yet to be discovered.
+    fn into_flattened_active_value(self) -> ActiveValue<V>;
+}
+
+impl<T: IntoActiveValue<T> + Into<Value>> IntoActiveValueExt<T> for Option<T> {
+    fn into_flattened_active_value(self) -> ActiveValue<T> {
+        if let Some(value) = self {
+            ActiveValue::Set(value)
+        } else {
+            ActiveValue::NotSet
+        }
+    }
+}

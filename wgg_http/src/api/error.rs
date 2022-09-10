@@ -167,6 +167,12 @@ impl From<sea_orm::DbErr> for GraphqlError {
     }
 }
 
+impl<T: std::error::Error> From<sea_orm::TransactionError<T>> for GraphqlError {
+    fn from(e: sea_orm::TransactionError<T>) -> Self {
+        Self::InternalError(e.to_string())
+    }
+}
+
 impl From<wgg_providers::ProviderError> for GraphqlError {
     fn from(e: ProviderError) -> Self {
         match e {

@@ -1,9 +1,9 @@
-use crate::api::auth::AuthContext;
+use crate::api::auth::{AuthContext, AuthMutation, AuthQuery};
 use crate::api::error::GraphqlError;
 use crate::api::search::SearchQuery;
 use crate::config::SharedConfig;
 use async_graphql::http::{playground_source, GraphQLPlaygroundConfig};
-use async_graphql::{EmptyMutation, EmptySubscription, MergedObject, Schema};
+use async_graphql::{EmptySubscription, MergedObject, Schema};
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse, GraphQLSubscription};
 use axum::response::IntoResponse;
 use axum::routing::get;
@@ -16,7 +16,10 @@ mod auth;
 mod ctx;
 pub(crate) mod dataloader;
 mod error;
+mod macros;
 mod search;
+
+pub(crate) use ctx::*;
 
 pub type WggSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 pub type GraphqlResult<T, E = GraphqlError> = std::result::Result<T, E>;
@@ -30,10 +33,10 @@ pub struct State {
 }
 
 #[derive(MergedObject, Default)]
-pub struct QueryRoot(SearchQuery);
+pub struct QueryRoot(SearchQuery, AuthQuery);
 
 #[derive(MergedObject, Default)]
-pub struct MutationRoot(BookMutation);
+pub struct MutationRoot(AuthMutation);
 
 #[derive(Default)]
 pub struct BookMutation;
@@ -50,7 +53,7 @@ pub fn config(schema: WggSchema) -> Router {
         "/graphql",
         axum::Router::new()
             .route("/", get(index_playground).post(index))
-            .route("/ws", GraphQLSubscription::new(schema.clone())),
+            .route("/ws", GraphQLSubscription::new(schema)),
     )
 }
 

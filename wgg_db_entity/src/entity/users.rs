@@ -18,6 +18,7 @@ pub struct Model {
     pub username: String,
     pub hash: String,
     pub created_at: DateTimeUtc,
+    pub is_admin: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -27,6 +28,7 @@ pub enum Column {
     Username,
     Hash,
     CreatedAt,
+    IsAdmin,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -56,6 +58,7 @@ impl ColumnTrait for Column {
             Self::Username => ColumnType::String(None).def(),
             Self::Hash => ColumnType::String(None).def(),
             Self::CreatedAt => ColumnType::Timestamp.def(),
+            Self::IsAdmin => ColumnType::Boolean.def(),
         }
     }
 }

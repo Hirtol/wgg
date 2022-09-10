@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS users
     email      TEXT UNIQUE         NOT NULL,
     username   TEXT                NOT NULL,
     hash       TEXT                NOT NULL,
-    created_at TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_admin   BOOLEAN             NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS users_tokens
