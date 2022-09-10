@@ -81,9 +81,9 @@ pub trait BaseApi {
     /// Note that both `count` and `offset` have to be provided, otherwise the route would return nothing at all.
     async fn products_promotion(
         &self,
+        promotion_id: Option<&PromotionId>,
         count: u32,
         offset: u32,
-        promotion_id: Option<&PromotionId>,
     ) -> Result<ProductList> {
         let count = count.to_string();
         let offset = offset.to_string();

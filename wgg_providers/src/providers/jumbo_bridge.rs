@@ -1,17 +1,17 @@
 use crate::models::{
     AllergyTags, AllergyType, Decorator, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, Product, PromotionCategory, SaleLabel, SaleValidity, SubNutritionalItem,
-    UnavailableItem, UnavailableReason, UnitPrice,
+    NutritionalInfo, NutritionalItem, Product, ProductId, PromotionCategory, PromotionProduct, SaleDescription,
+    SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem, UnavailableReason, UnitPrice,
 };
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
-use crate::Result;
 use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
+use crate::{ProviderError, Result};
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::borrow::Cow;
-use wgg_jumbo::models::AvailabilityType;
+use wgg_jumbo::models::{AvailabilityType, PromotionGroup};
 use wgg_jumbo::{BaseApi, BaseJumboApi};
 
 pub(crate) struct JumboBridge {
@@ -83,12 +83,80 @@ impl ProviderInfo for JumboBridge {
     }
 
     async fn promotions(&self) -> Result<Vec<PromotionCategory>> {
-        todo!()
+        let tab_ids = self.api.promotion_tabs().await?;
+
+        let all_proms = tab_ids
+            .tabs
+            .iter()
+            .find(|tab| tab.id == "alle")
+            .ok_or(ProviderError::NothingFound)?;
+        let current_runtime = all_proms.runtimes.first().ok_or(ProviderError::NothingFound)?;
+
+        let result = self
+            .api
+            .promotion_group(&all_proms.id, &current_runtime.id, None, None)
+            .await?;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Jumbo Promotions: {:#?}", result);
+
+        parse_jumbo_promotions(result)
     }
 
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>> {
-        todo!()
+        let promo_id = sublist_id.parse()?;
+        let result = self.api.products_promotion(Some(&promo_id), 100, 0).await?.products;
+
+        #[cfg(feature = "trace-original-api")]
+        tracing::trace!("Jumbo Promotion Products: {:#?}", result);
+
+        Ok(OffsetPagination {
+            items: result.data.into_iter().map(parse_jumbo_item_to_search_item).collect(),
+            total_items: result.total as usize,
+            offset: result.offset,
+        })
     }
+}
+
+fn parse_jumbo_promotions(promotion: PromotionGroup) -> Result<Vec<PromotionCategory>> {
+    let result = promotion
+        .categories
+        .into_iter()
+        .flat_map(|item| item.promotions)
+        .map(|item| {
+            let mut result = PromotionCategory {
+                id: item.id.into(),
+                name: item.title,
+                image_urls: vec![item.image.url],
+                limited_items: item
+                    .products
+                    .into_iter()
+                    .map(|product| PromotionProduct::ProductId(ProductId { id: product.into() }))
+                    .collect(),
+                decorators: vec![],
+                provider: Provider::Jumbo,
+            };
+
+            if let Some(sub) = item.subtitle {
+                result
+                    .decorators
+                    .push(Decorator::SaleDescription(SaleDescription { text: sub }));
+            }
+
+            if let Some(tag) = item.tags.into_iter().next() {
+                result.decorators.push(Decorator::SaleLabel(SaleLabel { text: tag }));
+            }
+
+            result.decorators.push(Decorator::SaleValidity(SaleValidity {
+                valid_from: item.start_date,
+                valid_until: item.end_date,
+            }));
+
+            result
+        })
+        .collect();
+
+    Ok(result)
 }
 
 fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product) -> Product {

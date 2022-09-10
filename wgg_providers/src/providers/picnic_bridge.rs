@@ -5,7 +5,7 @@ use crate::models::{
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
-use crate::{Autocomplete, OffsetPagination, Provider, ProviderError, SearchProduct};
+use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use std::borrow::Cow;
 use wgg_picnic::models::{Decorator, ImageSize, SubCategory, UnavailableReason};
@@ -95,7 +95,7 @@ impl ProviderInfo for PicnicBridge {
     }
 
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>> {
-        let mut result = self.api.promotions(Some(sublist_id), 3).await?;
+        let result = self.api.promotions(Some(sublist_id), 3).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
