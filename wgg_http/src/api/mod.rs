@@ -39,16 +39,6 @@ pub struct QueryRoot(SearchQuery, AuthQuery);
 #[derive(MergedObject, Default)]
 pub struct MutationRoot(AuthMutation);
 
-#[derive(Default)]
-pub struct BookMutation;
-
-#[async_graphql::Object]
-impl BookMutation {
-    async fn testo(&self, ctx: &async_graphql::Context<'_>) -> GraphqlResult<String> {
-        Ok("to".to_string())
-    }
-}
-
 pub fn config(schema: WggSchema) -> Router {
     Router::new().nest(
         "/graphql",

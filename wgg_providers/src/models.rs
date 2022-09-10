@@ -185,32 +185,32 @@ pub struct Product {
     pub provider: Provider,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct IngredientInfo {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct NutritionalInfo {
     /// For what unit (e.g, `per 100g`) these items are valid.
     pub info_unit: String,
     pub items: Vec<NutritionalItem>,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct NutritionalItem {
     pub name: String,
     pub value: String,
     pub sub_values: Vec<SubNutritionalItem>,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct SubNutritionalItem {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct AllergyTags {
     pub name: String,
     pub contains: AllergyType,
@@ -225,7 +225,7 @@ pub enum AllergyType {
 /// Contains additional information relevant for an item.
 ///
 /// Examples include: Preparation instructions, Supplier info
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct ItemInfo {
     pub item_type: ItemType,
     pub text: String,
@@ -261,7 +261,7 @@ pub enum PromotionProduct {
     ProductId(ProductId),
 }
 
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct ProductId {
     pub id: String,
 }

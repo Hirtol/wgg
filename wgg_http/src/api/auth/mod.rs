@@ -7,7 +7,7 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
 use axum::extract::{FromRequest, RequestParts};
 use cookie::Key;
-use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, IntoActiveValue, QueryTrait};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use tower_cookies::{Cookies, PrivateCookies};
 use wgg_db_entity::users::Model;

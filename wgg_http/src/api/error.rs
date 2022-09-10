@@ -87,22 +87,12 @@ impl IntoResponse for GraphqlError {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ApiResponseError<T> {
     pub code: u16,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<T>,
-}
-
-impl<T> ApiResponseError<T> {
-    pub fn new(code: u16, message: String) -> Self {
-        ApiResponseError {
-            code,
-            message,
-            details: None,
-        }
-    }
 }
 
 impl Clone for GraphqlError {

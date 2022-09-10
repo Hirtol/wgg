@@ -11,7 +11,7 @@ use async_graphql::async_trait;
 use sea_orm::strum::IntoEnumIterator;
 use sea_orm::{
     ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, IntoActiveValue, ModelTrait, PrimaryKeyToColumn,
-    PrimaryKeyTrait, QueryFilter, QueryResult, Select, SelectorTrait, Value,
+    PrimaryKeyTrait, QueryFilter, Select, Value,
 };
 
 pub trait EntityExt: EntityTrait {
