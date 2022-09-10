@@ -15,7 +15,7 @@ impl SearchQuery {
         #[graphql(desc = "The current user input")] query: String,
     ) -> GraphqlResult<Vec<Autocomplete>> {
         let state = ctx.wgg_state();
-        let response = state.providers.autocomplete(Provider::Jumbo, query).await?;
+        let response = state.providers.autocomplete(Provider::Picnic, query).await?;
 
         Ok(response)
     }

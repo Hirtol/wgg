@@ -39,7 +39,7 @@ impl WggProvider {
 
     /// Initialise the Picnic API provider.
     ///
-    /// Ideally one would persist the acquired credentials to disk.
+    /// Ideally one would persist the acquired credentials to disk, and in the future use [Self::with_picnic].
     pub async fn with_picnic_login(mut self, username: &str, password: &str) -> Result<Self> {
         let picnic = PicnicApi::from_login(username, password, Default::default()).await?;
 
@@ -53,9 +53,20 @@ impl WggProvider {
     /// Note that for some providers it is *very* important to use their returned suggestions, or else the [Self::search] will perform poorly
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
     pub async fn autocomplete(&self, provider: Provider, query: impl AsRef<str>) -> Result<Vec<Autocomplete>> {
+        #[cached::proc_macro::cached(
+            size = 100,
+            time = 86400,
+            result = true,
+            key = "String",
+            convert = r#"{query.to_string()}"#
+        )]
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), query: &str) -> Result<Vec<Autocomplete>> {
+            prov.autocomplete(query).await
+        }
+
         let provider = self.find_provider(provider)?;
 
-        provider.autocomplete(query.as_ref()).await
+        inner(provider, query.as_ref()).await
     }
 
     /// Search for the provided query in the given [Provider].
@@ -68,9 +79,24 @@ impl WggProvider {
         query: impl AsRef<str>,
         offset: Option<u32>,
     ) -> Result<OffsetPagination<SearchProduct>> {
+        #[cached::proc_macro::cached(
+            size = 100,
+            time = 86400,
+            result = true,
+            key = "(String, Option<u32>)",
+            convert = r#"{(query.to_string(), offset)}"#
+        )]
+        async fn inner(
+            prov: &(dyn ProviderInfo + Send + Sync),
+            query: &str,
+            offset: Option<u32>,
+        ) -> Result<OffsetPagination<SearchProduct>> {
+            prov.search(query, offset).await
+        }
+
         let provider = self.find_provider(provider)?;
 
-        provider.search(query.as_ref(), offset).await
+        inner(provider, query.as_ref(), offset).await
     }
 
     /// Search all providers for the given query.
@@ -78,7 +104,21 @@ impl WggProvider {
     /// The [OffsetPagination] will have no `offset` listed, but the `total_items` will be the sum of all APIs' total items.
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
     pub async fn search_all(&self, query: impl AsRef<str>) -> Result<OffsetPagination<SearchProduct>> {
-        let provider = self.iter().map(|i| i.search(query.as_ref(), None));
+        #[cached::proc_macro::cached(
+            size = 100,
+            time = 86400,
+            result = true,
+            key = "String",
+            convert = r#"{query.to_string()}"#
+        )]
+        async fn inner(
+            prov: &(dyn ProviderInfo + Send + Sync),
+            query: &str,
+        ) -> Result<OffsetPagination<SearchProduct>> {
+            prov.search(query, None).await
+        }
+
+        let provider = self.iter().map(|i| inner(i, query.as_ref()));
 
         futures::future::join_all(provider)
             .await
@@ -97,18 +137,42 @@ impl WggProvider {
     /// Note that this `product_id` needs to be obtained from this specific `provider`. Product ids do not cross provider boundaries.
     #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
     pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<Product> {
+        #[cached::proc_macro::cached(
+            size = 100,
+            time = 86400,
+            result = true,
+            key = "String",
+            convert = r#"{product_id.to_string()}"#
+        )]
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), product_id: &str) -> Result<Product> {
+            prov.product(product_id).await
+        }
+
         let provider = self.find_provider(provider)?;
 
-        provider.product(product_id.as_ref()).await
+        inner(provider, product_id.as_ref()).await
     }
 
+    /// Retrieve all valid promotions for the current week for the given provider.
     #[tracing::instrument(level = "debug", skip_all, fields(provider))]
     pub async fn promotions(&self, provider: Provider) -> Result<Vec<PromotionCategory>> {
-        let provider = self.find_provider(provider)?;
+        #[cached::proc_macro::cached(
+            size = 100,
+            time = 86400,
+            result = true,
+            key = "Provider",
+            convert = r#"{provider}"#
+        )]
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), provider: Provider) -> Result<Vec<PromotionCategory>> {
+            prov.promotions().await
+        }
 
-        provider.promotions().await
+        let prov = self.find_provider(provider)?;
+
+        inner(prov, provider).await
     }
 
+    /// Retrieve all valid promotions for the current week.
     #[tracing::instrument(level = "debug", skip_all)]
     pub async fn promotions_all(&self) -> Result<Vec<PromotionCategory>> {
         let provider = self.iter().map(|i| i.promotions());
@@ -124,15 +188,30 @@ impl WggProvider {
             .ok_or(ProviderError::NothingFound)
     }
 
+    /// Retrieve all products that are part of the given promotion sub-list.
     #[tracing::instrument(level = "debug", skip_all, fields(provider, sublist_id))]
     pub async fn promotions_sublist(
         &self,
         provider: Provider,
         sublist_id: impl AsRef<str>,
     ) -> Result<OffsetPagination<SearchProduct>> {
+        #[cached::proc_macro::cached(
+            size = 100,
+            time = 86400,
+            result = true,
+            key = "String",
+            convert = r#"{sublist_id.to_string()}"#
+        )]
+        async fn inner(
+            prov: &(dyn ProviderInfo + Send + Sync),
+            sublist_id: &str,
+        ) -> Result<OffsetPagination<SearchProduct>> {
+            prov.promotions_sublist(sublist_id).await
+        }
+
         let provider = self.find_provider(provider)?;
 
-        provider.promotions_sublist(sublist_id.as_ref()).await
+        inner(provider, sublist_id.as_ref()).await
     }
 
     /// Return a reference to the requested provider.
