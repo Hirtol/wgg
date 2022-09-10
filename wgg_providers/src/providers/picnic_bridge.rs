@@ -199,7 +199,7 @@ fn parse_picnic_full_product_to_product(
         image_urls: product
             .image_ids
             .into_iter()
-            .map(|url| picnic_api.image_url(url, ImageSize::Large))
+            .map(|url| picnic_api.image_url(url, ImageSize::Medium))
             .collect(),
         // Will be parsed
         ingredients: Vec::new(),
@@ -358,7 +358,7 @@ fn parse_picnic_item_to_search_item(
         unit_quantity: Default::default(),
         unit_price: None,
         available: true,
-        image_url: Some(picnic_api.image_url(article.image_id, wgg_picnic::models::ImageSize::Large)),
+        image_url: Some(picnic_api.image_url(article.image_id, wgg_picnic::models::ImageSize::Medium)),
         decorators: Vec::new(),
         provider: Provider::Picnic,
     };
