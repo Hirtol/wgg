@@ -125,6 +125,7 @@ impl AuthMutation {
     async fn logout(&self, ctx: &Context<'_>) -> GraphqlResult<Id> {
         let state = ctx.wgg_state();
         let cookies = ctx.wgg_cookies();
+
         let session_token = cookies
             .cookies
             .get(super::SESSION_KEY)

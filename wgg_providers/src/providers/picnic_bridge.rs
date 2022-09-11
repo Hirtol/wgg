@@ -1,11 +1,11 @@
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton, NutritionalInfo,
-    NutritionalItem, PrepTime, Product, PromotionCategory, PromotionProduct, SaleLabel, SaleValidity,
-    SubNutritionalItem, UnavailableItem, UnitPrice,
+    NutritionalItem, PrepTime, PromotionProduct, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem,
+    UnitPrice, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
-use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
+use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use std::borrow::Cow;
 use wgg_picnic::models::{Decorator, ImageSize, SubCategory, UnavailableReason};
@@ -35,7 +35,7 @@ impl ProviderInfo for PicnicBridge {
     }
 
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
-    async fn autocomplete(&self, query: &str) -> Result<Vec<Autocomplete>> {
+    async fn autocomplete(&self, query: &str) -> Result<Vec<WggAutocomplete>> {
         let result = self.api.suggestions(query).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -43,18 +43,18 @@ impl ProviderInfo for PicnicBridge {
 
         Ok(result
             .into_iter()
-            .map(|i| Autocomplete { name: i.suggestion })
+            .map(|i| WggAutocomplete { name: i.suggestion })
             .collect())
     }
 
     #[tracing::instrument(name = "picnic_search", level = "debug", skip(self, _offset))]
-    async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
+    async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
         let result = self.api.search(query).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Search: {:#?}", result);
 
-        let result: Vec<SearchProduct> = result
+        let result: Vec<WggSearchProduct> = result
             .into_iter()
             .flat_map(|res| {
                 res.items.into_iter().filter_map(|item| {
@@ -76,7 +76,7 @@ impl ProviderInfo for PicnicBridge {
         Ok(offset)
     }
 
-    async fn product(&self, product_id: &str) -> Result<Product> {
+    async fn product(&self, product_id: &str) -> Result<WggProduct> {
         let result = self.api.product(product_id).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -85,7 +85,7 @@ impl ProviderInfo for PicnicBridge {
         parse_picnic_full_product_to_product(&self.api, result.product_details)
     }
 
-    async fn promotions(&self) -> Result<Vec<PromotionCategory>> {
+    async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
         let result = self.api.promotions(None, 3).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -94,13 +94,13 @@ impl ProviderInfo for PicnicBridge {
         parse_picnic_promotions(&self.api, result)
     }
 
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>> {
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<WggSearchProduct>> {
         let result = self.api.promotions(Some(sublist_id), 3).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
         // When querying for a sublist with depth>0 we just get a raw array of SingleArticles
-        let result: Vec<SearchProduct> = result
+        let result: Vec<WggSearchProduct> = result
             .into_iter()
             .flat_map(|res| {
                 if let SubCategory::SingleArticle(article) = res {
@@ -124,7 +124,7 @@ impl ProviderInfo for PicnicBridge {
 fn parse_picnic_promotions(
     picnic_api: &wgg_picnic::PicnicApi,
     promotions: Vec<SubCategory>,
-) -> Result<Vec<PromotionCategory>> {
+) -> Result<Vec<WggSaleCategory>> {
     Ok(promotions
         .into_iter()
         .flat_map(|item| match item {
@@ -135,7 +135,7 @@ fn parse_picnic_promotions(
             }
         })
         .map(|category| {
-            let mut result = PromotionCategory {
+            let mut result = WggSaleCategory {
                 id: category.id,
                 name: category.name,
                 image_urls: vec![],
@@ -182,9 +182,9 @@ fn parse_picnic_promotions(
 fn parse_picnic_full_product_to_product(
     picnic_api: &PicnicApi,
     product: wgg_picnic::models::ProductDetails,
-) -> Result<Product> {
+) -> Result<WggProduct> {
     // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
-    let mut result = Product {
+    let mut result = WggProduct {
         id: product.id,
         name: product.name,
         description: product.description,
@@ -223,7 +223,7 @@ fn parse_picnic_full_product_to_product(
         if let Some(minutes) = parse_prep_time(&product.unit_quantity) {
             result
                 .decorators
-                .push(crate::models::Decorator::PrepTime(PrepTime { time_minutes: minutes }));
+                .push(crate::models::WggDecorator::PrepTime(PrepTime { time_minutes: minutes }));
         }
     }
 
@@ -297,7 +297,7 @@ fn parse_picnic_full_product_to_product(
 
         result
             .decorators
-            .push(crate::models::Decorator::FreshLabel(fresh_label))
+            .push(crate::models::WggDecorator::FreshLabel(fresh_label))
     }
 
     // Parse remaining decorators
@@ -348,9 +348,9 @@ fn parse_picnic_full_product_to_product(
 fn parse_picnic_item_to_search_item(
     picnic_api: &PicnicApi,
     article: wgg_picnic::models::SingleArticle,
-) -> SearchProduct {
+) -> WggSearchProduct {
     // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
-    let mut result = SearchProduct {
+    let mut result = WggSearchProduct {
         id: article.id,
         name: article.name,
         full_price: article.display_price,
@@ -383,7 +383,7 @@ fn parse_picnic_item_to_search_item(
         if let Some(minutes) = parse_prep_time(&article.unit_quantity) {
             result
                 .decorators
-                .push(crate::models::Decorator::PrepTime(PrepTime { time_minutes: minutes }));
+                .push(crate::models::WggDecorator::PrepTime(PrepTime { time_minutes: minutes }));
         }
     }
 
@@ -403,7 +403,7 @@ fn parse_picnic_item_to_search_item(
 pub fn parse_decorator(
     picnic_api: &PicnicApi,
     decorator: Decorator,
-    result: &mut Vec<crate::models::Decorator>,
+    result: &mut Vec<crate::models::WggDecorator>,
     set_display_price: Option<&mut u32>,
     set_available: Option<&mut bool>,
 ) {
@@ -412,18 +412,18 @@ pub fn parse_decorator(
         Decorator::FreshLabel { period }
             if !result
                 .iter()
-                .any(|i| matches!(i, crate::models::Decorator::FreshLabel(_))) =>
+                .any(|i| matches!(i, crate::models::WggDecorator::FreshLabel(_))) =>
         {
             if let Some(days_fresh) = parse_days_fresh(&period) {
                 let fresh_label = FreshLabel { days_fresh };
 
-                result.push(crate::models::Decorator::FreshLabel(fresh_label))
+                result.push(crate::models::WggDecorator::FreshLabel(fresh_label))
             }
         }
         Decorator::Label { text } => {
             let sale_label = SaleLabel { text };
 
-            result.push(crate::models::Decorator::SaleLabel(sale_label))
+            result.push(crate::models::WggDecorator::SaleLabel(sale_label))
         }
         Decorator::Price { display_price } => {
             // Decorator price is the price *including* current sales if available.
@@ -447,7 +447,7 @@ pub fn parse_decorator(
                     valid_until,
                 };
 
-                result.push(crate::models::Decorator::SaleValidity(sale_validity))
+                result.push(crate::models::WggDecorator::SaleValidity(sale_validity))
             }
         }
         Decorator::Unavailable {
@@ -475,7 +475,7 @@ pub fn parse_decorator(
             if let Some(available) = set_available {
                 *available = false;
             }
-            result.push(crate::models::Decorator::Unavailable(unavailable))
+            result.push(crate::models::WggDecorator::Unavailable(unavailable))
         }
         Decorator::MoreButton { images, .. } => {
             let more_button = MoreButton {
@@ -485,7 +485,7 @@ pub fn parse_decorator(
                     .collect(),
             };
 
-            result.push(crate::models::Decorator::MoreButton(more_button))
+            result.push(crate::models::WggDecorator::MoreButton(more_button))
         }
         _ => {}
     }

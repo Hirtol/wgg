@@ -1,11 +1,11 @@
 use crate::models::{
-    AllergyTags, AllergyType, Decorator, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, Product, ProductId, PromotionCategory, PromotionProduct, SaleDescription,
-    SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem, UnavailableReason, UnitPrice,
+    AllergyTags, AllergyType, WggDecorator, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
+    NutritionalInfo, NutritionalItem, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity,
+    SubNutritionalItem, UnavailableItem, UnavailableReason, UnitPrice, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
-use crate::{Autocomplete, OffsetPagination, Provider, SearchProduct};
+use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use crate::{ProviderError, Result};
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
@@ -35,17 +35,17 @@ impl ProviderInfo for JumboBridge {
     }
 
     #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]
-    async fn autocomplete(&self, query: &str) -> crate::Result<Vec<Autocomplete>> {
+    async fn autocomplete(&self, query: &str) -> crate::Result<Vec<WggAutocomplete>> {
         // Cache the response for a day at a time, as the Jumbo autocomplete is just a giant list of terms.
         #[once(time = 86400, result = true)]
-        async fn inner(api: &BaseJumboApi) -> Result<Vec<Autocomplete>> {
+        async fn inner(api: &BaseJumboApi) -> Result<Vec<WggAutocomplete>> {
             Ok(api
                 .autocomplete()
                 .await?
                 .autocomplete
                 .data
                 .into_iter()
-                .map(|auto| Autocomplete { name: auto })
+                .map(|auto| WggAutocomplete { name: auto })
                 .collect())
         }
 
@@ -55,7 +55,7 @@ impl ProviderInfo for JumboBridge {
     }
 
     #[tracing::instrument(name = "jumbo_search", level = "debug", skip(self))]
-    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<SearchProduct>> {
+    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
         let search_results = self.api.search(query, offset, None).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -73,7 +73,7 @@ impl ProviderInfo for JumboBridge {
         })
     }
 
-    async fn product(&self, product_id: &str) -> Result<Product> {
+    async fn product(&self, product_id: &str) -> Result<WggProduct> {
         let result = self.api.product(&product_id.parse()?).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -82,7 +82,7 @@ impl ProviderInfo for JumboBridge {
         Ok(parse_jumbo_product_to_crate_product(result.product.data))
     }
 
-    async fn promotions(&self) -> Result<Vec<PromotionCategory>> {
+    async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
         let tab_ids = self.api.promotion_tabs().await?;
 
         let all_proms = tab_ids
@@ -103,7 +103,7 @@ impl ProviderInfo for JumboBridge {
         parse_jumbo_promotions(result)
     }
 
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<SearchProduct>> {
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<WggSearchProduct>> {
         let promo_id = sublist_id.parse()?;
         let result = self.api.products_promotion(Some(&promo_id), 100, 0).await?.products;
 
@@ -118,13 +118,13 @@ impl ProviderInfo for JumboBridge {
     }
 }
 
-fn parse_jumbo_promotions(promotion: PromotionGroup) -> Result<Vec<PromotionCategory>> {
+fn parse_jumbo_promotions(promotion: PromotionGroup) -> Result<Vec<WggSaleCategory>> {
     let result = promotion
         .categories
         .into_iter()
         .flat_map(|item| item.promotions)
         .map(|item| {
-            let mut result = PromotionCategory {
+            let mut result = WggSaleCategory {
                 id: item.id.into(),
                 name: item.title,
                 image_urls: vec![item.image.url],
@@ -140,14 +140,14 @@ fn parse_jumbo_promotions(promotion: PromotionGroup) -> Result<Vec<PromotionCate
             if let Some(sub) = item.subtitle {
                 result
                     .decorators
-                    .push(Decorator::SaleDescription(SaleDescription { text: sub }));
+                    .push(WggDecorator::SaleDescription(SaleDescription { text: sub }));
             }
 
             if let Some(tag) = item.tags.into_iter().next() {
-                result.decorators.push(Decorator::SaleLabel(SaleLabel { text: tag }));
+                result.decorators.push(WggDecorator::SaleLabel(SaleLabel { text: tag }));
             }
 
-            result.decorators.push(Decorator::SaleValidity(SaleValidity {
+            result.decorators.push(WggDecorator::SaleValidity(SaleValidity {
                 valid_from: item.start_date,
                 valid_until: item.end_date,
             }));
@@ -159,8 +159,8 @@ fn parse_jumbo_promotions(promotion: PromotionGroup) -> Result<Vec<PromotionCate
     Ok(result)
 }
 
-fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product) -> Product {
-    let mut result = Product {
+fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product) -> WggProduct {
+    let mut result = WggProduct {
         id: product.id.into(),
         name: product.title,
         description: product
@@ -216,10 +216,10 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
                 .tags
                 .into_iter()
                 .map(|t| SaleLabel { text: t.text })
-                .map(Decorator::SaleLabel),
+                .map(WggDecorator::SaleLabel),
         );
 
-        result.decorators.push(Decorator::SaleValidity(SaleValidity {
+        result.decorators.push(WggDecorator::SaleValidity(SaleValidity {
             valid_from: promotion.from_date,
             valid_until: promotion.to_date,
         }));
@@ -238,12 +238,12 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             replacements: Vec::new(),
         };
 
-        result.decorators.push(Decorator::Unavailable(unavailable));
+        result.decorators.push(WggDecorator::Unavailable(unavailable));
     }
 
     // Freshness
     if let Some(fresh) = product.badge_description.as_deref().and_then(parse_badge_description) {
-        result.decorators.push(Decorator::FreshLabel(fresh))
+        result.decorators.push(WggDecorator::FreshLabel(fresh))
     }
 
     // Ingredients
@@ -274,7 +274,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
         if let Ok(amount) = servings.parse() {
             result
                 .decorators
-                .push(Decorator::NumberOfServings(NumberOfServings { amount }));
+                .push(WggDecorator::NumberOfServings(NumberOfServings { amount }));
         }
     }
 
@@ -315,8 +315,8 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
 }
 
 /// Parse a full picnic [wgg_jumbo::models::SingleArticle] to our normalised [SearchItem]
-fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -> SearchProduct {
-    let mut result = SearchProduct {
+fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -> WggSearchProduct {
+    let mut result = WggSearchProduct {
         id: article.id.into(),
         name: article.title,
         full_price: article.prices.price.amount,
@@ -357,9 +357,9 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
                 .tags
                 .into_iter()
                 .map(|t| SaleLabel { text: t.text })
-                .map(Decorator::SaleLabel),
+                .map(WggDecorator::SaleLabel),
         );
-        result.decorators.push(Decorator::SaleValidity(SaleValidity {
+        result.decorators.push(WggDecorator::SaleValidity(SaleValidity {
             valid_from: promotion.from_date,
             valid_until: promotion.to_date,
         }));
@@ -378,12 +378,12 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
             replacements: Vec::new(),
         };
 
-        result.decorators.push(Decorator::Unavailable(unavailable));
+        result.decorators.push(WggDecorator::Unavailable(unavailable));
     }
 
     // Freshness
     if let Some(fresh) = article.badge_description.as_deref().and_then(parse_badge_description) {
-        result.decorators.push(Decorator::FreshLabel(fresh))
+        result.decorators.push(WggDecorator::FreshLabel(fresh))
     }
 
     result

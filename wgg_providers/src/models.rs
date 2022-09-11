@@ -11,12 +11,12 @@ pub enum Provider {
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Autocomplete {
+pub struct WggAutocomplete {
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct SearchProduct {
+pub struct WggSearchProduct {
     pub id: String,
     pub name: String,
     /// The full price of an article, ignoring any sales
@@ -32,7 +32,7 @@ pub struct SearchProduct {
     pub available: bool,
     /// Direct URL to product image.
     pub image_url: Option<String>,
-    pub decorators: Vec<Decorator>,
+    pub decorators: Vec<WggDecorator>,
     /// The grocery store this item is provided from.
     pub provider: Provider,
 }
@@ -70,7 +70,7 @@ pub enum Unit {
 #[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Decorator {
+pub enum WggDecorator {
     FreshLabel(FreshLabel),
     SaleLabel(SaleLabel),
     SaleValidity(SaleValidity),
@@ -116,7 +116,7 @@ pub struct UnavailableItem {
     /// Lists replacements if the store has suggested any.
     ///
     /// Some stores won't support this functionality, and this would therefore remain empty.
-    pub replacements: Vec<SearchProduct>,
+    pub replacements: Vec<WggSearchProduct>,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -144,7 +144,7 @@ pub enum UnavailableReason {
 
 // ** Full Product **
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct Product {
+pub struct WggProduct {
     /// This service's ID for the current product.
     /// Not transferable between [Provider]s
     pub id: String,
@@ -180,7 +180,7 @@ pub struct Product {
     /// These can be useful to add as additional collapsable tabs in the front-end ui.
     pub additional_items: Vec<ItemInfo>,
     /// All decorators describing the object in further detail.
-    pub decorators: Vec<Decorator>,
+    pub decorators: Vec<WggDecorator>,
     /// The grocery store this item is provided from.
     pub provider: Provider,
 }
@@ -242,7 +242,7 @@ pub enum ItemType {
 
 // ** Promotions **
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct PromotionCategory {
+pub struct WggSaleCategory {
     pub id: String,
     pub name: String,
     pub image_urls: Vec<String>,
@@ -251,13 +251,13 @@ pub struct PromotionCategory {
     /// Picnic is one example of such a provider.
     /// Generally recommended to query for more detailed information when needed.
     pub limited_items: Vec<PromotionProduct>,
-    pub decorators: Vec<Decorator>,
+    pub decorators: Vec<WggDecorator>,
     pub provider: Provider,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
 pub enum PromotionProduct {
-    Product(SearchProduct),
+    Product(WggSearchProduct),
     ProductId(ProductId),
 }
 

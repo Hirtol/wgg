@@ -1,4 +1,4 @@
-use crate::models::{Autocomplete, Product, PromotionCategory, Provider, SearchProduct};
+use crate::models::{Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
@@ -52,7 +52,7 @@ impl WggProvider {
     ///
     /// Note that for some providers it is *very* important to use their returned suggestions, or else the [Self::search] will perform poorly
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
-    pub async fn autocomplete(&self, provider: Provider, query: impl AsRef<str>) -> Result<Vec<Autocomplete>> {
+    pub async fn autocomplete(&self, provider: Provider, query: impl AsRef<str>) -> Result<Vec<WggAutocomplete>> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -60,7 +60,7 @@ impl WggProvider {
             key = "String",
             convert = r#"{query.to_string()}"#
         )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), query: &str) -> Result<Vec<Autocomplete>> {
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), query: &str) -> Result<Vec<WggAutocomplete>> {
             prov.autocomplete(query).await
         }
 
@@ -78,7 +78,7 @@ impl WggProvider {
         provider: Provider,
         query: impl AsRef<str>,
         offset: Option<u32>,
-    ) -> Result<OffsetPagination<SearchProduct>> {
+    ) -> Result<OffsetPagination<WggSearchProduct>> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -90,7 +90,7 @@ impl WggProvider {
             prov: &(dyn ProviderInfo + Send + Sync),
             query: &str,
             offset: Option<u32>,
-        ) -> Result<OffsetPagination<SearchProduct>> {
+        ) -> Result<OffsetPagination<WggSearchProduct>> {
             prov.search(query, offset).await
         }
 
@@ -103,7 +103,7 @@ impl WggProvider {
     ///
     /// The [OffsetPagination] will have no `offset` listed, but the `total_items` will be the sum of all APIs' total items.
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
-    pub async fn search_all(&self, query: impl AsRef<str>) -> Result<OffsetPagination<SearchProduct>> {
+    pub async fn search_all(&self, query: impl AsRef<str>) -> Result<OffsetPagination<WggSearchProduct>> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -114,7 +114,7 @@ impl WggProvider {
         async fn inner(
             prov: &(dyn ProviderInfo + Send + Sync),
             query: &str,
-        ) -> Result<OffsetPagination<SearchProduct>> {
+        ) -> Result<OffsetPagination<WggSearchProduct>> {
             prov.search(query, None).await
         }
 
@@ -136,7 +136,7 @@ impl WggProvider {
     ///
     /// Note that this `product_id` needs to be obtained from this specific `provider`. Product ids do not cross provider boundaries.
     #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
-    pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<Product> {
+    pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<WggProduct> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -144,7 +144,7 @@ impl WggProvider {
             key = "String",
             convert = r#"{product_id.to_string()}"#
         )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), product_id: &str) -> Result<Product> {
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), product_id: &str) -> Result<WggProduct> {
             prov.product(product_id).await
         }
 
@@ -155,7 +155,7 @@ impl WggProvider {
 
     /// Retrieve all valid promotions for the current week for the given provider.
     #[tracing::instrument(level = "debug", skip_all, fields(provider))]
-    pub async fn promotions(&self, provider: Provider) -> Result<Vec<PromotionCategory>> {
+    pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -163,7 +163,7 @@ impl WggProvider {
             key = "Provider",
             convert = r#"{_provider}"#
         )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), _provider: Provider) -> Result<Vec<PromotionCategory>> {
+        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), _provider: Provider) -> Result<Vec<WggSaleCategory>> {
             prov.promotions().await
         }
 
@@ -174,7 +174,7 @@ impl WggProvider {
 
     /// Retrieve all valid promotions for the current week.
     #[tracing::instrument(level = "debug", skip_all)]
-    pub async fn promotions_all(&self) -> Result<Vec<PromotionCategory>> {
+    pub async fn promotions_all(&self) -> Result<Vec<WggSaleCategory>> {
         let provider = self.iter().map(|i| i.promotions());
 
         futures::future::join_all(provider)
@@ -194,7 +194,7 @@ impl WggProvider {
         &self,
         provider: Provider,
         sublist_id: impl AsRef<str>,
-    ) -> Result<OffsetPagination<SearchProduct>> {
+    ) -> Result<OffsetPagination<WggSearchProduct>> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -205,7 +205,7 @@ impl WggProvider {
         async fn inner(
             prov: &(dyn ProviderInfo + Send + Sync),
             sublist_id: &str,
-        ) -> Result<OffsetPagination<SearchProduct>> {
+        ) -> Result<OffsetPagination<WggSearchProduct>> {
             prov.promotions_sublist(sublist_id).await
         }
 
