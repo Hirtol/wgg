@@ -3,6 +3,9 @@ pub type Id = i32;
 
 pub mod agg_ingredients;
 pub mod agg_ingredients_links;
+pub mod cart;
+pub mod cart_contents;
+pub mod cart_tally;
 pub mod providers;
 pub mod users;
 pub mod users_tokens;

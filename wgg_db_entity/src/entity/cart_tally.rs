@@ -7,33 +7,32 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "agg_ingredients_links"
+        "cart_tally"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel)]
 pub struct Model {
-    pub id: i32,
-    pub aggregate_id: i32,
+    pub cart_id: i32,
     pub provider_id: i32,
-    pub provider_ingr_id: String,
+    pub price_cents: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
-    Id,
-    AggregateId,
+    CartId,
     ProviderId,
-    ProviderIngrId,
+    PriceCents,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
 pub enum PrimaryKey {
-    Id,
+    CartId,
+    ProviderId,
 }
 
 impl PrimaryKeyTrait for PrimaryKey {
-    type ValueType = i32;
+    type ValueType = (i32, i32);
     fn auto_increment() -> bool {
         false
     }
@@ -42,17 +41,16 @@ impl PrimaryKeyTrait for PrimaryKey {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     Providers,
-    AggIngredients,
+    Cart,
 }
 
 impl ColumnTrait for Column {
     type EntityName = Entity;
     fn def(&self) -> ColumnDef {
         match self {
-            Self::Id => ColumnType::Integer.def(),
-            Self::AggregateId => ColumnType::Integer.def(),
+            Self::CartId => ColumnType::Integer.def(),
             Self::ProviderId => ColumnType::Integer.def(),
-            Self::ProviderIngrId => ColumnType::String(None).def(),
+            Self::PriceCents => ColumnType::Integer.def(),
         }
     }
 }
@@ -64,9 +62,9 @@ impl RelationTrait for Relation {
                 .from(Column::ProviderId)
                 .to(super::providers::Column::Id)
                 .into(),
-            Self::AggIngredients => Entity::belongs_to(super::agg_ingredients::Entity)
-                .from(Column::AggregateId)
-                .to(super::agg_ingredients::Column::Id)
+            Self::Cart => Entity::belongs_to(super::cart::Entity)
+                .from(Column::CartId)
+                .to(super::cart::Column::Id)
                 .into(),
         }
     }
@@ -78,9 +76,9 @@ impl Related<super::providers::Entity> for Entity {
     }
 }
 
-impl Related<super::agg_ingredients::Entity> for Entity {
+impl Related<super::cart::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::AggIngredients.def()
+        Relation::Cart.def()
     }
 }
 

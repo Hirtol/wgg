@@ -1,0 +1,23 @@
+-- Order history scratch paper
+
+-- CREATE TABLE IF NOT EXISTS order_history
+-- (
+--     id           INTEGER PRIMARY KEY NOT NULL,
+--     user_id      INTEGER             NOT NULL,
+--     completed_at TIMESTAMP           NOT NULL,
+--     picked_id    INTEGER             NOT NULL,
+--
+--     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+--     FOREIGN KEY (picked_id) REFERENCES providers (id) ON DELETE CASCADE
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS order_history_prices
+-- (
+--     order_id    INTEGER NOT NULL,
+--     provider_id INTEGER NOT NULL,
+--     price_cents INTEGER NOT NULL,
+--
+--     PRIMARY KEY (order_id, provider_id),
+--     FOREIGN KEY (order_id) REFERENCES order_history (id) ON DELETE CASCADE,
+--     FOREIGN KEY (provider_id) REFERENCES providers (id) ON DELETE CASCADE
+-- );

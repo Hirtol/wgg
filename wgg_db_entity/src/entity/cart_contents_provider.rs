@@ -7,28 +7,28 @@ pub struct Entity;
 
 impl EntityName for Entity {
     fn table_name(&self) -> &str {
-        "users"
+        "cart_contents_provider"
     }
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveModel, DeriveActiveModel)]
 pub struct Model {
     pub id: i32,
-    pub email: String,
-    pub username: String,
-    pub hash: String,
+    pub cart_id: i32,
+    pub provider_id: i32,
+    pub provider_product: String,
+    pub quantity: i32,
     pub created_at: DateTimeUtc,
-    pub is_admin: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
 pub enum Column {
     Id,
-    Email,
-    Username,
-    Hash,
+    CartId,
+    ProviderId,
+    ProviderProduct,
+    Quantity,
     CreatedAt,
-    IsAdmin,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -45,9 +45,8 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    AggIngredients,
+    Providers,
     Cart,
-    UsersTokens,
 }
 
 impl ColumnTrait for Column {
@@ -55,11 +54,11 @@ impl ColumnTrait for Column {
     fn def(&self) -> ColumnDef {
         match self {
             Self::Id => ColumnType::Integer.def(),
-            Self::Email => ColumnType::String(None).def(),
-            Self::Username => ColumnType::String(None).def(),
-            Self::Hash => ColumnType::String(None).def(),
+            Self::CartId => ColumnType::Integer.def(),
+            Self::ProviderId => ColumnType::Integer.def(),
+            Self::ProviderProduct => ColumnType::String(None).def(),
+            Self::Quantity => ColumnType::Integer.def(),
             Self::CreatedAt => ColumnType::Timestamp.def(),
-            Self::IsAdmin => ColumnType::Boolean.def(),
         }
     }
 }
@@ -67,28 +66,27 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::AggIngredients => Entity::has_many(super::agg_ingredients::Entity).into(),
-            Self::Cart => Entity::has_many(super::cart::Entity).into(),
-            Self::UsersTokens => Entity::has_many(super::users_tokens::Entity).into(),
+            Self::Providers => Entity::belongs_to(super::providers::Entity)
+                .from(Column::ProviderId)
+                .to(super::providers::Column::Id)
+                .into(),
+            Self::Cart => Entity::belongs_to(super::cart::Entity)
+                .from(Column::CartId)
+                .to(super::cart::Column::Id)
+                .into(),
         }
     }
 }
 
-impl Related<super::agg_ingredients::Entity> for Entity {
+impl Related<super::providers::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::AggIngredients.def()
+        Relation::Providers.def()
     }
 }
 
 impl Related<super::cart::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Cart.def()
-    }
-}
-
-impl Related<super::users_tokens::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::UsersTokens.def()
     }
 }
 
