@@ -5,7 +5,7 @@ use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-use wgg_providers::models::WggProduct;
+use wgg_providers::models::{WggProduct, WggSearchProduct};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -22,7 +22,7 @@ pub struct AggregateIngredient {
 impl AggregateIngredient {
     /// Return all composite ingredients which are part of this aggregate ingredient.
     #[tracing::instrument(skip(ctx))]
-    pub async fn ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggProduct>> {
+    pub async fn ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSearchProduct>> {
         let state = ctx.wgg_state();
         let links = db::agg_ingredients_links::Entity::find()
             .filter(db::agg_ingredients_links::Column::AggregateId.eq(self.id))
@@ -41,7 +41,11 @@ impl AggregateIngredient {
             Ok::<_, GraphqlError>(item)
         });
 
-        let results = futures::future::join_all(futures).await.into_iter().try_collect()?;
+        let results = futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .map(|res| res.map(|i| i.into()))
+            .try_collect()?;
 
         Ok(results)
     }

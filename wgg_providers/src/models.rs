@@ -278,3 +278,20 @@ pub enum PromotionProduct {
 pub struct ProductId {
     pub id: String,
 }
+
+impl From<WggProduct> for WggSearchProduct {
+    fn from(product: WggProduct) -> Self {
+        WggSearchProduct {
+            id: product.id,
+            name: product.name,
+            full_price: product.full_price,
+            display_price: product.display_price,
+            unit_quantity: product.unit_quantity,
+            unit_price: product.unit_price,
+            available: product.available,
+            image_url: product.image_urls.into_iter().next(),
+            decorators: product.decorators,
+            provider: product.provider,
+        }
+    }
+}
