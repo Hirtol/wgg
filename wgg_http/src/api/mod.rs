@@ -7,15 +7,18 @@ use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 use wgg_providers::WggProvider;
 
+mod aggregate_ingredients;
 mod auth;
 mod ctx;
 pub(crate) mod dataloader;
 mod error;
 mod macros;
+mod pagination;
 mod providers;
 mod routes;
 mod search;
 
+use crate::api::aggregate_ingredients::AggregateQuery;
 pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
@@ -32,7 +35,7 @@ pub struct State {
 }
 
 #[derive(MergedObject, Default)]
-pub struct QueryRoot(ProviderQuery, AuthQuery);
+pub struct QueryRoot(ProviderQuery, AuthQuery, AggregateQuery);
 
 #[derive(MergedObject, Default)]
 pub struct MutationRoot(AuthMutation);

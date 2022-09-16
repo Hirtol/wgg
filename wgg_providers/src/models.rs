@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /// The price listed as cents.
 pub type CentPrice = u32;
@@ -8,6 +9,18 @@ pub type CentPrice = u32;
 pub enum Provider {
     Picnic,
     Jumbo,
+}
+
+impl FromStr for Provider {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "PICNIC" => Ok(Provider::Picnic),
+            "JUMBO" => Ok(Provider::Jumbo),
+            _ => anyhow::bail!("Failed to parse provider {}", s),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

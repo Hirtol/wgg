@@ -13,8 +13,8 @@ pub mod users_tokens;
 use async_graphql::async_trait;
 use sea_orm::strum::IntoEnumIterator;
 use sea_orm::{
-    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, IntoActiveValue, ModelTrait, PrimaryKeyToColumn,
-    PrimaryKeyTrait, QueryFilter, Select, Value,
+    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, IntoActiveValue, PaginatorTrait, PrimaryKeyToColumn,
+    PrimaryKeyTrait, QueryFilter, QuerySelect, Select, Value,
 };
 
 pub trait EntityExt: EntityTrait {
@@ -40,29 +40,87 @@ pub trait EntityExt: EntityTrait {
     }
 }
 
-// Blanket implementation for everything with an [Id] as primary key
+// Blanket implementation for everything with an [Id] (non-composite) as primary key
 impl<T: EntityTrait> EntityExt for T where <Self::PrimaryKey as PrimaryKeyTrait>::ValueType: From<Id> {}
 
 // Needed to ensure we don't repeat ourselves everywhere...
 #[async_trait::async_trait]
-pub trait SelectExt {
-    type Model: ModelTrait;
-    async fn one_or_err<'a, C>(self, db: &C) -> Result<Self::Model, DbErr>
+pub trait SelectExt<E: EntityTrait> {
+    async fn one_or_err<'a, C>(self, db: &C) -> Result<E::Model, DbErr>
+    where
+        C: ConnectionTrait;
+
+    fn offset_paginate<C>(self, limit: u64, db: &C) -> OffsetPaginator<C, E>
     where
         C: ConnectionTrait;
 }
 
 #[async_trait::async_trait]
-impl<T: EntityTrait> SelectExt for Select<T> {
-    type Model = T::Model;
-
-    async fn one_or_err<'a, C>(self, db: &C) -> Result<Self::Model, DbErr>
+impl<E: EntityTrait> SelectExt<E> for Select<E> {
+    /// Return a single object, or error out with [DbErr::RecordNotFound] if no record exists.
+    async fn one_or_err<'a, C>(self, db: &C) -> Result<E::Model, DbErr>
     where
         C: ConnectionTrait,
     {
         self.one(db)
             .await?
             .ok_or_else(|| DbErr::RecordNotFound("No record found".to_string()))
+    }
+
+    /// Create a offset-based paginator.
+    ///
+    /// Differs from the default [Self::paginate] in that it allows arbitrary offsets, not just on page boundaries.
+    ///
+    /// # Arguments
+    ///
+    /// * `limit` - The maximum amount of items returned in a query.
+    fn offset_paginate<C>(self, limit: u64, db: &C) -> OffsetPaginator<C, E>
+    where
+        C: ConnectionTrait,
+    {
+        OffsetPaginator { query: self, limit, db }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OffsetPaginator<'db, C, E>
+where
+    C: ConnectionTrait,
+    E: EntityTrait + 'db,
+{
+    query: Select<E>,
+    limit: u64,
+    db: &'db C,
+}
+
+impl<'db, C: ConnectionTrait, E: EntityTrait> OffsetPaginator<'db, C, E> {
+    /// Fetch all models, with the existing limit and provided limit.
+    pub async fn fetch_offset(&self, offset: u64) -> Result<Vec<E::Model>, DbErr> {
+        let results = self.query.clone().limit(self.limit).offset(offset).all(self.db).await?;
+
+        Ok(results)
+    }
+
+    /// Return the total amount of items for this query.
+    pub async fn num_items(&self) -> Result<u64, DbErr>
+    where
+        E::Model: Sync,
+    {
+        let query = self.query.clone();
+
+        let results = PaginatorTrait::count(query, self.db).await?;
+
+        Ok(results as u64)
+    }
+
+    /// Performs both [Self::fetch_offset] and [Self::num_items] concurrently, and returns the results.
+    pub async fn fetch_and_count(&self, offset: u64) -> Result<(Vec<E::Model>, u64), DbErr>
+    where
+        E::Model: Sync,
+    {
+        let (items, count) = futures::future::join(self.fetch_offset(offset), self.num_items()).await;
+
+        Ok((items?, count?))
     }
 }
 

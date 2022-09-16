@@ -39,10 +39,14 @@ async fn initialise_providers(tx: &DatabaseTransaction) -> anyhow::Result<()> {
         .map(|name| db::providers::ActiveModel {
             id: Default::default(),
             name: name.clone().into_active_value(),
-        });
+        })
+        .collect::<Vec<_>>();
     let to_remove = current_prov_hash.difference(&all_providers);
 
-    let _ = db::providers::Entity::insert_many(to_add).exec(tx).await?;
+    if !to_add.is_empty() {
+        let _ = db::providers::Entity::insert_many(to_add).exec(tx).await?;
+    }
+
     let deleted = db::providers::Entity::delete_many()
         .filter(db::providers::Column::Name.is_in(to_remove.map::<&str, _>(|item| item.as_ref())))
         .exec(tx)
