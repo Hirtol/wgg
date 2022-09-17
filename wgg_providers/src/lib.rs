@@ -1,12 +1,19 @@
 use crate::models::{Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
+use async_graphql::EnumType;
+use std::fmt::Debug;
+use std::num::NonZeroUsize;
+use std::time::Duration;
+use tokio::sync::Mutex;
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
+use crate::cache::WggProviderCache;
 use crate::pagination::OffsetPagination;
 pub use error::ProviderError;
 use providers::{JumboBridge, PicnicBridge, ProviderInfo};
 pub use wgg_picnic::Credentials as PicnicCredentials;
 
+mod cache;
 mod error;
 pub mod models;
 pub mod pagination;
@@ -17,6 +24,7 @@ type Result<T> = std::result::Result<T, ProviderError>;
 pub struct WggProvider {
     pub(crate) picnic: Option<PicnicBridge>,
     pub(crate) jumbo: JumboBridge,
+    cache: Mutex<WggProviderCache>,
 }
 
 impl WggProvider {
@@ -27,6 +35,11 @@ impl WggProvider {
         WggProvider {
             picnic: None,
             jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
+            cache: Mutex::new(WggProviderCache::new(
+                Provider::items().iter().map(|i| i.value),
+                NonZeroUsize::new(1000).unwrap(),
+                Duration::from_secs(86400),
+            )),
         }
     }
 
@@ -94,9 +107,18 @@ impl WggProvider {
             prov.search(query, offset).await
         }
 
-        let provider = self.find_provider(provider)?;
+        let provider_concrete = self.find_provider(provider)?;
 
-        inner(provider, query.as_ref(), offset).await
+        let result = inner(provider_concrete, query.as_ref(), offset).await?;
+
+        // We persist any and all products for the sake of easing custom list searches.
+        let mut guard = self.cache.lock().await;
+
+        for item in &result.items {
+            guard.insert_search_product(provider, item.clone());
+        }
+
+        Ok(result)
     }
 
     /// Search all providers for the given query.
@@ -118,9 +140,9 @@ impl WggProvider {
             prov.search(query, None).await
         }
 
-        let provider = self.iter().map(|i| inner(i, query.as_ref()));
+        let queries = self.iter().map(|i| inner(i, query.as_ref()));
 
-        futures::future::join_all(provider)
+        let results = futures::future::join_all(queries)
             .await
             .into_iter()
             .flatten()
@@ -129,28 +151,16 @@ impl WggProvider {
                 accum.total_items += item.total_items;
                 accum
             })
-            .ok_or(ProviderError::NothingFound)
-    }
+            .ok_or(ProviderError::NothingFound)?;
 
-    /// Retrieve the provided `product_id` from the `provider`.
-    ///
-    /// Note that this `product_id` needs to be obtained from this specific `provider`. Product ids do not cross provider boundaries.
-    #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
-    pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<WggProduct> {
-        #[cached::proc_macro::cached(
-            size = 100,
-            time = 86400,
-            result = true,
-            key = "String",
-            convert = r#"{product_id.to_string()}"#
-        )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), product_id: &str) -> Result<WggProduct> {
-            prov.product(product_id).await
+        // We persist any and all products for the sake of easing custom list searches.
+        let mut guard = self.cache.lock().await;
+
+        for item in &results.items {
+            guard.insert_search_product(item.provider, item.clone());
         }
 
-        let provider = self.find_provider(provider)?;
-
-        inner(provider, product_id.as_ref()).await
+        Ok(results)
     }
 
     /// Retrieve all valid promotions for the current week for the given provider.
@@ -212,6 +222,86 @@ impl WggProvider {
         let provider = self.find_provider(provider)?;
 
         inner(provider, sublist_id.as_ref()).await
+    }
+
+    /// Retrieve the provided `product_id` from the `provider`.
+    ///
+    /// Note that this `product_id` needs to be obtained from this specific `provider`. Product ids do not cross provider boundaries.
+    #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
+    pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<WggProduct> {
+        let mut guard = self.cache.lock().await;
+
+        self.product_cache_or_network(provider, &product_id.as_ref().to_string(), &mut guard)
+            .await
+    }
+
+    /// Retrieve the search product representation of the requested product.
+    ///
+    /// This is highly recommended for the majority of cases to reduce latency and external network calls as several
+    /// cache layers can be used at once.
+    #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
+    pub async fn search_product_by_id(
+        &self,
+        provider: Provider,
+        product_id: impl AsRef<str>,
+    ) -> Result<WggSearchProduct> {
+        let id = product_id.as_ref().to_string();
+        let mut guard = self.cache.lock().await;
+        if let Some(item) = guard.get_search_product(provider, &id) {
+            Ok(item)
+        } else {
+            Ok(self.product_cache_or_network(provider, &id, &mut guard).await?.into())
+        }
+    }
+
+    /// Retrieve the search product representation of the requested product.
+    ///
+    /// This is highly recommended for the majority of cases to reduce latency and external network calls as several
+    /// cache layers can be used at once.
+    ///
+    /// Calling this is more efficient than individual [Self::search_product_by_id] calls for multiple ids as it allows
+    /// keeping the Mutex guard.
+    #[tracing::instrument(level="debug", skip_all, fields(provider, query = ?product_ids))]
+    pub async fn search_products_by_id(
+        &self,
+        provider: Provider,
+        product_ids: &[impl AsRef<str> + Debug],
+    ) -> Result<Vec<WggSearchProduct>> {
+        let mut guard = self.cache.lock().await;
+        let mut result = Vec::with_capacity(product_ids.len());
+
+        for product in product_ids {
+            let id = product.as_ref().to_string();
+            if let Some(item) = guard.get_search_product(provider, &id) {
+                result.push(item);
+            } else {
+                result.push(self.product_cache_or_network(provider, &id, &mut guard).await?.into());
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Perform a cache lookup and, upon a cache miss, request the current product.
+    ///
+    /// Takes a mutable reference to the cache to allow this to be called in a loop, without re-acquiring the Mutex
+    /// every time.
+    async fn product_cache_or_network(
+        &self,
+        provider: Provider,
+        product_id: &String,
+        cache: &mut WggProviderCache,
+    ) -> Result<WggProduct> {
+        if let Some(item) = cache.get_product(provider, product_id) {
+            Ok(item)
+        } else {
+            let provider_concrete = self.find_provider(provider)?;
+            let result = provider_concrete.product(product_id).await?;
+
+            cache.insert_product(provider, result.clone());
+
+            Ok(result)
+        }
     }
 
     /// Return a reference to the requested provider.

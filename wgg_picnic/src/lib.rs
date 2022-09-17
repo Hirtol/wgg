@@ -376,7 +376,7 @@ impl PicnicApi {
             _ => {
                 tracing::warn!(status = %response.status(), ?response, "Picnic API Error");
                 Err(anyhow!("Error occurred: {}", response.status()).into())
-            },
+            }
         }
     }
 

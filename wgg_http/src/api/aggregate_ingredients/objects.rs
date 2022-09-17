@@ -5,7 +5,7 @@ use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-use wgg_providers::models::{WggProduct, WggSearchProduct};
+use wgg_providers::models::WggSearchProduct;
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -36,16 +36,15 @@ impl AggregateIngredient {
                 .name
                 .parse()?;
 
-            let item = state.providers.product(provider, item.provider_ingr_id).await?;
+            let item = state
+                .providers
+                .search_product_by_id(provider, &item.provider_ingr_id)
+                .await?;
 
             Ok::<_, GraphqlError>(item)
         });
 
-        let results = futures::future::join_all(futures)
-            .await
-            .into_iter()
-            .map(|res| res.map(|i| i.into()))
-            .try_collect()?;
+        let results = futures::future::join_all(futures).await.into_iter().try_collect()?;
 
         Ok(results)
     }
