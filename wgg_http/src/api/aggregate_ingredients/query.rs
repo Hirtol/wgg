@@ -1,7 +1,7 @@
 use crate::api::aggregate_ingredients::objects::AggregateIngredient;
 use crate::api::pagination::{ConnectionResult, QueryResult};
-use crate::api::{ContextExt, self};
-use crate::cross_system::{Filter, self};
+use crate::api::{self, ContextExt};
+use crate::cross_system::{self, Filter};
 use crate::db::{self, SelectExt};
 use async_graphql::{Context, Object};
 use sea_orm::{EntityTrait, QueryFilter};
@@ -11,7 +11,11 @@ pub struct AggregateQuery;
 
 #[Object]
 impl AggregateQuery {
-    /// Returns all aggregate ingredients in the back-end
+    /// Returns all aggregate ingredients owned by the current user.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone.
     #[tracing::instrument(skip(self, ctx))]
     async fn aggregate_ingredients(
         &self,
@@ -21,6 +25,7 @@ impl AggregateQuery {
         #[graphql(desc = "Filters for the collection")] filters: Option<Filter<IngredientQuery>>,
     ) -> ConnectionResult<AggregateIngredient> {
         let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
 
         api::pagination::offset_query(after, first, |offset, limit| async move {
             let conditions = cross_system::recursive_filter(filters, |mut cond, fields| {
@@ -29,7 +34,8 @@ impl AggregateQuery {
                 }
 
                 cond
-            })?;
+            })?
+            .add(db::agg_ingredients::created_by(user.id));
 
             let pagination = db::agg_ingredients::Entity::find()
                 .filter(conditions)
@@ -39,13 +45,7 @@ impl AggregateQuery {
                 .fetch_offset(offset.unwrap_or_default().offset())
                 .await?
                 .into_iter()
-                .map(|i| AggregateIngredient {
-                    id: i.id,
-                    name: i.name,
-                    image_url: i.image_url,
-                    created_by: i.created_by,
-                    created_at: i.created_at,
-                });
+                .map(|i| i.into());
 
             Ok(QueryResult {
                 iter: result,

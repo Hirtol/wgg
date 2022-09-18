@@ -15,7 +15,7 @@ impl EntityName for Entity {
 pub struct Model {
     pub id: i32,
     pub name: String,
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
 }
@@ -54,7 +54,7 @@ impl ColumnTrait for Column {
         match self {
             Self::Id => ColumnType::Integer.def(),
             Self::Name => ColumnType::String(None).def(),
-            Self::ImageUrl => ColumnType::String(None).def(),
+            Self::ImageUrl => ColumnType::String(None).def().null(),
             Self::CreatedBy => ColumnType::Integer.def(),
             Self::CreatedAt => ColumnType::Timestamp.def(),
         }

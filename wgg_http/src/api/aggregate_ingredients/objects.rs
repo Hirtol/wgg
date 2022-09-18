@@ -5,6 +5,7 @@ use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use wgg_db_entity::agg_ingredients::Model;
 use wgg_providers::models::WggSearchProduct;
 
 #[derive(Clone, Debug, SimpleObject)]
@@ -12,7 +13,7 @@ use wgg_providers::models::WggSearchProduct;
 pub struct AggregateIngredient {
     pub id: Id,
     pub name: String,
-    pub image_url: String,
+    pub image_url: Option<String>,
     #[graphql(skip)]
     pub created_by: Id,
     pub created_at: DateTime<Utc>,
@@ -47,5 +48,17 @@ impl AggregateIngredient {
         let results = futures::future::join_all(futures).await.into_iter().try_collect()?;
 
         Ok(results)
+    }
+}
+
+impl From<db::agg_ingredients::Model> for AggregateIngredient {
+    fn from(model: Model) -> Self {
+        Self {
+            id: model.id,
+            name: model.name,
+            image_url: model.image_url,
+            created_by: model.created_by,
+            created_at: model.created_at
+        }
     }
 }

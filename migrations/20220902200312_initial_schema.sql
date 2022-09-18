@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS agg_ingredients
 (
     id         INTEGER PRIMARY KEY NOT NULL,
     name       TEXT                NOT NULL,
-    image_url  TEXT                NOT NULL,
+    image_url  TEXT,
     created_by INTEGER             NOT NULL,
     created_at TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

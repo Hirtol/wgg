@@ -16,7 +16,7 @@ pub enum GraphqlError {
     #[error("Could not find requested resource")]
     ResourceNotFound,
     /// An internal error which we don't want to elaborate too much on (additional details provided in String)
-    #[error("An internal error occurred. Please try again later.")]
+    #[error("An internal error occurred. Please try again later. {0}")]
     InternalError(String),
     /// User display error, provided `String` is displayed.
     #[error("Error: {0}")]
@@ -31,7 +31,7 @@ pub enum GraphqlError {
 
 impl ErrorExtensions for GraphqlError {
     fn extend(&self) -> async_graphql::Error {
-        async_graphql::Error::new(format!("{:#}", self)).extend_with(|_, e| match self {
+        async_graphql::Error::new(format!("{:#?}", self)).extend_with(|_, e| match self {
             GraphqlError::InternalError(reason) => e.set("details", reason.as_str()),
             GraphqlError::Other(default_err) => e.set("details", default_err.to_string()),
             _ => {}

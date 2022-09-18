@@ -1,6 +1,7 @@
 use crate::api::dataloader::DataLoaders;
 use crate::api::State;
 use crate::config::{Config, DbConfig, SharedConfig};
+use crate::db::Id;
 use anyhow::Context;
 use arc_swap::access::{DynAccess, DynGuard};
 use arc_swap::ArcSwap;
@@ -8,6 +9,7 @@ use async_graphql::{EmptySubscription, Schema};
 use sea_orm::{DatabaseConnection, SqlxSqliteConnector};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::SqlitePool;
+use std::collections::BTreeMap;
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
@@ -17,6 +19,7 @@ use tower_cookies::CookieManagerLayer;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::trace::TraceLayer;
+use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 
 pub struct Application {
@@ -24,6 +27,7 @@ pub struct Application {
     pub config: SharedConfig,
     pub db: DatabaseConnection,
     pub providers: WggProvider,
+    pub db_providers: BTreeMap<Provider, Id>,
 }
 
 impl Application {
@@ -39,12 +43,14 @@ impl Application {
 
         tracing::debug!("Creating Providers...");
         let providers = WggProvider::new();
+        let db_providers = crate::db::providers::all_db_providers(&sea_db).await?;
 
         let result = Application {
             tcp,
             config: Arc::new(ArcSwap::from_pointee(config)),
             db: sea_db,
             providers,
+            db_providers,
         };
 
         Ok(result)
@@ -58,7 +64,7 @@ impl Application {
     /// * `quitter` - A way to inform the spawned runtime to shut down. Especially useful for tests
     /// where we won't provide a signal for shutdown.
     pub async fn run(self, quitter: Arc<tokio::sync::Notify>) -> anyhow::Result<()> {
-        let app = construct_server(self.db, self.config, self.providers).await?;
+        let app = construct_server(self.db, self.config, self.providers, self.db_providers).await?;
         tracing::info!("Listening on {:?}", self.tcp);
         let server = axum::Server::from_tcp(self.tcp)?.serve(app.into_make_service());
 
@@ -79,6 +85,7 @@ async fn construct_server(
     db: DatabaseConnection,
     config: SharedConfig,
     providers: WggProvider,
+    db_providers: BTreeMap<Provider, Id>,
 ) -> anyhow::Result<axum::Router> {
     let cfg: DynGuard<Config> = config.load();
     let secret_key = tower_cookies::Key::from(cfg.app.cookie_secret_key.as_bytes());
@@ -87,6 +94,7 @@ async fn construct_server(
         db,
         config,
         providers: Arc::new(providers),
+        db_providers,
     };
     let schema = create_graphql_schema(state.clone(), secret_key.clone());
 
@@ -112,6 +120,7 @@ fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate:
     .data(DataLoaders::new())
     .data(state)
     .data(secret_key)
+    .extension(crate::api::ErrorTraceExtension)
     .limit_depth(50)
     .finish()
 }
