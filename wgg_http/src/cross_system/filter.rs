@@ -4,6 +4,8 @@ use sea_orm::Condition;
 
 /// Recursively apply all of the provided filter's conditions, given the provided `filter_func`.
 ///
+/// If the provided `root_filter` is `None` then an empty [Condition] object is returned.
+///
 /// The `filter_func` only has to handle the inner type's filter items and apply them to the given condition, `and` and `or`
 /// conditions are handled elsewhere
 ///
@@ -15,7 +17,7 @@ use sea_orm::Condition;
 /// This limit is in place to hopefully prevent DOS attacks.
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// # use crate::cross_system::{Filter, recursive_filter}
 /// #[derive(async_graphql::InputType)]
 /// struct HelloConditions {
@@ -26,7 +28,7 @@ use sea_orm::Condition;
 /// let filters = recursive_filter(conditions, |cond, hello| cond.add(Columns::Name.eq(&hello.name)));
 /// ```
 pub fn recursive_filter<T: InputType>(
-    root_filter: Filter<T>,
+    root_filter: Option<Filter<T>>,
     filter_func: impl Fn(Condition, T) -> Condition,
 ) -> anyhow::Result<Condition> {
     fn inner<T: InputType>(
@@ -67,7 +69,11 @@ pub fn recursive_filter<T: InputType>(
         Ok(filter_func(conditions, filter.fields))
     }
 
-    inner(root_filter, &filter_func, 0)
+    if let Some(filter) = root_filter {
+        inner(filter, &filter_func, 0)
+    } else {
+        Ok(Condition::all())
+    }
 }
 
 /// A [Filter] is a recursive filter type which can be used to apply complex filtering for GraphQL queries.
@@ -80,6 +86,7 @@ pub struct Filter<T: InputType> {
     pub fields: T,
 }
 
+#[allow(dead_code)]
 impl<T: InputType> Filter<T> {
     pub fn new(input: T) -> Self {
         Filter {
@@ -109,11 +116,11 @@ impl<T: InputType> Filter<T> {
     ///     pub name: String,
     /// }
     ///
-    /// let conditions = Filter::new(HelloConditions {name: "Hello".to_string()});
-    /// let filters = recursive_filter(conditions, |cond, hello| cond.add(Columns::Name.eq(&hello.name)));
+    /// let filter = Filter::new(HelloConditions {name: "Hello".to_string()});
+    /// let conditions = filter.apply_recursive(|cond, hello| cond.add(Columns::Name.eq(&hello.name)));
     /// ```
     pub fn apply_recursive(self, filter_func: impl Fn(Condition, T) -> Condition) -> anyhow::Result<Condition> {
-        recursive_filter(self, filter_func)
+        recursive_filter(Some(self), filter_func)
     }
 }
 

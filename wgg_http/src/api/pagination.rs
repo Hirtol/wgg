@@ -31,7 +31,6 @@ where
     R: Future<Output = GraphqlResult<QueryResult<Node, I>>>,
 {
     d_query(after, None, first, None, |offset, _, first, _| {
-        tracing::info!(offset = ?offset, first = first, "Stuff");
         f(offset, first.unwrap_or(DEFAULT_PAGE_SIZE))
     })
     .await

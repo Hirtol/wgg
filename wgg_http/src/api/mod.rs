@@ -1,3 +1,4 @@
+use crate::api::aggregate_ingredients::AggregateQuery;
 use crate::api::auth::{AuthMutation, AuthQuery};
 use crate::api::error::GraphqlError;
 use crate::api::providers::ProviderQuery;
@@ -18,7 +19,6 @@ mod providers;
 mod routes;
 mod search;
 
-use crate::api::aggregate_ingredients::AggregateQuery;
 pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
