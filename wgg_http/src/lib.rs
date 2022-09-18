@@ -3,10 +3,11 @@ use tokio::sync::Notify;
 
 mod api;
 pub mod config;
+mod cross_system;
 mod db;
 pub mod setup;
-mod utils;
 pub mod telemetry;
+mod utils;
 
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
