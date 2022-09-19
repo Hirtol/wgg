@@ -1,4 +1,4 @@
-use crate::api::auth::{AuthContext, LoginInput};
+use crate::api::auth::AuthContext;
 use crate::api::ctx::ContextExt;
 use crate::api::error::GraphqlError;
 use crate::api::GraphqlResult;
@@ -181,4 +181,13 @@ pub struct UserUpdatePayload {
 pub struct UserLoginPayload {
     /// The newly logged-in user.
     pub user: AuthContext,
+}
+
+
+#[derive(Debug, Clone, async_graphql::InputObject)]
+pub struct LoginInput {
+    /// The email of the user account
+    pub email: String,
+    /// The account's password
+    pub password: String,
 }

@@ -1,12 +1,12 @@
 use crate::api::error::GraphqlError;
 use crate::api::{GraphqlResult, State};
 use crate::db;
-use crate::db::Id;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
 use axum::extract::{FromRequest, RequestParts};
 use cookie::Key;
+use mutation::LoginInput;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use tower_cookies::{Cookies, PrivateCookies};
@@ -15,28 +15,12 @@ use wgg_db_entity::users::Model;
 static SESSION_KEY: &str = "session_key";
 
 mod mutation;
+mod objects;
 mod query;
 
 pub use mutation::{AuthMutation, UserCreateInput};
+pub use objects::AuthContext;
 pub use query::AuthQuery;
-
-/// Represents a user that is already logged in.
-/// Implements [axum::extract::FromRequest] and can therefore be requested in HTTP service methods.
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, async_graphql::SimpleObject)]
-pub struct AuthContext {
-    pub id: Id,
-    pub email: String,
-    pub username: String,
-    pub is_admin: bool,
-}
-
-#[derive(Debug, Clone, async_graphql::InputObject)]
-pub struct LoginInput {
-    /// The email of the user account
-    pub email: String,
-    /// The account's password
-    pub password: String,
-}
 
 /// Verify the provided login credentials, and if successful, create a new session token in the database.
 ///

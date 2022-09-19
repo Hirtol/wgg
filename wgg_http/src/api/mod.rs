@@ -3,15 +3,19 @@ use crate::api::auth::{AuthMutation, AuthQuery};
 use crate::api::error::GraphqlError;
 use crate::api::providers::ProviderQuery;
 use crate::config::SharedConfig;
+use crate::db::Id;
 use async_graphql::extensions::{Extension, ExtensionContext, ExtensionFactory, NextExecute};
 use async_graphql::{async_trait, EmptySubscription, MergedObject, Response, Schema};
 use sea_orm::DatabaseConnection;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 
 mod aggregate_ingredients;
 mod auth;
+mod cart;
+
 mod ctx;
 pub(crate) mod dataloader;
 mod error;
@@ -19,13 +23,10 @@ mod macros;
 mod pagination;
 mod providers;
 mod routes;
-mod search;
 
-use crate::db::Id;
 pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
-use wgg_providers::models::Provider;
 
 pub type WggSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 pub type GraphqlResult<T, E = GraphqlError> = std::result::Result<T, E>;
