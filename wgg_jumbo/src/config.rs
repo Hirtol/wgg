@@ -34,7 +34,7 @@ impl Config {
     /// # Example
     ///
     /// ```rust
-    /// # use wgg_jumbo::config::Config;
+    /// # use wgg_jumbo::Config;
     /// let config = Config::default();
     ///
     /// assert_eq!(config.get_full_url("/categories"), "https://mobileapi.jumbo.com/v17/categories")

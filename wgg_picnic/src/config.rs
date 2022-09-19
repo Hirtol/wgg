@@ -50,7 +50,7 @@ impl Config {
     /// # Example
     ///
     /// ```rust
-    /// # use wgg_picnic::config::Config;
+    /// # use wgg_picnic::Config;
     /// let config = Config::default();
     ///
     /// assert_eq!(config.get_full_url("/cart"), "https://storefront-prod.nl.picnicinternational.com/api/17/cart")
