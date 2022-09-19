@@ -7,7 +7,7 @@ use wgg_providers::models::Provider;
 use crate::db::EntityExt;
 use crate::db::{Id, IntoActiveValueExt, SelectExt};
 use crate::{
-    api::{error::GraphqlError, ContextExt, GraphqlResult, ProductId},
+    api::{error::GraphqlError, ContextExt, GraphqlResult, ProductId, MAX_AMOUNT_DELETE},
     db,
 };
 
@@ -180,9 +180,10 @@ impl AggregateMutation {
         let state = ctx.wgg_state();
         let current_user = ctx.wgg_user()?;
 
-        if ids.len() > 20 {
+        if ids.len() > MAX_AMOUNT_DELETE {
             return Err(GraphqlError::InvalidInput(format!(
-                "One can delete at most `20` items at a time, not `{}`",
+                "One can delete at most `{}` items at a time, not `{}`",
+                MAX_AMOUNT_DELETE,
                 ids.len()
             )));
         }

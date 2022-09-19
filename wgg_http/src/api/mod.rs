@@ -32,6 +32,9 @@ pub type GraphqlResult<T, E = GraphqlError> = std::result::Result<T, E>;
 /// A product id for an arbitrary provider.
 type ProductId = String;
 
+/// The maximum amount of items that should be allowed to be deleted within a single request.
+const MAX_AMOUNT_DELETE: usize = 20;
+
 /// State to be shared between all routes, and available as an ExtensionLayer/Context
 #[derive(Clone)]
 pub struct State {
