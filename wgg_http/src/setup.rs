@@ -42,7 +42,20 @@ impl Application {
         crate::utils::first_time_setup(&sea_db).await?;
 
         tracing::debug!("Creating Providers...");
-        let providers = WggProvider::new();
+        let mut providers = WggProvider::new();
+        if let Some(auth_token) = config.auth.picnic_auth_token.clone() {
+            providers = providers.with_picnic(wgg_providers::PicnicCredentials::new(auth_token, "1".to_string()))
+        } else if let Some((username, password)) = config
+            .auth
+            .picnic_username
+            .clone()
+            .zip(config.auth.picnic_password.clone())
+        {
+            providers = providers.with_picnic_login(&username, &password).await?;
+
+            tracing::info!(auth_token=?providers.picnic_credentials().unwrap().auth_token, "Picnic Login Complete")
+        }
+
         let db_providers = crate::db::providers::all_db_providers(&sea_db).await?;
 
         let result = Application {

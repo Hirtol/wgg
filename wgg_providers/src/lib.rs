@@ -61,6 +61,13 @@ impl WggProvider {
         Ok(self)
     }
 
+    /// Return the currently used [PicnicCredentials], if the Picnic provider has been created.
+    ///
+    /// If not, [None] is returned.
+    pub fn picnic_credentials(&self) -> Option<&PicnicCredentials> {
+        Some(self.picnic.as_ref()?.api.credentials())
+    }
+
     /// Provide autocomplete results from the requested [Provider].
     ///
     /// Note that for some providers it is *very* important to use their returned suggestions, or else the [Self::search] will perform poorly

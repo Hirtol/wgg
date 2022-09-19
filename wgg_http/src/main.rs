@@ -4,6 +4,8 @@ use wgg_http::{config, get_quit_notifier, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv()?;
+
     // Setup Tracing
     let subscriber = telemetry::create_subscriber("DEBUG,wgg_http=TRACE,wgg_providers=TRACE,sqlx=WARN,hyper=WARN");
     subscriber.init();

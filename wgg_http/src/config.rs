@@ -61,7 +61,7 @@ pub struct Config {
     /// Contains all settings relevant for DB initialisation.
     pub db: DbConfig,
     /// Contains all settings relevant for authentication with external services.
-    #[serde(skip)]
+    #[serde(skip_serializing)]
     pub auth: AuthConfig,
 }
 
