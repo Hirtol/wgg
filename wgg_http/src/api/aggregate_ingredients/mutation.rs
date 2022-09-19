@@ -1,8 +1,11 @@
-use async_graphql::{Context, Object};
-use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveValue, TransactionTrait};
+use async_graphql::{Context, MaybeUndefined, Object};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, IntoActiveValue, QueryFilter, TransactionTrait,
+};
 use wgg_providers::models::Provider;
 
-use crate::db::IntoActiveValueExt;
+use crate::db::EntityExt;
+use crate::db::{Id, IntoActiveValueExt, SelectExt};
 use crate::{
     api::{error::GraphqlError, ContextExt, GraphqlResult, ProductId},
     db,
@@ -83,6 +86,137 @@ impl AggregateMutation {
 
         Ok(AggregateCreatePayload { data: model.into() })
     }
+
+    /// Update an aggregate ingredient.
+    /// The sub-ingredients list should have at least one ingredient inside.
+    ///
+    /// # Returns
+    ///
+    /// The newly updated aggregate ingredient.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone. One can only update aggregate ingredients owned by the current viewer, unless they're an admin.
+    #[tracing::instrument(skip(self, ctx))]
+    async fn aggregate_ingredient_update(
+        &self,
+        ctx: &Context<'_>,
+        id: Id,
+        input: AggregateUpdateChangeSet,
+    ) -> GraphqlResult<AggregateUpdatePayload> {
+        let state = ctx.wgg_state();
+        let current_user = ctx.wgg_user()?;
+
+        let tx = state.db.begin().await?;
+
+        let current_aggregate = db::agg_ingredients::Entity::find_by_id(id).one_or_err(&tx).await?;
+
+        if !current_user.is_admin && current_user.id != current_aggregate.created_by {
+            return Err(GraphqlError::Unauthorized);
+        }
+
+        tracing::debug!(current=?current_aggregate, "Updating aggregate ingredient");
+
+        let mut update = current_aggregate.into_active_model();
+
+        update.name = input.name.into_flattened_active_value();
+        update.image_url = input.image_url.into_flattened_active_value();
+
+        let model = update.update(&tx).await?;
+
+        if let Some(ingredients) = input.ingredients.take() {
+            if ingredients.is_empty() {
+                return Err(GraphqlError::InvalidInput(
+                    "Need at least one sub-ingredient to create an aggregate ingredient".to_string(),
+                ));
+            }
+
+            // Delete existing ingredients associated with this ID
+            let _ = db::agg_ingredients_links::Entity::delete_many()
+                .filter(db::agg_ingredients_links::Column::AggregateId.eq(id))
+                .exec(&tx)
+                .await?;
+
+            // (Re)create the ingredients
+            let new_ingredients = ingredients
+                .into_iter()
+                .map(|item| db::agg_ingredients_links::ActiveModel {
+                    id: Default::default(),
+                    aggregate_id: id.into_active_value(),
+                    provider_id: state
+                        .db_providers
+                        .get(&item.provider)
+                        .copied()
+                        .into_flattened_active_value(),
+                    provider_ingr_id: item.id.into_active_value(),
+                });
+            let _ = db::agg_ingredients_links::Entity::insert_many(new_ingredients)
+                .exec(&tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+
+        tracing::debug!(
+            update_ingredient=?model,
+            "Updated aggregate ingredient"
+        );
+
+        Ok(AggregateUpdatePayload { data: model.into() })
+    }
+
+    /// Delete an aggregate ingredient.
+    /// All sub-ingredients referencing this ingredient will be deleted as well.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone. One can only delete aggregate ingredients owned by the current viewer, unless they're an admin.
+    #[tracing::instrument(skip(self, ctx))]
+    async fn aggregate_ingredient_delete(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "All aggregate ingredient ids to delete")] ids: Vec<Id>,
+    ) -> GraphqlResult<AggregateDeletePayload> {
+        let state = ctx.wgg_state();
+        let current_user = ctx.wgg_user()?;
+
+        if ids.len() > 20 {
+            return Err(GraphqlError::InvalidInput(format!(
+                "One can delete at most `20` items at a time, not `{}`",
+                ids.len()
+            )));
+        }
+
+        let delete = db::agg_ingredients::Entity::delete_by_ids(ids.iter().copied());
+        let tx = state.db.begin().await?;
+
+        let deleted = if current_user.is_admin {
+            // No need to check for user ownership
+            delete.exec(&tx).await?.rows_affected
+        } else {
+            let result = delete
+                .filter(db::agg_ingredients::created_by(current_user.id))
+                .exec(&tx)
+                .await?;
+
+            if result.rows_affected < ids.len() as u64 {
+                return Err(GraphqlError::InvalidInput(format!(
+                    "One can only delete records belonging to the current user, \
+                    wanted to delete `{}`, but could only delete `{}`",
+                    ids.len(),
+                    result.rows_affected
+                )));
+            }
+
+            result.rows_affected
+        };
+
+        tx.commit().await?;
+
+        tracing::debug!(deleted = deleted, "Deleted aggregate ingredients");
+
+        Ok(AggregateDeletePayload { deleted })
+    }
 }
 
 #[derive(Debug, async_graphql::InputObject)]
@@ -101,4 +235,23 @@ pub struct ProviderProductInput {
 pub struct AggregateCreatePayload {
     /// The newly created aggregate ingredient
     pub data: AggregateIngredient,
+}
+
+#[derive(Debug, async_graphql::InputObject)]
+pub struct AggregateUpdateChangeSet {
+    pub name: MaybeUndefined<String>,
+    pub ingredients: MaybeUndefined<Vec<ProviderProductInput>>,
+    pub image_url: MaybeUndefined<String>,
+}
+
+#[derive(Debug, async_graphql::SimpleObject)]
+pub struct AggregateUpdatePayload {
+    /// The updated aggregate ingredient
+    pub data: AggregateIngredient,
+}
+
+#[derive(Debug, async_graphql::SimpleObject)]
+pub struct AggregateDeletePayload {
+    /// The amount of aggregate ingredients deleted.
+    pub deleted: u64,
 }

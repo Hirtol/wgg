@@ -13,8 +13,8 @@ pub mod users_tokens;
 use async_graphql::async_trait;
 use sea_orm::strum::IntoEnumIterator;
 use sea_orm::{
-    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, IntoActiveValue, PaginatorTrait, PrimaryKeyToColumn,
-    PrimaryKeyTrait, QueryFilter, QuerySelect, Select, Value,
+    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, DeleteMany, EntityTrait, IntoActiveValue, PaginatorTrait,
+    PrimaryKeyToColumn, PrimaryKeyTrait, QueryFilter, QuerySelect, Select, Value,
 };
 
 pub trait EntityExt: EntityTrait {
@@ -34,6 +34,27 @@ pub trait EntityExt: EntityTrait {
         if let Some(key) = pkeys.next() {
             let col = key.into_column();
             Self::find().filter(col.is_in(ids))
+        } else {
+            panic!("In order to get by ID one needs at least one primary key!")
+        }
+    }
+
+    /// Delete all entities which have their primary key in the provided iterator.
+    ///
+    /// # Note
+    ///
+    /// The default implementation only works for non-composite primary keys.
+    fn delete_by_ids<T: IntoIterator<Item = <Self::PrimaryKey as PrimaryKeyTrait>::ValueType>>(
+        ids: T,
+    ) -> DeleteMany<Self>
+    where
+        sea_orm::Value: From<<Self::PrimaryKey as PrimaryKeyTrait>::ValueType>,
+    {
+        let mut pkeys = Self::PrimaryKey::iter();
+
+        if let Some(key) = pkeys.next() {
+            let col = key.into_column();
+            Self::delete_many().filter(col.is_in(ids))
         } else {
             panic!("In order to get by ID one needs at least one primary key!")
         }
