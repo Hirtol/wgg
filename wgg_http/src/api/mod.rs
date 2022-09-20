@@ -48,6 +48,21 @@ pub struct State {
     pub(crate) db_providers: BTreeMap<Provider, Id>,
 }
 
+impl State {
+    /// Quickly find the [Provider] associated with the given `id`.
+    pub fn provider_from_id(&self, id: Id) -> Option<Provider> {
+        self.db_providers
+            .iter()
+            .find(|&(_, db_id)| *db_id == id)
+            .map(|item| *item.0)
+    }
+
+    /// Quickly find the `Id` for the given `provider`.
+    pub fn provider_id_from_provider(&self, provider: &Provider) -> Option<Id> {
+        self.db_providers.get(provider).copied()
+    }
+}
+
 #[derive(MergedObject, Default)]
 pub struct QueryRoot(ProviderQuery, AuthQuery, AggregateQuery);
 

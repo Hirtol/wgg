@@ -41,12 +41,12 @@ pub struct WggSearchProduct {
     pub unit_price: Option<UnitPrice>,
     /// A small check to see if the current item is unavailable.
     ///
-    /// `decorators` might contains more information as to the nature of the disruption.
+    /// `decorators` might contain more information as to the nature of the disruption.
     pub available: bool,
     /// Direct URL to product image.
     pub image_url: Option<String>,
     pub decorators: Vec<WggDecorator>,
-    /// The grocery store this item is provided from.
+    /// The grocery store which provided this item.
     pub provider: Provider,
 }
 

@@ -1,4 +1,12 @@
 //! Re-export all entity files from the [wgg_db_entity] crate, alongside specific repository methods when needed.
+use async_graphql::async_trait;
+use sea_orm::strum::IntoEnumIterator;
+use sea_orm::{
+    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, DeleteMany, EntityTrait, IntoActiveValue, PaginatorTrait,
+    PrimaryKeyToColumn, PrimaryKeyTrait, QueryFilter, QuerySelect, Select, Value,
+};
+
+/// A SQLite database Id.
 pub type Id = i32;
 
 pub mod agg_ingredients;
@@ -9,13 +17,6 @@ pub mod cart_tally;
 pub mod providers;
 pub mod users;
 pub mod users_tokens;
-
-use async_graphql::async_trait;
-use sea_orm::strum::IntoEnumIterator;
-use sea_orm::{
-    ActiveValue, ColumnTrait, ConnectionTrait, DbErr, DeleteMany, EntityTrait, IntoActiveValue, PaginatorTrait,
-    PrimaryKeyToColumn, PrimaryKeyTrait, QueryFilter, QuerySelect, Select, Value,
-};
 
 pub trait EntityExt: EntityTrait {
     /// Find all entities which have their primary key in the provided iterator.

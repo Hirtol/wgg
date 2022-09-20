@@ -1,3 +1,4 @@
+use crate::db;
 use crate::db::Id;
 
 /// Represents a user that is already logged in.
@@ -8,4 +9,15 @@ pub struct AuthContext {
     pub email: String,
     pub username: String,
     pub is_admin: bool,
+}
+
+impl From<db::users::Model> for AuthContext {
+    fn from(model: db::users::Model) -> Self {
+        AuthContext {
+            id: model.id,
+            email: model.email,
+            username: model.username,
+            is_admin: model.is_admin,
+        }
+    }
 }

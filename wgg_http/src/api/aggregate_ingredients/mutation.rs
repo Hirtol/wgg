@@ -67,9 +67,7 @@ impl AggregateMutation {
                 id: Default::default(),
                 aggregate_id: model.id.into_active_value(),
                 provider_id: state
-                    .db_providers
-                    .get(&item.provider)
-                    .copied()
+                    .provider_id_from_provider(&item.provider)
                     .into_flattened_active_value(),
                 provider_ingr_id: item.id.into_active_value(),
             });
