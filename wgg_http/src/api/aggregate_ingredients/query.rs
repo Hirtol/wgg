@@ -41,15 +41,11 @@ impl AggregateQuery {
                 .filter(conditions)
                 .offset_paginate(limit as u64, &state.db);
 
-            let result = pagination
-                .fetch_offset(offset.unwrap_or_default().offset())
-                .await?
-                .into_iter()
-                .map(|i| i.into());
+            let (result, total_count) = pagination.fetch_and_count(offset.unwrap_or_default().offset()).await?;
 
             Ok(QueryResult {
-                iter: result,
-                total_count: Some(pagination.num_items().await?),
+                iter: result.into_iter().map(|i| i.into()),
+                total_count,
             })
         })
         .await

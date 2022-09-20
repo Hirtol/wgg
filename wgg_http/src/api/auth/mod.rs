@@ -10,7 +10,6 @@ use mutation::LoginInput;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use tower_cookies::{Cookies, PrivateCookies};
-use wgg_db_entity::users::Model;
 
 static SESSION_KEY: &str = "session_key";
 

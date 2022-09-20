@@ -10,7 +10,7 @@ pub type ConnectionResult<T> = GraphqlResult<Connection<T>>;
 
 pub struct QueryResult<T, I: ExactSizeIterator<Item = T>> {
     pub iter: I,
-    pub total_count: Option<u64>,
+    pub total_count: u64,
 }
 
 /// Creates a new Relay-compliant connection.
@@ -73,7 +73,7 @@ where
                 first,
                 last,
                 DEFAULT_PAGE_SIZE,
-                result.total_count.map(|item| item as usize),
+                result.total_count as usize,
             )
             .await
         },
@@ -99,13 +99,11 @@ pub async fn query<T: OutputType, I: ExactSizeIterator<Item = T>>(
     first: Option<usize>,
     last: Option<usize>,
     default_page_size: usize,
-    total_count: Option<usize>,
+    total_count: usize,
 ) -> ConnectionResult<T> {
-    let total_row_count = total_count.unwrap_or_else(|| iter.len());
-
     let (start, end) = {
         let after = after.map(|a| a.index()).unwrap_or(0);
-        let before: usize = before.map(|b| b.into()).unwrap_or(total_row_count);
+        let before: usize = before.map(|b| b.into()).unwrap_or(total_count);
 
         // Calculate start/end based on the provided first/last. Note that async-graphql disallows
         // providing both (returning an error), so we can safely assume we have, at most, one of
@@ -129,11 +127,11 @@ pub async fn query<T: OutputType, I: ExactSizeIterator<Item = T>>(
     let connection = connection::Connection::new(
         PageInfo {
             has_previous_page: start > 0,
-            has_next_page: end < total_row_count,
+            has_next_page: end < total_count,
             start_cursor: edges.first().map(|e| e.cursor.encode_cursor()),
             end_cursor: edges.last().map(|e| e.cursor.encode_cursor()),
         },
-        total_row_count as u32,
+        total_count as u32,
         edges,
     );
 

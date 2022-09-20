@@ -195,3 +195,9 @@ impl From<db::cart_tally::Model> for CartTally {
         CartTally { model }
     }
 }
+
+impl From<db::cart::Model> for UserCart {
+    fn from(model: db::cart::Model) -> Self {
+        UserCart { id: model.id, model }
+    }
+}
