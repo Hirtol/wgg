@@ -1,5 +1,7 @@
 use crate::api::cart::{CartFilterFields, UserCart};
+use crate::api::error::GraphqlError;
 use crate::api::pagination::ConnectionResult;
+use crate::api::{ContextExt, GraphqlResult};
 use crate::cross_system::Filter;
 use crate::db::Id;
 use crate::{api, db};
@@ -18,6 +20,30 @@ pub struct AuthContext {
 
 #[async_graphql::ComplexObject]
 impl AuthContext {
+    /// Return the current cart in use by this user
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn current_cart(&self, ctx: &Context<'_>) -> GraphqlResult<UserCart> {
+        let user = ctx.wgg_user()?;
+
+        // In theory a regular user shouldn't be able to acquire an object from other users to refer to this resolver,
+        // but just to be safe...
+        if user.is_admin || user.id == self.id {
+            let mut filters = Filter::new(CartFilterFields::default());
+            filters.fields.owned_by = Some(self.id);
+            filters.fields.is_completed = Some(false);
+
+            Ok(api::cart::CartQuery
+                .carts(ctx, None, Some(1), Some(filters))
+                .await??
+                .edges
+                .pop()
+                .ok_or(GraphqlError::ResourceNotFound)?
+                .node)
+        } else {
+            Err(GraphqlError::Unauthorized)
+        }
+    }
+
     /// Return all carts owned by the given user
     #[tracing::instrument(skip(self, ctx))]
     pub async fn carts(

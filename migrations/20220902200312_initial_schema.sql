@@ -37,13 +37,35 @@ CREATE TABLE IF NOT EXISTS cart
     FOREIGN KEY (picked_id) REFERENCES providers (id) ON DELETE CASCADE
 );
 
+-- Ensure there is *always* a cart available to use.
+CREATE TRIGGER IF NOT EXISTS cart_user_always_has_cart_insert AFTER INSERT
+    ON cart
+    WHEN (SELECT COUNT(*) FROM cart c WHERE c.user_id = new.user_id AND c.completed_at IS NULL) > 1
+BEGIN
+    SELECT RAISE(FAIL, 'At most one cart can be available at a time');
+END;
+
+CREATE TRIGGER IF NOT EXISTS cart_user_always_has_cart_update AFTER UPDATE
+    ON cart
+    WHEN NOT EXISTS(SELECT * FROM cart c WHERE c.user_id = old.user_id AND c.completed_at IS NULL)
+BEGIN
+    INSERT INTO cart(user_id) VALUES (old.user_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS cart_user_always_has_cart_delete AFTER DELETE
+    ON cart
+    WHEN NOT EXISTS(SELECT * FROM cart c WHERE c.user_id = old.user_id AND c.completed_at IS NULL)
+BEGIN
+    INSERT INTO cart(user_id) VALUES (old.user_id);
+END;
+
 CREATE TABLE IF NOT EXISTS cart_contents_notes
 (
     id         INTEGER PRIMARY KEY NOT NULL,
     cart_id    INTEGER             NOT NULL,
     note       TEXT                NOT NULL,
     quantity   INTEGER             NOT NULL,
-    created_at TIMESTAMP           NOT NULL,
+    created_at TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (cart_id) REFERENCES cart (id) ON DELETE CASCADE
 );
@@ -55,8 +77,9 @@ CREATE TABLE IF NOT EXISTS cart_contents_provider
     provider_id      INTEGER             NOT NULL,
     provider_product TEXT                NOT NULL,
     quantity         INTEGER             NOT NULL,
-    created_at       TIMESTAMP           NOT NULL,
+    created_at       TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    UNIQUE(cart_id, provider_id, provider_product),
     FOREIGN KEY (cart_id) REFERENCES cart (id) ON DELETE CASCADE,
     FOREIGN KEY (provider_id) REFERENCES providers (id) ON DELETE CASCADE
 );
@@ -67,8 +90,9 @@ CREATE TABLE IF NOT EXISTS cart_contents_aggregate
     cart_id      INTEGER             NOT NULL,
     aggregate_id INTEGER             NOT NULL,
     quantity     INTEGER             NOT NULL,
-    created_at   TIMESTAMP           NOT NULL,
+    created_at   TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    UNIQUE(cart_id, aggregate_id),
     FOREIGN KEY (cart_id) REFERENCES cart (id) ON DELETE CASCADE,
     FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients (id) ON DELETE CASCADE
 );
@@ -102,6 +126,13 @@ CREATE TABLE IF NOT EXISTS users
     created_at TIMESTAMP           NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_admin   BOOLEAN             NOT NULL
 );
+
+-- Create a new cart as soon as a new user is created.
+CREATE TRIGGER IF NOT EXISTS users_user_always_has_cart_insert AFTER INSERT
+    ON users
+BEGIN
+    INSERT INTO cart(user_id) VALUES (new.id);
+END;
 
 CREATE TABLE IF NOT EXISTS users_tokens
 (

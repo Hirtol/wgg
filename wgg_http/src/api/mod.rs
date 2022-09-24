@@ -24,6 +24,7 @@ mod pagination;
 mod providers;
 mod routes;
 
+use crate::api::cart::{CartMutation, CartQuery};
 pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
@@ -64,10 +65,10 @@ impl State {
 }
 
 #[derive(MergedObject, Default)]
-pub struct QueryRoot(ProviderQuery, AuthQuery, AggregateQuery);
+pub struct QueryRoot(ProviderQuery, AuthQuery, AggregateQuery, CartQuery);
 
 #[derive(MergedObject, Default)]
-pub struct MutationRoot(AuthMutation, AggregateMutation);
+pub struct MutationRoot(AuthMutation, AggregateMutation, CartMutation);
 
 pub struct ErrorTraceExtension;
 

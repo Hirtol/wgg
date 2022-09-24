@@ -23,11 +23,7 @@ impl CartQuery {
         let state = ctx.wgg_state();
         let user = ctx.wgg_user()?;
 
-        let cart = db::cart::Entity::find()
-            .filter(db::cart::has_user(user.id))
-            .filter(db::cart::is_completed().not())
-            .one_or_err(&state.db)
-            .await?;
+        let cart = db::cart::get_active_cart_for_user(user.id, &state.db).await?;
 
         Ok(cart.into())
     }

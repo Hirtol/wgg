@@ -5,7 +5,6 @@ use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-use wgg_db_entity::agg_ingredients::Model;
 use wgg_providers::models::WggSearchProduct;
 
 #[derive(Clone, Debug, SimpleObject)]
@@ -52,13 +51,13 @@ impl AggregateIngredient {
 }
 
 impl From<db::agg_ingredients::Model> for AggregateIngredient {
-    fn from(model: Model) -> Self {
+    fn from(model: db::agg_ingredients::Model) -> Self {
         Self {
             id: model.id,
             name: model.name,
             image_url: model.image_url,
             created_by: model.created_by,
-            created_at: model.created_at
+            created_at: model.created_at,
         }
     }
 }
