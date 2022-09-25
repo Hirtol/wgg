@@ -6,6 +6,7 @@ use crate::db;
 use crate::db::{Id, SelectExt};
 use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
 use wgg_providers::models::{CentPrice, Provider, WggSearchProduct};
 
@@ -61,6 +62,8 @@ impl UserCart {
     }
 
     /// Return all the contents of the current cart, notes, products, and aggregates.
+    ///
+    /// The contents are sorted by the timestamp they were added (recent on top)
     pub async fn contents(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<CartContent>> {
         let state = ctx.wgg_state();
 
@@ -84,6 +87,7 @@ impl UserCart {
                     .map(|item| (item.0, item.1.unwrap()))
                     .map(|agg| CartContent::Aggregate(agg.into())),
             )
+            .sorted_by(|item1, item2| item1.get_created_at().cmp(item2.get_created_at()).reverse())
             .collect();
 
         Ok(result)
@@ -121,6 +125,16 @@ pub enum CartContent {
     Note(CartNoteProduct),
     Product(CartProviderProduct),
     Aggregate(CartAggregateProduct),
+}
+
+impl CartContent {
+    pub fn get_created_at(&self) -> &DateTime<Utc> {
+        match self {
+            CartContent::Note(note) => &note.created_at,
+            CartContent::Product(prod) => &prod.created_at,
+            CartContent::Aggregate(agg) => &agg.created_at,
+        }
+    }
 }
 
 #[derive(Clone, Debug, SimpleObject)]
