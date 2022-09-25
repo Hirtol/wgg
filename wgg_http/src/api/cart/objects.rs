@@ -1,3 +1,4 @@
+use crate::api::aggregate_ingredients::AggregateIngredient;
 use crate::api::auth::AuthContext;
 use crate::api::error::GraphqlError;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
@@ -5,7 +6,6 @@ use crate::db;
 use crate::db::{Id, SelectExt};
 use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
 use wgg_providers::models::{CentPrice, Provider};
 
@@ -68,13 +68,22 @@ impl UserCart {
 
         let notes = self.model.find_related(db::cart_contents::notes::Entity).all(&tx);
         let products = self.model.find_related(db::cart_contents::raw_product::Entity).all(&tx);
-        let aggregate = self.model.find_related(db::cart_contents::aggregate::Entity).all(&tx);
+        let aggregate = self
+            .model
+            .find_related(db::cart_contents::aggregate::Entity)
+            .find_also_related(db::agg_ingredients::Entity)
+            .all(&tx);
         let (notes, products, aggregate) = futures::future::try_join3(notes, products, aggregate).await?;
 
         let result = std::iter::empty()
             .chain(notes.into_iter().map(|note| CartContent::Note(note.into())))
             .chain(products.into_iter().map(|product| CartContent::Product(product.into())))
-            .chain(aggregate.into_iter().map(|agg| CartContent::Aggregate(agg.into())))
+            .chain(
+                aggregate
+                    .into_iter()
+                    .map(|item| (item.0, item.1.unwrap()))
+                    .map(|agg| CartContent::Aggregate(agg.into())),
+            )
             .collect();
 
         Ok(result)
@@ -137,14 +146,27 @@ pub struct CartProviderProduct {
 }
 
 #[derive(Clone, Debug, SimpleObject)]
+#[graphql(complex)]
 pub struct CartAggregateProduct {
     pub id: Id,
     #[graphql(skip)]
     pub cart_id: Id,
     #[graphql(skip)]
-    pub aggregate_id: Id,
+    pub aggregate_model: db::agg_ingredients::Model,
     pub quantity: u32,
     pub created_at: DateTime<Utc>,
+}
+
+#[async_graphql::ComplexObject]
+impl CartAggregateProduct {
+    /// Return all products associated with this aggregate product.
+    ///
+    /// # Accessible by
+    ///
+    /// Everyone.
+    pub async fn aggregate(&self, _ctx: &Context<'_>) -> GraphqlResult<AggregateIngredient> {
+        Ok(self.aggregate_model.clone().into())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -197,12 +219,12 @@ impl From<db::cart_contents::raw_product::Model> for CartProviderProduct {
         }
     }
 }
-impl From<db::cart_contents::aggregate::Model> for CartAggregateProduct {
-    fn from(model: db::cart_contents::aggregate::Model) -> Self {
+impl From<(db::cart_contents::aggregate::Model, db::agg_ingredients::Model)> for CartAggregateProduct {
+    fn from((model, agg): (db::cart_contents::aggregate::Model, db::agg_ingredients::Model)) -> Self {
         Self {
             id: model.id,
             cart_id: model.cart_id,
-            aggregate_id: model.aggregate_id,
+            aggregate_model: agg,
             quantity: model.quantity as u32,
             created_at: model.created_at,
         }
