@@ -94,10 +94,11 @@ CREATE TABLE IF NOT EXISTS cart_contents_aggregate
 
     UNIQUE(cart_id, aggregate_id),
     FOREIGN KEY (cart_id) REFERENCES cart (id) ON DELETE CASCADE,
-    FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients (id) ON DELETE CASCADE
+    FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients (id) ON DELETE CASCADE,
+    FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients_links (aggregate_id) ON DELETE CASCADE
 );
 
--- Running tally of current cart so that a user can at any time see the current prices.
+-- Final tally of completed carts.
 -- Note that this *will* get out of date, which is why we need a final "Calculate" step for the true calculation.
 CREATE TABLE IF NOT EXISTS cart_tally
 (

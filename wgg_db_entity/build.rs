@@ -62,7 +62,7 @@ async fn run(current_dir: &Path, compile_db: &Path) -> anyhow::Result<()> {
 }
 
 async fn initialise_database(db_path: &Path) -> anyhow::Result<()> {
-    std::fs::create_dir_all(&db_path.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(db_path.parent().unwrap()).unwrap();
 
     let options = database_url(db_path)
         .parse::<SqliteConnectOptions>()

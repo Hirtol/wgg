@@ -43,6 +43,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    AggIngredientsLinks,
     AggIngredients,
     Cart,
 }
@@ -63,6 +64,10 @@ impl ColumnTrait for Column {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::AggIngredientsLinks => Entity::belongs_to(super::agg_ingredients_links::Entity)
+                .from(Column::AggregateId)
+                .to(super::agg_ingredients_links::Column::AggregateId)
+                .into(),
             Self::AggIngredients => Entity::belongs_to(super::agg_ingredients::Entity)
                 .from(Column::AggregateId)
                 .to(super::agg_ingredients::Column::Id)
@@ -72,6 +77,12 @@ impl RelationTrait for Relation {
                 .to(super::cart::Column::Id)
                 .into(),
         }
+    }
+}
+
+impl Related<super::agg_ingredients_links::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AggIngredientsLinks.def()
     }
 }
 

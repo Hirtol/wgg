@@ -5,8 +5,9 @@ use crate::db;
 use crate::db::{Id, SelectExt};
 use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
-use wgg_providers::models::Provider;
+use wgg_providers::models::{CentPrice, Provider};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -32,9 +33,7 @@ impl UserCart {
     pub async fn picked_provider(&self, ctx: &Context<'_>) -> Option<Provider> {
         let state = ctx.wgg_state();
 
-        self.model
-            .picked_id
-            .and_then(|picked_id| state.provider_from_id(picked_id))
+        self.model.picked_id.map(|picked_id| state.provider_from_id(picked_id))
     }
 
     /// Return the current (possibly outdated!) price tallies for the providers relevant to this cart.
@@ -44,9 +43,21 @@ impl UserCart {
     /// Picnic will have a higher tally)
     pub async fn tallies(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<CartTally>> {
         let state = ctx.wgg_state();
-        let result = self.model.find_related(db::cart_tally::Entity).all(&state.db).await?;
 
-        Ok(result.into_iter().map(|tally| tally.into()).collect())
+        // If the cart was completed we wish to look for historic tally counts when we completed it.
+        if self.model.completed_at.is_some() {
+            let result = self.model.find_related(db::cart_tally::Entity).all(&state.db).await?;
+
+            Ok(result.into_iter().map(|tally| tally.into()).collect())
+        } else {
+            // Otherwise we calculate the current values.
+            let tallies = super::service::calculate_tallies(&state.db, self.id, state).await?;
+
+            Ok(tallies
+                .into_iter()
+                .map(|(provider, price)| CartTally::Current { provider, price })
+                .collect())
+        }
     }
 
     /// Return all the contents of the current cart, notes, products, and aggregates.
@@ -137,21 +148,29 @@ pub struct CartAggregateProduct {
 }
 
 #[derive(Clone, Debug)]
-pub struct CartTally {
-    model: db::cart_tally::Model,
+pub enum CartTally {
+    Historical(db::cart_tally::Model),
+    Current { provider: Provider, price: CentPrice },
 }
 
 #[async_graphql::Object]
 impl CartTally {
     pub async fn price_cents(&self) -> u32 {
-        self.model.price_cents as u32
+        match self {
+            CartTally::Historical(model) => model.price_cents as u32,
+            CartTally::Current { price, .. } => *price,
+        }
     }
 
-    pub async fn provider(&self, ctx: &Context<'_>) -> GraphqlResult<Provider> {
-        let state = ctx.wgg_state();
-        state
-            .provider_from_id(self.model.provider_id)
-            .ok_or(GraphqlError::ResourceNotFound)
+    pub async fn provider(&self, ctx: &Context<'_>) -> Provider {
+        match self {
+            CartTally::Historical(model) => {
+                let state = ctx.wgg_state();
+
+                state.provider_from_id(model.provider_id)
+            }
+            CartTally::Current { provider, .. } => *provider,
+        }
     }
 }
 
@@ -192,7 +211,7 @@ impl From<db::cart_contents::aggregate::Model> for CartAggregateProduct {
 
 impl From<db::cart_tally::Model> for CartTally {
     fn from(model: db::cart_tally::Model) -> Self {
-        CartTally { model }
+        CartTally::Historical(model)
     }
 }
 

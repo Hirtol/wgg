@@ -268,14 +268,14 @@ impl WggProvider {
     ///
     /// Calling this is more efficient than individual [Self::search_product_by_id] calls for multiple ids as it allows
     /// keeping the Mutex guard.
-    #[tracing::instrument(level="debug", skip_all, fields(provider, query = ?product_ids))]
+    #[tracing::instrument(level = "debug", skip_all, fields(provider))]
     pub async fn search_products_by_id(
         &self,
         provider: Provider,
-        product_ids: &[impl AsRef<str> + Debug],
+        product_ids: impl IntoIterator<Item = impl AsRef<str> + Debug>,
     ) -> Result<Vec<WggSearchProduct>> {
         let mut guard = self.cache.lock().await;
-        let mut result = Vec::with_capacity(product_ids.len());
+        let mut result = Vec::with_capacity(2);
 
         for product in product_ids {
             let id = product.as_ref().to_string();

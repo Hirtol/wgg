@@ -51,16 +51,17 @@ pub struct State {
 
 impl State {
     /// Quickly find the [Provider] associated with the given `id`.
-    pub fn provider_from_id(&self, id: Id) -> Option<Provider> {
+    pub fn provider_from_id(&self, id: Id) -> Provider {
         self.db_providers
             .iter()
             .find(|&(_, db_id)| *db_id == id)
             .map(|item| *item.0)
+            .expect("Expected a new provider to exist in the database when it doesn't!")
     }
 
     /// Quickly find the `Id` for the given `provider`.
-    pub fn provider_id_from_provider(&self, provider: &Provider) -> Option<Id> {
-        self.db_providers.get(provider).copied()
+    pub fn provider_id_from_provider(&self, provider: &Provider) -> Id {
+        self.db_providers.get(provider).copied().expect("Expected a new provider to exist in the database when it doesn't!")
     }
 }
 

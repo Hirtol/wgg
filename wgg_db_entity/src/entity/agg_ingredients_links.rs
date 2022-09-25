@@ -43,6 +43,7 @@ impl PrimaryKeyTrait for PrimaryKey {
 pub enum Relation {
     Providers,
     AggIngredients,
+    CartContentsAggregate,
 }
 
 impl ColumnTrait for Column {
@@ -68,6 +69,7 @@ impl RelationTrait for Relation {
                 .from(Column::AggregateId)
                 .to(super::agg_ingredients::Column::Id)
                 .into(),
+            Self::CartContentsAggregate => Entity::has_many(super::cart_contents_aggregate::Entity).into(),
         }
     }
 }
@@ -81,6 +83,12 @@ impl Related<super::providers::Entity> for Entity {
 impl Related<super::agg_ingredients::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AggIngredients.def()
+    }
+}
+
+impl Related<super::cart_contents_aggregate::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CartContentsAggregate.def()
     }
 }
 
