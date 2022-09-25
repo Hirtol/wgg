@@ -5,7 +5,7 @@ opt-level = 3
 [profile.dev]
 opt-level = 0
 incremental = true
-debug = 2
+debug = 0
 
 [profile.debugs]
 inherits = "dev"
