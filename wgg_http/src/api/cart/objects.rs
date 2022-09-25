@@ -7,7 +7,7 @@ use crate::db::{Id, SelectExt};
 use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
-use wgg_providers::models::{CentPrice, Provider};
+use wgg_providers::models::{CentPrice, Provider, WggSearchProduct};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -134,15 +134,35 @@ pub struct CartNoteProduct {
 }
 
 #[derive(Clone, Debug, SimpleObject)]
+#[graphql(complex)]
 pub struct CartProviderProduct {
     pub id: Id,
     #[graphql(skip)]
     pub cart_id: Id,
     #[graphql(skip)]
     pub provider_id: Id,
+    #[graphql(skip)]
     pub provider_product_id: ProductId,
     pub quantity: u32,
     pub created_at: DateTime<Utc>,
+}
+
+#[async_graphql::ComplexObject]
+impl CartProviderProduct {
+    /// Return the product associated with this entry
+    ///
+    /// # Accessible by
+    ///
+    /// Everyone.
+    pub async fn product(&self, ctx: &Context<'_>) -> GraphqlResult<WggSearchProduct> {
+        let state = ctx.wgg_state();
+        let provider = state.provider_from_id(self.provider_id);
+
+        Ok(state
+            .providers
+            .search_product_by_id(provider, &self.provider_product_id)
+            .await?)
+    }
 }
 
 #[derive(Clone, Debug, SimpleObject)]
@@ -159,7 +179,7 @@ pub struct CartAggregateProduct {
 
 #[async_graphql::ComplexObject]
 impl CartAggregateProduct {
-    /// Return all products associated with this aggregate product.
+    /// Return the primary aggregate product associated with this entry
     ///
     /// # Accessible by
     ///
