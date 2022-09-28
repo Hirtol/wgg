@@ -221,9 +221,9 @@ fn parse_picnic_full_product_to_product(
         // Since we couldn't parse a 'normal' quantity it might be of an unconventional form such as:
         // `4-6 pers | 30 mins`, we can extract the prep time!
         if let Some(minutes) = parse_prep_time(&product.unit_quantity) {
-            result
-                .decorators
-                .push(crate::models::WggDecorator::PrepTime(PrepTime { time_minutes: minutes }));
+            result.decorators.push(crate::models::WggDecorator::PrepTime(PrepTime {
+                time_minutes: minutes,
+            }));
         }
     }
 
@@ -381,9 +381,9 @@ fn parse_picnic_item_to_search_item(
         // Since we couldn't parse a 'normal' quantity it might be of an unconventional form such as:
         // `4-6 pers | 30 mins`, we can extract the prep time!
         if let Some(minutes) = parse_prep_time(&article.unit_quantity) {
-            result
-                .decorators
-                .push(crate::models::WggDecorator::PrepTime(PrepTime { time_minutes: minutes }));
+            result.decorators.push(crate::models::WggDecorator::PrepTime(PrepTime {
+                time_minutes: minutes,
+            }));
         }
     }
 
@@ -496,9 +496,11 @@ fn parse_picnic_ingredient_blob(blob: &str) -> Vec<IngredientInfo> {
     // Picnic's ingredient blob is uncharacteristically unstructured, so we have to break it apart ourselves.
     // It has the form "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc"
 
-    //TODO: FIX STUFF BETWEEN BRACKETS!
+    //TODO: Fix stuff between brackets. This unfortunately needs a context-free parser with look-ahead.
+
     let result = blob
-        .split(',')
+        .split(", ")
+        .filter(|s| !s.is_empty())
         .map(|ingr| IngredientInfo {
             name: ingr.trim().trim_end_matches('.').to_string(),
         })
@@ -550,7 +552,10 @@ fn parse_days_fresh(period: &str) -> Option<u32> {
 #[cfg(test)]
 mod test {
     use crate::models::{Unit, UnitPrice};
-    use crate::providers::picnic_bridge::{parse_days_fresh, parse_euro_price, parse_prep_time, parse_unit_price};
+    use crate::providers::picnic_bridge::{
+        parse_days_fresh, parse_euro_price, parse_picnic_ingredient_blob, parse_prep_time, parse_unit_price,
+    };
+    use std::{println, vec};
 
     #[test]
     pub fn test_parse_price() {
@@ -604,5 +609,14 @@ mod test {
             periods.into_iter().flat_map(parse_prep_time).collect::<Vec<_>>(),
             vec![30, 25, 40]
         );
+    }
+
+    #[test]
+    fn test_parse_ingredients() {
+        let ingredient_str = "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc, ";
+
+        let output = parse_picnic_ingredient_blob(ingredient_str);
+
+        println!("Output: {:#?}", output);
     }
 }

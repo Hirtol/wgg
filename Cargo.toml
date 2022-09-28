@@ -1,11 +1,12 @@
 [profile.dev.package."*"]
 # Build dependencies with full release optimizations in debug builds since they'll rarely change
 opt-level = 3
+debug = false
 
 [profile.dev]
 opt-level = 0
 incremental = true
-debug = 0
+debug = false
 
 [profile.debugs]
 inherits = "dev"
