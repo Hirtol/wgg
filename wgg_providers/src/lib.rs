@@ -1,5 +1,6 @@
 use crate::models::{Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
 use async_graphql::EnumType;
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::num::NonZeroUsize;
 use std::time::Duration;
@@ -122,7 +123,7 @@ impl WggProvider {
         let mut guard = self.cache.lock().await;
 
         for item in &result.items {
-            guard.insert_search_product(provider, item.clone());
+            guard.insert_search_product(provider, Cow::Borrowed(item));
         }
 
         Ok(result)
@@ -164,7 +165,7 @@ impl WggProvider {
         let mut guard = self.cache.lock().await;
 
         for item in &results.items {
-            guard.insert_search_product(item.provider, item.clone());
+            guard.insert_search_product(item.provider, Cow::Borrowed(item));
         }
 
         Ok(results)
@@ -228,7 +229,16 @@ impl WggProvider {
 
         let provider = self.find_provider(provider)?;
 
-        inner(provider, sublist_id.as_ref()).await
+        let results = inner(provider, sublist_id.as_ref()).await?;
+
+        // We persist any and all products for the sake of easing custom list searches.
+        let mut guard = self.cache.lock().await;
+
+        for item in &results.items {
+            guard.insert_search_product(item.provider, Cow::Borrowed(item));
+        }
+
+        Ok(results)
     }
 
     /// Retrieve the provided `product_id` from the `provider`.
@@ -305,7 +315,7 @@ impl WggProvider {
             let provider_concrete = self.find_provider(provider)?;
             let result = provider_concrete.product(product_id).await?;
 
-            cache.insert_product(provider, result.clone());
+            cache.insert_product(provider, Cow::Borrowed(&result));
 
             Ok(result)
         }

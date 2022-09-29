@@ -50,7 +50,7 @@ impl WggProviderCache {
     /// Taking `&String` as argument is intentional due to the internal cache API being a little stupid.
     pub fn get_search_product(&mut self, provider: Provider, product_id: &String) -> Option<WggSearchProduct> {
         let search_cache = self.search_product.get_mut(&provider)?;
-        if let Some(item) = search_cache.cache_get(&Cow::Borrowed(product_id)) {
+        if let Some(item) = search_cache.cache_get(product_id) {
             Some(item.clone())
         } else {
             let full_cache = self.full_product.get_mut(&provider)?;
@@ -65,15 +65,15 @@ impl WggProviderCache {
         full_cache.cache_get(product_id).cloned()
     }
 
-    pub fn insert_search_product(&mut self, provider: Provider, product: WggSearchProduct) -> Option<()> {
+    pub fn insert_search_product(&mut self, provider: Provider, product: Cow<'_, WggSearchProduct>) -> Option<()> {
         let search_cache = self.search_product.get_mut(&provider)?;
-        search_cache.cache_set(product.id.clone(), product);
+        search_cache.cache_set(product.id.clone(), product.into_owned());
         Some(())
     }
 
-    pub fn insert_product(&mut self, provider: Provider, product: WggProduct) -> Option<()> {
+    pub fn insert_product(&mut self, provider: Provider, product: Cow<'_, WggProduct>) -> Option<()> {
         let search_cache = self.full_product.get_mut(&provider)?;
-        search_cache.cache_set(product.id.clone(), product);
+        search_cache.cache_set(product.id.clone(), product.into_owned());
         Some(())
     }
 }
