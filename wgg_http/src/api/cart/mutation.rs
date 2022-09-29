@@ -139,6 +139,38 @@ impl CartMutation {
 
         Ok(CartRemoveProductPayload { data: cart.into() })
     }
+
+    /// Mark the current cart as completed, and create a new one.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn cart_current_complete(
+        &self,
+        ctx: &Context<'_>,
+        input: CartCompleteInput,
+    ) -> GraphqlResult<CartCompletePayload> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        let tx = state.db.begin().await?;
+
+        // Mark the cart as completed
+        let cart = db::cart::get_active_cart_for_user(user.id, &tx).await?;
+
+        let active_model = db::cart::ActiveModel {
+            id: ActiveValue::Set(cart.id),
+            completed_at: ActiveValue::Set(Some(chrono::offset::Utc::now())),
+            picked_id: ActiveValue::Set(Some(state.provider_id_from_provider(&input.picked_provider))),
+            ..Default::default()
+        };
+        // By doing this update the database triggers will create a new cart.
+        let cart = active_model.update(&tx).await?;
+
+        tx.commit().await?;
+
+        Ok(CartCompletePayload { data: cart.into() })
+    }
 }
 
 #[derive(Debug, async_graphql::InputObject)]
@@ -157,6 +189,7 @@ pub struct CartRemoveProductInput {
     /// The aggregate id.
     pub aggregate: Option<Id>,
 }
+
 #[derive(Debug, async_graphql::InputObject)]
 pub struct NoteProductInput {
     pub content: String,
@@ -176,6 +209,11 @@ pub struct AggregateProductInput {
     pub quantity: u32,
 }
 
+#[derive(Debug, async_graphql::InputObject)]
+pub struct CartCompleteInput {
+    pub picked_provider: Provider,
+}
+
 #[derive(Debug, async_graphql::SimpleObject)]
 pub struct CartAddProductPayload {
     /// The current cart
@@ -185,5 +223,11 @@ pub struct CartAddProductPayload {
 #[derive(Debug, async_graphql::SimpleObject)]
 pub struct CartRemoveProductPayload {
     /// The current cart
+    pub data: UserCart,
+}
+
+#[derive(Debug, async_graphql::SimpleObject)]
+pub struct CartCompletePayload {
+    /// The completed cart
     pub data: UserCart,
 }
