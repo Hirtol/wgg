@@ -145,7 +145,7 @@ fn api_router(static_dir: &Path, schema: crate::api::WggSchema) -> axum::Router 
 }
 
 async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {
-    std::fs::create_dir_all(&db_cfg.db_path.parent().unwrap())?;
+    std::fs::create_dir_all(db_cfg.db_path.parent().unwrap())?;
 
     let options = db_cfg
         .database_url()

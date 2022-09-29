@@ -4,7 +4,9 @@ use crate::db;
 use crate::db::Id;
 use async_graphql::Context;
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{ActiveModelTrait, ActiveValue, EntityTrait, IntoActiveValue, TransactionTrait};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, IntoActiveValue, QueryFilter, TransactionTrait,
+};
 use wgg_providers::models::Provider;
 
 #[derive(Default)]
@@ -91,6 +93,52 @@ impl CartMutation {
 
         Ok(CartAddProductPayload { data: cart.into() })
     }
+
+    /// Add the provided products to the current cart.
+    ///
+    /// If one adds an item that is already in the cart then the count is set to the provided amount.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn cart_current_remove_product(
+        &self,
+        ctx: &Context<'_>,
+        input: CartRemoveProductInput,
+    ) -> GraphqlResult<CartRemoveProductPayload> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+
+        let tx = state.db.begin().await?;
+        let cart = db::cart::get_active_cart_for_user(user.id, &tx).await?;
+
+        if let Some(note_id) = input.notes {
+            use db::cart_contents::notes::*;
+            Entity::delete_by_id(note_id)
+                .filter(Column::CartId.eq(cart.id))
+                .exec(&tx)
+                .await?;
+        }
+        if let Some(raw_id) = input.raw_product {
+            use db::cart_contents::raw_product::*;
+            Entity::delete_by_id(raw_id)
+                .filter(Column::CartId.eq(cart.id))
+                .exec(&tx)
+                .await?;
+        }
+        if let Some(aggregate_id) = input.aggregate {
+            use db::cart_contents::aggregate::*;
+            Entity::delete_by_id(aggregate_id)
+                .filter(Column::CartId.eq(cart.id))
+                .exec(&tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(CartRemoveProductPayload { data: cart.into() })
+    }
 }
 
 #[derive(Debug, async_graphql::InputObject)]
@@ -100,6 +148,15 @@ pub struct CartAddProductInput {
     pub aggregate: Option<AggregateProductInput>,
 }
 
+#[derive(Debug, async_graphql::InputObject)]
+pub struct CartRemoveProductInput {
+    /// The note id.
+    pub notes: Option<Id>,
+    /// The database id of this raw product (note, *not* the provider product id used to add this product!).
+    pub raw_product: Option<Id>,
+    /// The aggregate id.
+    pub aggregate: Option<Id>,
+}
 #[derive(Debug, async_graphql::InputObject)]
 pub struct NoteProductInput {
     pub content: String,
@@ -121,6 +178,12 @@ pub struct AggregateProductInput {
 
 #[derive(Debug, async_graphql::SimpleObject)]
 pub struct CartAddProductPayload {
+    /// The current cart
+    pub data: UserCart,
+}
+
+#[derive(Debug, async_graphql::SimpleObject)]
+pub struct CartRemoveProductPayload {
     /// The current cart
     pub data: UserCart,
 }
