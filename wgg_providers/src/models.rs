@@ -268,7 +268,8 @@ pub struct WggSaleCategory {
     pub provider: Provider,
 }
 
-#[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::Interface, Clone, Debug, PartialEq, PartialOrd)]
+#[graphql(field(name = "id", type = "&String"))]
 pub enum PromotionProduct {
     Product(WggSearchProduct),
     ProductId(ProductId),
