@@ -42,11 +42,16 @@ impl UserCart {
     ///
     /// Note that the tallies include provider specific products (e.g, if you only have milk from Picnic, but not Jumbo,
     /// Picnic will have a higher tally)
-    pub async fn tallies(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<CartTally>> {
+    pub async fn tallies(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(desc = "If set to `true` will force a query for current tallies, even for completed carts")]
+        force_current: Option<bool>,
+    ) -> GraphqlResult<Vec<CartTally>> {
         let state = ctx.wgg_state();
 
         // If the cart was completed we wish to look for historic tally counts when we completed it.
-        if self.model.completed_at.is_some() {
+        if self.model.completed_at.is_some() && !force_current.unwrap_or_default() {
             let result = self.model.find_related(db::cart_tally::Entity).all(&state.db).await?;
 
             Ok(result.into_iter().map(|tally| tally.into()).collect())
