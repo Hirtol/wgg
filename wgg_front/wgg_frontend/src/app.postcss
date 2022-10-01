@@ -1,0 +1,35 @@
+/* Ordinarily we'd include the all.css file of Skeleton, but then we can't have custom @layer components!*/
+
+@import '@brainandbones/skeleton/styles/tailwind.css';
+
+/* Handles Global Styles */
+@import '@brainandbones/skeleton/styles/core.css';
+
+/* Handles Typographical Settings */
+@import '@brainandbones/skeleton/styles/typography.css';
+
+/* Pairs with Tailwind Forms plugin */
+@import '@brainandbones/skeleton/styles/forms.css';
+
+/* Imports the full set of Tailwind Elements */
+@import '@brainandbones/skeleton/styles/elements.css';
+
+html,
+body {
+    @apply h-full overflow-hidden bg-surface-200 dark:bg-surface-900 bg-mesh;
+}
+
+.bg-mesh {
+    /* prettier-ignore */
+    background-image:
+		radial-gradient(at 35% 35%, hsla(160,84%,39%,0.12) 0px, transparent 35%),
+		radial-gradient(at 61% 60%, hsla(238,83%,66%,0.16) 0px, transparent 35%);
+    background-size: cover;
+    background-attachment: fixed;
+}
+.dark .bg-mesh {
+    /* prettier-ignore */
+    background-image:
+		radial-gradient(at 35% 35%, hsla(160,84%,39%,0.18) 0px, transparent 50%),
+		radial-gradient(at 61% 60%, hsla(238,83%,66%,0.18) 0px, transparent 50%);
+}
