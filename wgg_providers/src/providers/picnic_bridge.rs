@@ -500,14 +500,14 @@ fn parse_picnic_ingredient_blob(blob: &str) -> Option<Vec<IngredientInfo>> {
 
     // The regex we construct is a little unorthodox. Capturing the ingredients between commas directly would require
     // look-ahead/look-behind (within brackets, number with comma separators), not possible with the default `regex` crate.
-    // We therefore match all patterns we *don't* want to match first (double nested brackets, brackets, and comma numbers), and then get all normal comma numbers.
+    // We therefore match all patterns we *don't* want to match first (double nested brackets, brackets, and comma numbers), and then get all normal commas.
     static REGEX: once_cell::sync::Lazy<Regex> =
         once_cell::sync::Lazy::new(|| Regex::new(r#"\([^()]*?(?:\(.*?\))+[^()]*?\)|\(.*?\)|\d+,\d+%|(,)"#).unwrap());
 
-    // Filter all 'normal' comma numbers, they're the only ones in a capture group so it's trivial.
+    // Filter all 'normal' commas, they're the only ones in a capture group so it's trivial.
     let comma_indexes = REGEX
         .captures_iter(blob)
-        .flat_map(|i| i.get(1)) // Only get the matches which have a capture group
+        .flat_map(|i| i.get(1))
         .map(|i| i.end())
         .collect_vec();
 
