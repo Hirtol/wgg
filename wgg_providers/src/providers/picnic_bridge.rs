@@ -7,6 +7,8 @@ use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
+use itertools::Itertools;
+use regex::Regex;
 use std::borrow::Cow;
 use wgg_picnic::models::{Decorator, ImageSize, SubCategory, UnavailableReason};
 use wgg_picnic::PicnicApi;
@@ -237,7 +239,7 @@ fn parse_picnic_full_product_to_product(
 
     // Parse Ingredients
     if let Some(blob) = product.ingredients_blob {
-        result.ingredients = parse_picnic_ingredient_blob(&blob);
+        result.ingredients = parse_picnic_ingredient_blob(&blob).unwrap_or_default();
     }
 
     // Parse nutritional, only parse if there is something of note.
@@ -492,21 +494,45 @@ pub fn parse_decorator(
 }
 
 /// Try to parse ingredient blob in the form: `71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc`
-fn parse_picnic_ingredient_blob(blob: &str) -> Vec<IngredientInfo> {
+fn parse_picnic_ingredient_blob(blob: &str) -> Option<Vec<IngredientInfo>> {
     // Picnic's ingredient blob is uncharacteristically unstructured, so we have to break it apart ourselves.
     // It has the form "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc"
 
-    //TODO: Fix stuff between brackets. This unfortunately needs a context-free parser with look-ahead.
+    // The regex we construct is a little unorthodox. Capturing the ingredients between commas directly would require
+    // look-ahead/look-behind (within brackets, number with comma separators), not possible with the default `regex` crate.
+    // We therefore match all patterns we *don't* want to match first (double nested brackets, brackets, and comma numbers), and then get all normal comma numbers.
+    static REGEX: once_cell::sync::Lazy<Regex> =
+        once_cell::sync::Lazy::new(|| Regex::new(r#"\([^()]*?(?:\(.*?\))+[^()]*?\)|\(.*?\)|\d+,\d+%|(,)"#).unwrap());
 
-    let result = blob
-        .split(", ")
-        .filter(|s| !s.is_empty())
-        .map(|ingr| IngredientInfo {
-            name: ingr.trim().trim_end_matches('.').to_string(),
-        })
-        .collect();
+    // Filter all 'normal' comma numbers, they're the only ones in a capture group so it's trivial.
+    let comma_indexes = REGEX
+        .captures_iter(blob)
+        .flat_map(|i| i.get(1)) // Only get the matches which have a capture group
+        .map(|i| i.end())
+        .collect_vec();
 
-    result
+    if comma_indexes.is_empty() {
+        None
+    } else {
+        // The last item in the list is not followed by a comma, thus we need to manually add one
+        let total_ingredients = comma_indexes.len() + 1;
+
+        let mut result = Vec::with_capacity(total_ingredients);
+
+        for i in 0..total_ingredients {
+            let ingredient_name = match i {
+                0 => blob.split_at(comma_indexes[i] - 1).0,
+                _ if i < comma_indexes.len() => &blob[comma_indexes[i - 1]..comma_indexes[i] - 1],
+                _ => blob.split_at(comma_indexes[i - 1]).1.trim_end_matches('.'),
+            };
+
+            result.push(IngredientInfo {
+                name: ingredient_name.trim().to_string(),
+            });
+        }
+
+        Some(result)
+    }
 }
 
 /// Try to parse the unit string as a prep time in minutes
@@ -551,11 +577,11 @@ fn parse_days_fresh(period: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod test {
-    use crate::models::{Unit, UnitPrice};
+    use crate::models::{IngredientInfo, Unit, UnitPrice};
     use crate::providers::picnic_bridge::{
         parse_days_fresh, parse_euro_price, parse_picnic_ingredient_blob, parse_prep_time, parse_unit_price,
     };
-    use std::{println, vec};
+    use std::vec;
 
     #[test]
     pub fn test_parse_price() {
@@ -613,10 +639,27 @@ mod test {
 
     #[test]
     fn test_parse_ingredients() {
-        let ingredient_str = "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), etc, ";
+        let ingredient_str = "71% tomaat, ui, wortel, 6,6% tomatenpuree (tomatenpuree, zout), \
+        groentebouillonblokje (gejodeerd zout (zout, kaliumjodaat), gedroogde glucosestroop, suiker, \
+        groenten (wortel, SELDERIJ, ui, knoflook), zonnebloemolie, gistextract (gistextract, zout), \
+        aroma's (SELDERIJ), gedroogde SELDERIJ, water, GERSTEMOUTEXTRACT, kurkuma), \
+        knoflook, tijm.";
+        let expected = vec![
+            IngredientInfo {
+                name: "71% tomaat".to_string(),
+            },
+            IngredientInfo {name: "ui".to_string()},
+            IngredientInfo {name: "wortel".to_string()},
+            IngredientInfo {
+                name: "6,6% tomatenpuree (tomatenpuree, zout)".to_string(),
+            },
+            IngredientInfo {name: "groentebouillonblokje (gejodeerd zout (zout, kaliumjodaat), gedroogde glucosestroop, suiker, groenten (wortel, SELDERIJ, ui, knoflook), zonnebloemolie, gistextract (gistextract, zout), aroma's (SELDERIJ), gedroogde SELDERIJ, water, GERSTEMOUTEXTRACT, kurkuma)".to_string()},
+            IngredientInfo {name: "knoflook".to_string()},
+            IngredientInfo {name: "tijm".to_string()}
+        ];
 
-        let output = parse_picnic_ingredient_blob(ingredient_str);
+        let output = parse_picnic_ingredient_blob(ingredient_str).unwrap();
 
-        println!("Output: {:#?}", output);
+        assert_eq!(output, expected);
     }
 }
