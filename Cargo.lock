@@ -3985,6 +3985,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "wgg_schema_gen"
+version = "0.1.0"
+dependencies = [
+ "wgg_http",
+]
+
+[[package]]
 name = "whoami"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

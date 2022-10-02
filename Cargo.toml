@@ -24,7 +24,7 @@ debug = 0
 
 [workspace]
 resolver = "2"
-members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity"]
+members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity", "wgg_schema_gen"]
 default-members = ["wgg_http"]
 
 [workspace.dependencies]

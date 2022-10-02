@@ -3,6 +3,7 @@
     "version": "0.0.1",
     "private": true,
     "scripts": {
+        "predev": "cargo run -p wgg_schema_gen -- ./gen/",
         "dev": "vite dev",
         "build": "vite build",
         "preview": "vite preview",

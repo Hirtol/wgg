@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::Notify;
 
-mod api;
+pub mod api;
 pub mod config;
 mod cross_system;
 mod db;

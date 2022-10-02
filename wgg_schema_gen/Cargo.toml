@@ -1,0 +1,7 @@
+[package]
+name = "wgg_schema_gen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wgg_http = {path = "../wgg_http"}
