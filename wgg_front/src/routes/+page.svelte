@@ -1,9 +1,30 @@
-<script>
-    import { Alert } from 'flowbite-svelte';
+<script lang="ts">
+    import { Alert, Img } from 'flowbite-svelte';
     import { AppBar, LightSwitch } from '@brainandbones/skeleton';
+    import { FragmentType, graphql, useFragment } from '$lib/api/graphql_types';
+    import { AutoCompleteFragmentFragment } from '$lib/api/graphql_types/graphql';
+    import { PageData } from '$types';
+    
+    const testo = graphql(/* GraphQL */ `
+        fragment AutoCompleteFragment on WggAutocomplete {
+            name
+        }
+    `);
+
+    export let data: PageData;
+    $: ({result} = data);
 </script>
 
 <LightSwitch />
+
+<div class="overflow-auto">
+    {#if $result.data}
+        {#each $result.data.proSearchAll as item}
+        <Img src={item.imageUrl} size="max-w-[10rem]" class=""></Img>
+        {/each}
+    {/if}
+</div>
+
 
 <AppBar>
     <svelte:fragment slot="lead">

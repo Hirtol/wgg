@@ -5,14 +5,16 @@ import adapter from '@sveltejs/adapter-static';
 const config = {
     preprocess: [
         preprocess({
-            postcss: true,
-            typescript: true
+            postcss: true
         })
     ],
     kit: {
         adapter: adapter({
             fallback: 'index.html'
-        })
+        }),
+        alias: {
+            $types: './.svelte-kit/types/src/routes/$types.d.ts'
+        }
     }
 };
 

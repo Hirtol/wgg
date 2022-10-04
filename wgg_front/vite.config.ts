@@ -6,7 +6,7 @@ const config: UserConfig = {
     server: {
         proxy: {
             '/api': {
-                target: 'http://localhost:8080',
+                target: 'http://localhost:9000',
                 changeOrigin: true
             }
         },
