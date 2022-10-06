@@ -77,13 +77,17 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
     const unsubscribe = result.subscribe((x) => {
         if (x.data !== undefined) {
             resolver(result);
-            unsubscribe();
+            // Hacky way to get around the situation where `x` has data immediately available.
+            // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
+            setTimeout(() => unsubscribe(), 10);
         }
 
         if (!x.fetching) {
             if (x.error) {
                 rejector(result);
-                unsubscribe();
+                // Hacky way to get around the situation where `x` has data immediately available.
+                // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
+                setTimeout(() => unsubscribe(), 10);
             }
         }
     });
@@ -116,16 +120,20 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
         }
     );
 
-    const unsubscribe = result.subscribe((x) => {
+    const unsubscribe = result.subscribe(async (x) => {
         if (x.data != undefined) {
             resolver({ store: result, item: x.data });
-            unsubscribe();
+            // Hacky way to get around the situation where `x` has data immediately available.
+            // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
+            setTimeout(() => unsubscribe(), 10);
         }
 
         if (!x.fetching) {
             if (x.error) {
                 rejector(result);
-                unsubscribe();
+                // Hacky way to get around the situation where `x` has data immediately available.
+                // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
+                setTimeout(() => unsubscribe(), 10);
             }
         }
     });

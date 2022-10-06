@@ -19,9 +19,9 @@
 
 <GlobalLoading />
 
-{#if $navigating}
+<!-- {#if $navigating}
     <Spinner size="10" class="absolute left-[50%] top-[50%]" />
-{/if}
+{/if} -->
 
 <Notifier />
 

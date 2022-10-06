@@ -2,7 +2,7 @@
     import classNames from 'classnames';
     import { globalLoading, Progress } from './global_loading';
 
-    const fillPercentages: { [K in Progress]: number } = { Begin: 0, Starting: 25, Loading: 50, Idle: 100 };
+    const fillPercentages: { [K in Progress]: number } = { Begin: 0, Starting: 25, Loading: 70, Idle: 100 };
 
     let transitionComplete = true;
 
@@ -26,6 +26,8 @@
     aria-hidden={transitionComplete}>
     <div
         on:transitionend={() => (transitionComplete = !loading)}
-        class="progress-meter h-full animate-pulse rounded-xl bg-accent-500 transition-[width] duration-500 ease-in-out"
+        class="progress-meter h-full animate-pulse rounded-xl bg-accent-500 transition-[width] ease-in-out"
+        class:duration-500={currentProgress != Progress.Idle}
+        class:duration-300={currentProgress == Progress.Idle}
         style:width="{fillPercent}%" />
 </div>

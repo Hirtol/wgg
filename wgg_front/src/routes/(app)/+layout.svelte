@@ -1,7 +1,7 @@
 <script lang="ts">
-    import WggNavabar from '$lib/components/navbar/WggNavbar.svelte';
+    import WggNavbar from '$lib/components/navbar/WggNavbar.svelte';
 </script>
 
-<WggNavabar />
+<WggNavbar />
 
 <slot />

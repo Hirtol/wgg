@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { Alert, Img } from 'flowbite-svelte';
     import { AppBar, LightSwitch } from '@brainandbones/skeleton';
 </script>
 
@@ -19,10 +18,5 @@
     </svelte:fragment>
 </AppBar>
 
-<h1 class="mx-auto">Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
-<div class="mx-auto">
-    <Alert>
-        <span class="font-medium">Info Alert!</span> Change stuff
-    </Alert>
-</div>
+<p>Hellossss</p>
+<a href="/login">awdawd</a>
