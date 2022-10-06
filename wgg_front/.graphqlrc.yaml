@@ -1,8 +1,8 @@
 projects:
-  default:
-    schema:
-      - ./gen/schema.graphql
-    documents:
-      - '**/*.gql'
-      - '**/*.tsx'
-      - '**/*.svelte'
+    default:
+        schema:
+            - ./gen/schema.graphql
+        documents:
+            - '**/*.gql'
+            - '**/*.tsx'
+            - '**/*.svelte'

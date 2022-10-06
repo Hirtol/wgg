@@ -1,0 +1,115 @@
+/* Stylesheet Add-On: forms.css from Skeleton component library. Copied to remove a hover:brightness-110 from the inputs, as that breaks icon display*/
+
+/* === Fieldset === */
+
+fieldset {
+    @apply block;
+}
+
+/* === Labels === */
+
+label {
+    @apply block overflow-visible;
+}
+label span,
+legend {
+    @apply mb-2 block text-sm text-surface-700 dark:text-surface-300;
+}
+
+/* === Inputs === */
+
+/* Inputs */
+[type='text'],
+[type='email'],
+[type='url'],
+[type='password'],
+[type='number'],
+[type='date'],
+[type='datetime-local'],
+[type='month'],
+[type='search'],
+[type='tel'],
+[type='time'],
+[type='week'],
+[type='file'],
+[multiple],
+textarea,
+select {
+    @apply w-full rounded border-surface-300 bg-surface-50 text-black caret-accent-500 shadow-sm focus:border-accent-500 focus:ring-accent-500;
+    @apply dark:border-surface-500 dark:bg-surface-600 dark:text-white;
+}
+
+/* File */
+[type='file'] {
+    @apply p-2;
+}
+
+/* Selectable */
+[type='checkbox'],
+[type='radio'] {
+    @apply rounded border-surface-500 text-accent-600 focus:ring-accent-500;
+}
+
+/* === States === */
+/* These are not required to use, merely an option */
+
+/* Invalid - https://www.bram.us/2021/01/28/form-validation-you-want-notfocusinvalid-not-invalid/ */
+/* input:not(:focus):not(:placeholder-shown):invalid {
+	@apply invalid;
+} */
+
+/* Valid */
+.input-valid {
+    @apply !border-green-500 !bg-green-200 !text-green-500;
+}
+.input-valid::-moz-placeholder,
+textarea::-moz-placeholder {
+    @apply text-green-500;
+}
+.input-valid:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+    @apply text-green-500;
+}
+.input-valid::placeholder,
+textarea::placeholder {
+    @apply text-green-500;
+}
+
+/* Invalid */
+.input-invalid {
+    @apply !border-red-500 !bg-red-200 !text-red-500;
+}
+.input-invalid::-moz-placeholder,
+textarea::-moz-placeholder {
+    @apply text-red-500;
+}
+.input-invalid:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+    @apply text-red-500;
+}
+.input-invalid::placeholder,
+textarea::placeholder {
+    @apply text-red-500;
+}
+
+/* === Placeholders === */
+
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+    @apply text-surface-400;
+}
+input:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+    @apply text-surface-400;
+}
+input::placeholder,
+textarea::placeholder {
+    @apply text-surface-400;
+}
+
+/* === Accent Color === */
+/* https://developer.mozilla.org/en-US/docs/Web/CSS/accent-color */
+
+[type='range']:not(.range-input) {
+    @apply w-full accent-accent-500;
+}

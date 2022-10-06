@@ -9,14 +9,15 @@
 @import '@brainandbones/skeleton/styles/typography.css';
 
 /* Pairs with Tailwind Forms plugin */
-@import '@brainandbones/skeleton/styles/forms.css';
+/* @import '@brainandbones/skeleton/styles/forms.css'; */
+@import './forms.css';
 
 /* Imports the full set of Tailwind Elements */
 @import '@brainandbones/skeleton/styles/elements.css';
 
 html,
 body {
-    @apply h-full overflow-hidden flex flex-col bg-surface-200 dark:bg-surface-900 bg-mesh;
+    @apply bg-mesh flex h-full flex-col overflow-hidden bg-surface-200 dark:bg-surface-900;
 }
 
 .bg-mesh {

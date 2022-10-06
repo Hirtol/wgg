@@ -8,6 +8,7 @@
     import { navigating } from '$app/stores';
     import { Spinner } from 'flowbite-svelte';
     import Notifier from '$lib/components/notifications/Notifiers.svelte';
+    import GlobalLoading from '$lib/components/global_progress/GlobalLoading.svelte';
 
     export let data: LayoutData;
 
@@ -16,11 +17,13 @@
     prefetchRoutes(['/cart']);
 </script>
 
+<GlobalLoading />
+
 {#if $navigating}
-    <Spinner size="10" class="absolute left-[50%] top-[50%]"/>
+    <Spinner size="10" class="absolute left-[50%] top-[50%]" />
 {/if}
 
-<Notifier></Notifier>
+<Notifier />
 
 <svelte:head>
     <title>Wgg</title>

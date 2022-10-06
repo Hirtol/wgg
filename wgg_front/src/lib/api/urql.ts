@@ -100,22 +100,25 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
  * const result = await asyncMutationStore({query: HomePageMutationDocument, client: client});
  * ```
  */
- export async function asyncMutationStore<Data = any, Variables extends AnyVariables = AnyVariables>(
-    args: MutationArgs<Data, Variables>, handler?: SubscriptionHandler<Data, Data>
-): Promise<OperationResultStore<Data, Variables>> {
+export async function asyncMutationStore<Data = any, Variables extends AnyVariables = AnyVariables>(
+    args: MutationArgs<Data, Variables>,
+    handler?: SubscriptionHandler<Data, Data>
+): Promise<{ store: OperationResultStore<Data, Variables>; item: Data }> {
     const result = mutationStore(args, handler);
 
     let resolver: (value: any) => void;
     let rejector: (reason: any) => void;
 
-    const finalPromise: Promise<OperationResultStore<Data, Variables>> = new Promise((accept, reject) => {
-        resolver = accept;
-        rejector = reject;
-    });
+    const finalPromise: Promise<{ store: OperationResultStore<Data, Variables>; item: Data }> = new Promise(
+        (accept, reject) => {
+            resolver = accept;
+            rejector = reject;
+        }
+    );
 
     const unsubscribe = result.subscribe((x) => {
-        if (x.data !== undefined) {
-            resolver(result);
+        if (x.data != undefined) {
+            resolver({ store: result, item: x.data });
             unsubscribe();
         }
 
