@@ -1,0 +1,12 @@
+query ViewerInfoQuery {
+    viewer {
+        ...ViewerContext
+    }
+}
+
+fragment ViewerContext on AuthContext {
+    id
+    email
+    username
+    isAdmin
+}

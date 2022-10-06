@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { cacheExchange } from '@urql/exchange-graphcache';
 import { requestPolicyExchange } from '@urql/exchange-request-policy';
-import { notifications } from '$lib/notification';
+import { notifications } from '$lib/components/notifications/notification';
 import {
     Client,
     ClientOptions,
@@ -12,9 +12,14 @@ import {
     AnyVariables,
     OperationResult,
     QueryArgs,
-    queryStore
+    queryStore,
+    mutationStore,
+    MutationArgs,
+    SubscriptionHandler
 } from '@urql/svelte';
 import { Readable } from 'svelte/store';
+
+export * from '@urql/svelte';
 
 /**
  * Central point to create a Urql client with the exact settings that we want.
@@ -35,7 +40,9 @@ export function createUrqlClient(opts?: ClientOptions): Client {
             }),
             requestPolicyExchange({ ttl: 3 * 60 * 1000 }),
             cacheExchange({
-                keys: {},
+                keys: {
+                    UnitQuantity: () => null
+                },
                 updates: {
                     Mutation: {}
                 }
@@ -58,6 +65,45 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
     args: QueryArgs<Data, Variables>
 ): Promise<OperationResultStore<Data, Variables>> {
     const result = queryStore(args);
+
+    let resolver: (value: any) => void;
+    let rejector: (reason: any) => void;
+
+    const finalPromise: Promise<OperationResultStore<Data, Variables>> = new Promise((accept, reject) => {
+        resolver = accept;
+        rejector = reject;
+    });
+
+    const unsubscribe = result.subscribe((x) => {
+        if (x.data !== undefined) {
+            resolver(result);
+            unsubscribe();
+        }
+
+        if (!x.fetching) {
+            if (x.error) {
+                rejector(result);
+                unsubscribe();
+            }
+        }
+    });
+
+    return finalPromise;
+}
+
+/**
+ * Same as the {@link mutationStore} function, except that it returns a `Promise`, which resolves when the store has fetched its first data, or errored out.
+ *
+ * # Example
+ *
+ * ```ts
+ * const result = await asyncMutationStore({query: HomePageMutationDocument, client: client});
+ * ```
+ */
+ export async function asyncMutationStore<Data = any, Variables extends AnyVariables = AnyVariables>(
+    args: MutationArgs<Data, Variables>, handler?: SubscriptionHandler<Data, Data>
+): Promise<OperationResultStore<Data, Variables>> {
+    const result = mutationStore(args, handler);
 
     let resolver: (value: any) => void;
     let rejector: (reason: any) => void;

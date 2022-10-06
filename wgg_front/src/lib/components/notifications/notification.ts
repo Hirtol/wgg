@@ -1,3 +1,5 @@
+import { ToastMessage, toastStore } from '@brainandbones/skeleton';
+import type { Colors } from 'flowbite-svelte/types';
 import { derived, Readable, writable, Writable } from 'svelte/store';
 
 export const notifications = createNotificationStore();
@@ -21,6 +23,14 @@ function createNotificationStore(): NotificationStore {
     const backing_store: Writable<Notification[]> = writable([]);
 
     const send = (notification: Notification) => {
+        const toast: ToastMessage = {
+            message: notification.message,
+            timeout: notification.timeToLiveMs,
+            autohide: true
+        };
+
+        toastStore.trigger(toast);
+
         backing_store.update((state) => {
             return [...state, notification];
         });
@@ -110,6 +120,32 @@ export class Notification {
         this.title = title;
         this.timeToLiveMs = timeToLiveMs;
         this.dateCreated = new Date();
+    }
+
+    get color(): Colors {
+        switch (this.type) {
+            case NotificationType.Error:
+                return 'red';
+            case NotificationType.Info:
+                return 'blue';
+            case NotificationType.Success:
+                return 'green';
+            case NotificationType.Warning:
+                return 'yellow';
+        }
+    }
+
+    get bgColorClass(): string {
+        switch (this.type) {
+            case NotificationType.Error:
+                return '!bg-warning-500';
+            case NotificationType.Info:
+                return '!bg-blue-700';
+            case NotificationType.Success:
+                return '!bg-emerald-700';
+            case NotificationType.Warning:
+                return '!bg-yellow-700';
+        }
     }
 }
 

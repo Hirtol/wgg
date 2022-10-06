@@ -12,3 +12,4 @@ export const load: LayoutLoad<{client: Client}> = async (event) => {
         client
     };
 };
+

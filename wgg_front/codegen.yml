@@ -3,21 +3,19 @@ schema: './gen/schema.graphql'
 documents:
     - './src/**/*.graphql'
     - './src/**/*.gql'
-    - './src/**/*.svelte'
 config:
     scalars:
         NaiveDateTime: Date
 generates:
-    ./src/lib/api/graphql_types:
-        preset: 'client-preset'
+    ./src/lib/api/graphql_types.ts:
         plugins:
             - add:
                   content:
                       - '// THIS FILE IS GENERATED'
                       - '/* eslint-disable */'
-            # - 'typescript'
-            # - 'typescript-operations'
-            # - 'typed-document-node'
+            - 'typescript'
+            - 'typescript-operations'
+            - 'typed-document-node'
         config:
-            # dedupeOperationSuffix: true
-            maybeValue: T | null
+            dedupeOperationSuffix: true
+            maybeValue: T

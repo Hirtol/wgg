@@ -1,8 +1,8 @@
-/* eslint-disable */
 // THIS FILE IS GENERATED
+/* eslint-disable */
 import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = Maybe<T>;
+export type Maybe<T> = T;
+export type InputMaybe<T> = T;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
@@ -836,12 +836,24 @@ export type WggSearchProduct = PromotionProduct & {
   unitQuantity: UnitQuantity;
 };
 
+export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type LogoutMutation = { __typename?: 'MutationRoot', logout: number };
+
+export type ViewerInfoQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ViewerInfoQuery = { __typename?: 'QueryRoot', viewer: { __typename?: 'AuthContext', id: number, email: string, username: string, isAdmin: boolean } };
+
+export type ViewerContextFragment = { __typename?: 'AuthContext', id: number, email: string, username: string, isAdmin: boolean };
+
 export type GetAllPromotionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAllPromotionsQuery = { __typename?: 'QueryRoot', proSearchAll: Array<{ __typename?: 'WggSearchProduct', id: string, name: string, imageUrl?: string | null, provider: Provider, displayPrice: number, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number } }> };
+export type GetAllPromotionsQuery = { __typename?: 'QueryRoot', proSearchAll: Array<{ __typename?: 'WggSearchProduct', id: string, name: string, imageUrl?: string, provider: Provider, displayPrice: number, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number } }> };
 
-export type AutoCompleteFragmentFragment = { __typename?: 'WggAutocomplete', name: string } & { ' $fragmentName': 'AutoCompleteFragmentFragment' };
-
-export const AutoCompleteFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AutoCompleteFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"WggAutocomplete"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]} as unknown as DocumentNode<AutoCompleteFragmentFragment, unknown>;
+export const ViewerContextFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ViewerContext"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"AuthContext"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"isAdmin"}}]}}]} as unknown as DocumentNode<ViewerContextFragment, unknown>;
+export const LogoutMutationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"LogoutMutation"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"logout"}}]}}]} as unknown as DocumentNode<LogoutMutation, LogoutMutationVariables>;
+export const ViewerInfoQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ViewerInfoQuery"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ViewerContext"}}]}}]}},...ViewerContextFragmentDoc.definitions]} as unknown as DocumentNode<ViewerInfoQuery, ViewerInfoQueryVariables>;
 export const GetAllPromotionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"getAllPromotions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"proSearchAll"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"query"},"value":{"kind":"StringValue","value":"banaan","block":false}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}},{"kind":"Field","name":{"kind":"Name","value":"displayPrice"}},{"kind":"Field","name":{"kind":"Name","value":"unitQuantity"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"amount"}}]}}]}}]}}]} as unknown as DocumentNode<GetAllPromotionsQuery, GetAllPromotionsQueryVariables>;

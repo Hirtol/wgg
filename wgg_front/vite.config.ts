@@ -11,6 +11,9 @@ const config: UserConfig = {
             }
         },
         port: 3000
+    },
+    optimizeDeps: {
+        exclude: ['@urql/svelte', '@urql/exchange-graphcache', '@urql/exchange-request-policy']
     }
 };
 
