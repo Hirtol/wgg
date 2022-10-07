@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
-import { derived, Readable, writable, Writable } from 'svelte/store';
+import { derived, type Readable, writable, type Writable } from 'svelte/store';
 
 export const globalLoading = createGlobalProgressStore();
 

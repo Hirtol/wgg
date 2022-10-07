@@ -1,6 +1,6 @@
-import { derived, Readable, writable, Writable } from 'svelte/store';
-import { ViewerContextFragment, ViewerInfoQueryDocument } from '$lib/api/graphql_types';
-import { Client } from '$lib/api/urql';
+import { derived, type Readable, writable, type Writable } from 'svelte/store';
+import { type ViewerContextFragment, ViewerInfoQueryDocument } from '$lib/api/graphql_types';
+import type { Client } from '$lib/api/urql';
 
 type isAuthenticated = boolean;
 
@@ -24,7 +24,6 @@ export async function authenticateUser(client: Client): Promise<isAuthenticated>
     } else {
         authSession.set(authContext.data?.viewer);
     }
-    console.log(authContext.data != undefined, authContext);
 
     return authContext.data != undefined;
 }

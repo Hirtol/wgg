@@ -13,10 +13,7 @@ const config = {
     kit: {
         adapter: adapter({
             fallback: 'index.html'
-        }),
-        alias: {
-            $types: './.svelte-kit/types/src/routes/$types.d.ts'
-        }
+        })
     }
 };
 

@@ -1,6 +1,5 @@
-import { ToastMessage, toastStore } from '@brainandbones/skeleton';
 import type { Colors } from 'flowbite-svelte/types';
-import { derived, Readable, writable, Writable } from 'svelte/store';
+import { derived, type Readable, writable, type Writable } from 'svelte/store';
 
 export const notifications = createNotificationStore();
 const NOTIFICATION_TIMEOUT = 3000;
@@ -23,14 +22,6 @@ function createNotificationStore(): NotificationStore {
     const backing_store: Writable<Notification[]> = writable([]);
 
     const send = (notification: Notification) => {
-        const toast: ToastMessage = {
-            message: notification.message,
-            timeout: notification.timeToLiveMs,
-            autohide: true
-        };
-
-        toastStore.trigger(toast);
-
         backing_store.update((state) => {
             return [...state, notification];
         });

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { SubmitLoginDocument, ViewerContextFragment } from '$lib/api/graphql_types';
+    import { SubmitLoginDocument, type ViewerContextFragment } from '$lib/api/graphql_types';
     import { asyncMutationStore, getContextClient } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
     import { Email, Password } from 'carbon-icons-svelte';

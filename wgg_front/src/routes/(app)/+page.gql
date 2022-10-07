@@ -1,13 +1,5 @@
 query getAllPromotions {
     proSearchAll(query: "banaan") {
-        id
-        name
-        imageUrl
-        provider
-        displayPrice
-        unitQuantity {
-            unit
-            amount
-        }
+        ...ProductCardFragment
     }
 }

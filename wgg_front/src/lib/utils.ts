@@ -1,4 +1,4 @@
-import { Readable, readable, Subscriber } from 'svelte/store';
+import { type Readable, readable, type Subscriber } from 'svelte/store';
 
 export const isMobileScreen: Readable<boolean> = readable(false, (set: Subscriber<boolean>) => {
     // Initialise the value

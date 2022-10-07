@@ -1,5 +1,5 @@
 import { createUrqlClient } from '$lib/api/urql';
-import type { LayoutLoad } from '$types';
+import { LayoutLoad } from './$types';
 import { Client } from '@urql/svelte';
 
 /**

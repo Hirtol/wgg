@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
-    import { ViewerContextFragment } from '$lib/api/graphql_types';
+    import type { ViewerContextFragment } from '$lib/api/graphql_types';
     import { notifications } from '$lib/components/notifications/notification';
     import { authSession, isUserAuthenticated } from '$lib/user';
     import LoginForm from './LoginForm.svelte';

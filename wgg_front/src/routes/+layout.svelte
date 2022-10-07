@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { LayoutData } from '$types';
+    import type { LayoutData } from './$types';
     import '@brainandbones/skeleton/themes/theme-vintage.css';
     import '../app.postcss';
     import { setContextClient } from '$lib/api/urql';

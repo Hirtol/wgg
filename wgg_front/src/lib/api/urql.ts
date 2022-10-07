@@ -4,20 +4,20 @@ import { requestPolicyExchange } from '@urql/exchange-request-policy';
 import { notifications } from '$lib/components/notifications/notification';
 import {
     Client,
-    ClientOptions,
+    type ClientOptions,
     createClient,
     dedupExchange,
     errorExchange,
     fetchExchange,
-    AnyVariables,
-    OperationResult,
-    QueryArgs,
+    type AnyVariables,
+    type OperationResult,
+    type QueryArgs,
     queryStore,
     mutationStore,
-    MutationArgs,
-    SubscriptionHandler
+    type MutationArgs,
+    type SubscriptionHandler
 } from '@urql/svelte';
-import { Readable } from 'svelte/store';
+import type { Readable } from 'svelte/store';
 
 export * from '@urql/svelte';
 

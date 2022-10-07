@@ -1,5 +1,14 @@
 <script lang="ts">
+    // import { PageData } from '$types';
     import { AppBar, LightSwitch } from '@brainandbones/skeleton';
+    import ProductCard from '$lib/components/product_list/ProductCard.svelte';
+    import type { PageData } from './$types';
+
+    export let data: PageData;
+
+    $: ({ result } = data);
+
+    $: firstItem = $result.data?.proSearchAll[0];
 </script>
 
 <LightSwitch />
@@ -20,3 +29,7 @@
 
 <p>Hellossss</p>
 <a href="/login">awdawd</a>
+
+{#if firstItem}
+    <ProductCard data={firstItem} />
+{/if}
