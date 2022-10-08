@@ -138,17 +138,18 @@ impl WggProvider {
             size = 100,
             time = 86400,
             result = true,
-            key = "String",
-            convert = r#"{query.to_string()}"#
+            key = "(String, Provider)",
+            convert = r#"{(query.to_string(), _provider)}"#
         )]
         async fn inner(
             prov: &(dyn ProviderInfo + Send + Sync),
             query: &str,
+            _provider: Provider,
         ) -> Result<OffsetPagination<WggSearchProduct>> {
             prov.search(query, None).await
         }
 
-        let queries = self.iter().map(|i| inner(i, query.as_ref()));
+        let queries = self.iter().map(|i| inner(i, query.as_ref(), i.provider()));
 
         let results = futures::future::join_all(queries)
             .await
@@ -193,7 +194,7 @@ impl WggProvider {
     /// Retrieve all valid promotions for the current week.
     #[tracing::instrument(level = "debug", skip_all)]
     pub async fn promotions_all(&self) -> Result<Vec<WggSaleCategory>> {
-        let provider = self.iter().map(|i| i.promotions());
+        let provider = self.iter().map(|i| self.promotions(i.provider()));
 
         futures::future::join_all(provider)
             .await

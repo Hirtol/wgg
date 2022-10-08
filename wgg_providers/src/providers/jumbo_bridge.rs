@@ -1,7 +1,7 @@
 use crate::models::{
-    AllergyTags, AllergyType, WggDecorator, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity,
-    SubNutritionalItem, UnavailableItem, UnavailableReason, UnitPrice, WggProduct, WggSaleCategory,
+    AllergyTags, AllergyType, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo,
+    NutritionalItem, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem,
+    UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
@@ -26,7 +26,7 @@ impl JumboBridge {
 
 #[async_trait::async_trait]
 impl ProviderInfo for JumboBridge {
-    fn provider() -> Provider {
+    fn provider(&self) -> Provider {
         Provider::Jumbo
     }
 

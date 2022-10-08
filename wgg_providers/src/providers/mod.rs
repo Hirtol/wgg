@@ -11,9 +11,7 @@ pub(crate) use picnic_bridge::*;
 
 #[async_trait::async_trait]
 pub trait ProviderInfo {
-    fn provider() -> Provider
-    where
-        Self: Sized;
+    fn provider(&self) -> Provider;
 
     fn logo_url(&self) -> Cow<'static, str>;
 

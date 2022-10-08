@@ -22,7 +22,7 @@ impl CartMutation {
     ///
     /// Everyone.
     #[tracing::instrument(skip(self, ctx))]
-    pub async fn cart_current_add_product(
+    pub async fn cart_current_set_product(
         &self,
         ctx: &Context<'_>,
         input: CartAddProductInput,
@@ -94,9 +94,9 @@ impl CartMutation {
         Ok(CartAddProductPayload { data: cart.into() })
     }
 
-    /// Add the provided products to the current cart.
+    /// Remove the provided item from the current cart.
     ///
-    /// If one adds an item that is already in the cart then the count is set to the provided amount.
+    /// The provided ID is assumed to be the database ID, *not* a product id.
     ///
     /// # Accessible By
     ///

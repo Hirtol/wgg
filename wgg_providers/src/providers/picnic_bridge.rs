@@ -28,7 +28,7 @@ impl PicnicBridge {
 
 #[async_trait::async_trait]
 impl ProviderInfo for PicnicBridge {
-    fn provider() -> Provider {
+    fn provider(&self) -> Provider {
         Provider::Picnic
     }
 
