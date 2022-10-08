@@ -45,7 +45,7 @@ pub async fn test_product() {
     let api = conditional_test!(picnic_api);
 
     let result = api.product("11470254").await.unwrap();
-    assert_eq!(result.product_details.name, "Picnic halfvolle melk");
+    assert_eq!(result.name, "Picnic halfvolle melk");
 }
 
 #[tokio::test]
@@ -54,10 +54,7 @@ pub async fn test_product_image() {
 
     // Halfvolle melk
     let product = api.product("11470254").await.unwrap();
-    let result = api
-        .image(product.product_details.image_id, ImageSize::Tiny)
-        .await
-        .unwrap();
+    let result = api.image(&product.images[0].image_id, ImageSize::Tiny).await.unwrap();
 
     assert!(!result.is_empty())
 }

@@ -1,6 +1,6 @@
 use crate::models::{
     Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct,
-    MyStore, Order, OrderStatus, PartialDelivery, ProductResult, SearchResult, SubCategory, Suggestion, UserInfo,
+    MyStore, Order, OrderStatus, PartialDelivery, ProductArticle, SearchResult, SubCategory, Suggestion, UserInfo,
 };
 use anyhow::anyhow;
 use md5::Digest;
@@ -131,8 +131,8 @@ impl PicnicApi {
     }
 
     /// Return full product info for the provided product id.
-    pub async fn product(&self, product_id: impl AsRef<ProductId>) -> Result<ProductResult> {
-        let response = self.get(&format!("/product/{}", product_id.as_ref()), &[]).await?;
+    pub async fn product(&self, product_id: impl AsRef<ProductId>) -> Result<ProductArticle> {
+        let response = self.get(&format!("/articles/{}", product_id.as_ref()), &[]).await?;
 
         Ok(response.json().await?)
     }
@@ -372,7 +372,10 @@ impl PicnicApi {
 
         match response.status() {
             StatusCode::OK => Ok(response),
-            StatusCode::NOT_FOUND => Err(ApiError::NotFound),
+            StatusCode::NOT_FOUND => {
+                tracing::debug!(response=?response, "Failed to resolve get request");
+                Err(ApiError::NotFound)
+            }
             _ => {
                 tracing::warn!(status = %response.status(), ?response, "Picnic API Error");
                 Err(anyhow!("Error occurred: {}", response.status()).into())

@@ -183,7 +183,7 @@ fn parse_picnic_promotions(
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
 fn parse_picnic_full_product_to_product(
     picnic_api: &PicnicApi,
-    product: wgg_picnic::models::ProductDetails,
+    product: wgg_picnic::models::ProductArticle,
 ) -> Result<WggProduct> {
     // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
     let mut result = WggProduct {

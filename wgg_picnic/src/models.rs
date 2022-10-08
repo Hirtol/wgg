@@ -297,93 +297,186 @@ pub struct Suggestion {
 // ** Product Info **
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Product {
-    pub current_count: u32,
-    pub max_count: u32,
-    pub price: u32,
+pub struct ProductArticle {
+    pub id: String,
     pub name: String,
-    pub fresh_label: Option<FreshLabel>,
-    pub product_id: String,
-    pub unit_quantity_sub: Option<String>,
-    pub deposit: u32,
-    pub image_id: String,
+    #[serde(default)]
+    pub decorators: Vec<Decorator>,
+    pub description: Description,
+    pub price_info: PriceInfo,
+    pub labels: Labels,
+    pub images: Vec<Image>,
+    pub max_order_quantity: i32,
+    /// Contains the quantity of product, aka `625 grams` or `4-6 pers | 30 mins`
     pub unit_quantity: String,
+    pub category_link: Option<String>,
+    pub allergies: Allergies,
+    /// Contains unstructured info tid-bits like `Na bezorging minimaal 3 dagen vers` or `Binnen 30 minuten op tafel`
+    #[serde(default)]
+    pub highlights: Vec<Highlight>,
+    /// Inserted prior to the description as a single image.
+    #[serde(default)]
+    pub mood_gallery: Vec<MoodGallery>,
+    #[serde(default)]
+    pub misc: Vec<Misc>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SubItemDetails {
-    pub id: String,
-    pub title: Option<String>,
-    pub text: Option<String>,
+pub struct Description {
+    /// Primary text for a description
+    pub main: String,
+    /// Optional extension for the reader.
+    pub extension: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ItemDetails {
-    pub id: String,
-    pub title: String,
-    pub items: Vec<SubItemDetails>,
+pub struct Image {
+    pub image_id: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Labels {
+    /// Sustainable brands
+    pub brand_tier: Option<Value>,
+    #[serde(default)]
+    pub status: Vec<Value>,
+    #[serde(default)]
+    pub characteristics: Vec<Value>,
+    /// Contains flavour text like `XL` for apples
+    pub size: Option<SizeInfo>,
+    /// Contains promo text like `1 + 1 gratis` or `20% korting`
+    pub promo: Option<PromoText>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromoText {
+    pub text: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SizeInfo {
+    pub size: String,
+    pub text: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PriceInfo {
+    pub price: u32,
+    pub price_color: Option<String>,
+    /// Original price in case the item has a sale, `None` otherwise.
+    pub original_price: Option<u32>,
+    pub deposit: Option<String>,
+    /// Contains information like `€3.99/kg`
+    pub base_price_text: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Allergies {
+    #[serde(default)]
+    pub allergy_contains: Vec<AllergyContain>,
+    #[serde(default)]
+    pub allergy_may_contain: Vec<String>,
+    pub allergy_text: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AllergyContain {
+    pub name: String,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Highlight {
+    pub icon: String,
+    pub text: String,
+    pub action: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoodGallery {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub image_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Misc {
+    pub header: Header,
+    pub body: Body,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Header {
+    pub icon: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Body {
+    Pml {
+        pml_content: PmlContent,
+    },
+    NutritionalTable {
+        nutritional_table: NutritionalTable,
+    },
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlContent {
+    pub pml_version: String,
+    pub component: PmlComponent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PmlComponent {
+    Stack(PmlStack),
+    RichText(PmlChildren),
+    #[serde(other)]
+    Other,
+}
+
+/// Tends to contain additional info such as country of origin, company,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlStack {
+    pub axis: String,
+    pub spacing: String,
+    #[serde(default)]
+    pub children: Vec<PmlChildren>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlChildren {
+    pub text_type: String,
+    pub text_alignment: String,
+    pub markdown: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NutritionalTable {
+    pub default_unit: String,
+    pub values: Vec<NutritionalValue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NutritionalValue {
     pub name: String,
     pub value: String,
-    pub gda_percentage: String,
     #[serde(default)]
-    pub sub_values: Vec<SubValue>,
+    pub sub_values: Vec<NutritionalSubValue>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SubValue {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NutritionalSubValue {
     pub name: String,
     pub value: String,
-    pub gda_percentage: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FreshLabel {
-    pub unit: String,
-    pub number: u32,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DietTags {
-    pub name: String,
-    pub color: String,
-    pub description: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProductDetails {
-    pub id: String,
-    pub decorators: Vec<Decorator>,
-    pub name: String,
-    pub display_price: u32,
-    pub price: u32,
-    pub original_price: Option<u32>,
-    pub image_id: String,
-    pub max_count: i32,
-    pub unit_quantity: String,
-    pub unit_quantity_sub: Option<String>,
-    pub tags: Vec<DietTags>,
-    pub product_id: String,
-    pub description: String,
-    pub canonical_name: Option<String>,
-    pub image_ids: Vec<String>,
-    pub fresh_label: Option<FreshLabel>,
-    pub nutritional_values: Vec<NutritionalValue>,
-    pub ingredients_blob: Option<String>,
     #[serde(default)]
-    pub additional_info: String,
-    pub label_holder: Option<String>,
-    pub items: Vec<ItemDetails>,
-    pub nutritional_info_unit: Option<String>,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProductResult {
-    pub product_details: ProductDetails,
-    pub products: Vec<Product>,
+    pub sub_values: Vec<NutritionalSubValue>,
 }
 
 // ** Images **
