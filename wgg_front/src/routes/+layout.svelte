@@ -17,7 +17,7 @@
 
     prefetchRoutes(['/cart']);
 
-    // 
+    //
     beforeNavigate((nav) => {
         globalLoading.start();
     });
@@ -31,11 +31,6 @@
     <title>Wgg</title>
 </svelte:head>
 
-<!-- {#if $navigating}
-    <Spinner size="10" class="absolute left-[50%] top-[50%]" />
-{/if} -->
-
-<!-- TODO: NAVIGATING GLOBAL LOADER -->
 <!-- Shows a loader bar at the top of the page similar to Github -->
 <GlobalLoading />
 <!-- Shows notifications for the user -->

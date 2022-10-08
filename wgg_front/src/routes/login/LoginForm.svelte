@@ -44,7 +44,7 @@
 
 <main class="h-full w-full">
     <Card {...$$restProps} class="!bg-surface-900" size="lg">
-        <form on:submit|preventDefault={submitLogin} class="flex flex-col space-y-6 md:w-[30vw] ">
+        <form on:submit|preventDefault={submitLogin} class="flex max-w-full flex-col space-y-6 md:w-[30vw] ">
             <h2 class="p-0 text-xl font-medium text-gray-900 dark:text-white">Please sign in</h2>
             <Label class="space-y-2">
                 <span>Email</span>

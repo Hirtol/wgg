@@ -1,0 +1,61 @@
+mutation addProductToCart($input: CartAddProductInput! ) {
+    cartCurrentSetProduct(input: $input) {
+      data {
+        id
+        tallies {
+            priceCents
+            provider
+        }
+        contents {
+            id
+            quantity
+            createdAt
+        }
+      }
+    }
+}
+
+mutation removeProductFromCart($input: CartRemoveProductInput!) {
+    cartCurrentRemoveProduct(input: $input) {
+      data {
+        id
+        tallies {
+            priceCents
+            provider
+        }
+        contents {
+            id
+            quantity
+            createdAt
+        }
+      }
+    }
+}
+
+fragment ProductCardFragment on WggSearchProduct {
+    id
+    name
+    displayPrice
+    fullPrice
+    imageUrl
+    available
+    unitQuantity {
+        unit
+        amount
+    }
+    unitPrice {
+        unit
+        price
+    }
+    decorators {
+        __typename
+        ...on SaleLabel {
+            text
+        }
+        ...on SaleValidity {
+            validFrom
+            validUntil
+        }
+    }
+    provider
+}

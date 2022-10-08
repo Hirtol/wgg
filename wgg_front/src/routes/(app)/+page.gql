@@ -1,4 +1,13 @@
 query getAllPromotions {
+    proPromotions(provider: PICNIC) {
+        id
+        name
+        limitedItems {
+            ... on WggSearchProduct {
+                ...ProductCardFragment
+            }
+        }
+    }
     proSearchAll(query: "banaan") {
         ...ProductCardFragment
     }

@@ -3,17 +3,21 @@
     import { AppBar, LightSwitch } from '@brainandbones/skeleton';
     import ProductCard from '$lib/components/product_list/ProductCard.svelte';
     import type { PageData } from './$types';
+    import ProductList from '$lib/components/product_list/ProductList.svelte';
+    import PageRoot from '$lib/components/PageRoot.svelte';
+    import AddComponent from '$lib/components/product_list/AddComponent.svelte';
 
     export let data: PageData;
 
     $: ({ result } = data);
 
-    $: firstItem = $result.data?.proSearchAll[0];
+    $: firstItem = $result.data?.proPromotions[0].limitedItems;
+    $: searchItems = $result.data?.proSearchAll;
 </script>
 
 <LightSwitch />
 
-<AppBar>
+<!-- <AppBar>
     <svelte:fragment slot="lead">
         <span class="text-base font-bold uppercase md:text-3xl">Logo</span>
     </svelte:fragment>
@@ -27,9 +31,14 @@
     </svelte:fragment>
 </AppBar>
 
-<p>Hellossss</p>
+<p>Hellossss</p> -->
 <a href="/login">awdawd</a>
 
-{#if firstItem}
-    <ProductCard data={firstItem} />
-{/if}
+<main class="container mx-auto px-0.5 md:px-0">
+    <AddComponent normalButton permanentlyExpanded quantity={0} class="max-w-full" />
+    <ProductList data={firstItem} />
+    <!-- {#if firstItem}
+            <ProductCard class="max-w-[15rem]" data={firstItem} />
+        {/if} -->
+    <ProductList data={searchItems} />
+</main>

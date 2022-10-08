@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "predev": "cargo run -p wgg_schema_gen -- ./gen/",
-        "dev": "conc \"vite dev\" \"graphql-codegen --config codegen.yml --watch\"",
+        "dev": "conc \"vite dev --host\" \"graphql-codegen --config codegen.yml --watch\"",
         "build": "vite build",
         "preview": "vite preview",
         "test": "playwright test",

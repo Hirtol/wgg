@@ -1,7 +1,10 @@
 <script lang="ts">
     import WggNavbar from '$lib/components/navbar/WggNavbar.svelte';
+    import PageRoot from '$lib/components/PageRoot.svelte';
 </script>
 
-<WggNavbar />
-
-<slot />
+<PageRoot>
+    <WggNavbar />
+    
+    <slot />
+</PageRoot>

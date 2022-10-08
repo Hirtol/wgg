@@ -304,16 +304,6 @@ export type MutationRoot = {
    */
   aggregateIngredientUpdate: AggregateUpdatePayload;
   /**
-   * Add the provided products to the current cart.
-   *
-   * If one adds an item that is already in the cart then the count is set to the provided amount.
-   *
-   * # Accessible By
-   *
-   * Everyone.
-   */
-  cartCurrentAddProduct: CartAddProductPayload;
-  /**
    * Mark the current cart as completed, and create a new one.
    *
    * # Accessible By
@@ -322,6 +312,16 @@ export type MutationRoot = {
    */
   cartCurrentComplete: CartCompletePayload;
   /**
+   * Remove the provided item from the current cart.
+   *
+   * The provided ID is assumed to be the database ID, *not* a product id.
+   *
+   * # Accessible By
+   *
+   * Everyone.
+   */
+  cartCurrentRemoveProduct: CartRemoveProductPayload;
+  /**
    * Add the provided products to the current cart.
    *
    * If one adds an item that is already in the cart then the count is set to the provided amount.
@@ -330,7 +330,7 @@ export type MutationRoot = {
    *
    * Everyone.
    */
-  cartCurrentRemoveProduct: CartRemoveProductPayload;
+  cartCurrentSetProduct: CartAddProductPayload;
   /**
    * Attempt to log in as the provided user
    *
@@ -392,11 +392,6 @@ export type MutationRootAggregateIngredientUpdateArgs = {
 };
 
 
-export type MutationRootCartCurrentAddProductArgs = {
-  input: CartAddProductInput;
-};
-
-
 export type MutationRootCartCurrentCompleteArgs = {
   input: CartCompleteInput;
 };
@@ -404,6 +399,11 @@ export type MutationRootCartCurrentCompleteArgs = {
 
 export type MutationRootCartCurrentRemoveProductArgs = {
   input: CartRemoveProductInput;
+};
+
+
+export type MutationRootCartCurrentSetProductArgs = {
+  input: CartAddProductInput;
 };
 
 
@@ -841,7 +841,21 @@ export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
 
 export type LogoutMutation = { __typename?: 'MutationRoot', logout: number };
 
-export type ProductCardFragment = { __typename?: 'WggSearchProduct', id: string, name: string, displayPrice: number, fullPrice: number, imageUrl?: string, available: boolean, provider: Provider, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number }, unitPrice?: { __typename?: 'UnitPrice', unit: Unit, price: number }, decorators: Array<{ __typename: 'FreshLabel' } | { __typename: 'MoreButton' } | { __typename: 'NumberOfServings' } | { __typename: 'PrepTime' } | { __typename: 'SaleDescription' } | { __typename: 'SaleLabel' } | { __typename: 'SaleValidity' } | { __typename: 'UnavailableItem' }> };
+export type AddProductToCartMutationVariables = Exact<{
+  input: CartAddProductInput;
+}>;
+
+
+export type AddProductToCartMutation = { __typename?: 'MutationRoot', cartCurrentSetProduct: { __typename?: 'CartAddProductPayload', data: { __typename?: 'UserCart', id: number, tallies: Array<{ __typename?: 'CartTally', priceCents: number, provider: Provider }>, contents: Array<{ __typename?: 'CartAggregateProduct', id: number, quantity: number, createdAt: any } | { __typename?: 'CartNoteProduct', id: number, quantity: number, createdAt: any } | { __typename?: 'CartProviderProduct', id: number, quantity: number, createdAt: any }> } } };
+
+export type RemoveProductFromCartMutationVariables = Exact<{
+  input: CartRemoveProductInput;
+}>;
+
+
+export type RemoveProductFromCartMutation = { __typename?: 'MutationRoot', cartCurrentRemoveProduct: { __typename?: 'CartRemoveProductPayload', data: { __typename?: 'UserCart', id: number, tallies: Array<{ __typename?: 'CartTally', priceCents: number, provider: Provider }>, contents: Array<{ __typename?: 'CartAggregateProduct', id: number, quantity: number, createdAt: any } | { __typename?: 'CartNoteProduct', id: number, quantity: number, createdAt: any } | { __typename?: 'CartProviderProduct', id: number, quantity: number, createdAt: any }> } } };
+
+export type ProductCardFragment = { __typename?: 'WggSearchProduct', id: string, name: string, displayPrice: number, fullPrice: number, imageUrl?: string, available: boolean, provider: Provider, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number }, unitPrice?: { __typename?: 'UnitPrice', unit: Unit, price: number }, decorators: Array<{ __typename: 'FreshLabel' } | { __typename: 'MoreButton' } | { __typename: 'NumberOfServings' } | { __typename: 'PrepTime' } | { __typename: 'SaleDescription' } | { __typename: 'SaleLabel', text: string } | { __typename: 'SaleValidity', validFrom: any, validUntil: any } | { __typename: 'UnavailableItem' }> };
 
 export type ViewerInfoQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -853,7 +867,7 @@ export type ViewerContextFragment = { __typename?: 'AuthContext', id: number, em
 export type GetAllPromotionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAllPromotionsQuery = { __typename?: 'QueryRoot', proSearchAll: Array<{ __typename?: 'WggSearchProduct', id: string, name: string, displayPrice: number, fullPrice: number, imageUrl?: string, available: boolean, provider: Provider, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number }, unitPrice?: { __typename?: 'UnitPrice', unit: Unit, price: number }, decorators: Array<{ __typename: 'FreshLabel' } | { __typename: 'MoreButton' } | { __typename: 'NumberOfServings' } | { __typename: 'PrepTime' } | { __typename: 'SaleDescription' } | { __typename: 'SaleLabel' } | { __typename: 'SaleValidity' } | { __typename: 'UnavailableItem' }> }> };
+export type GetAllPromotionsQuery = { __typename?: 'QueryRoot', proPromotions: Array<{ __typename?: 'WggSaleCategory', id: string, name: string, limitedItems: Array<{ __typename?: 'ProductId' } | { __typename?: 'WggSearchProduct', id: string, name: string, displayPrice: number, fullPrice: number, imageUrl?: string, available: boolean, provider: Provider, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number }, unitPrice?: { __typename?: 'UnitPrice', unit: Unit, price: number }, decorators: Array<{ __typename: 'FreshLabel' } | { __typename: 'MoreButton' } | { __typename: 'NumberOfServings' } | { __typename: 'PrepTime' } | { __typename: 'SaleDescription' } | { __typename: 'SaleLabel', text: string } | { __typename: 'SaleValidity', validFrom: any, validUntil: any } | { __typename: 'UnavailableItem' }> }> }>, proSearchAll: Array<{ __typename?: 'WggSearchProduct', id: string, name: string, displayPrice: number, fullPrice: number, imageUrl?: string, available: boolean, provider: Provider, unitQuantity: { __typename?: 'UnitQuantity', unit: Unit, amount: number }, unitPrice?: { __typename?: 'UnitPrice', unit: Unit, price: number }, decorators: Array<{ __typename: 'FreshLabel' } | { __typename: 'MoreButton' } | { __typename: 'NumberOfServings' } | { __typename: 'PrepTime' } | { __typename: 'SaleDescription' } | { __typename: 'SaleLabel', text: string } | { __typename: 'SaleValidity', validFrom: any, validUntil: any } | { __typename: 'UnavailableItem' }> }> };
 
 export type SubmitLoginMutationVariables = Exact<{
   email: Scalars['String'];
@@ -863,9 +877,11 @@ export type SubmitLoginMutationVariables = Exact<{
 
 export type SubmitLoginMutation = { __typename?: 'MutationRoot', login: { __typename?: 'UserLoginPayload', user: { __typename?: 'AuthContext', id: number, email: string, username: string, isAdmin: boolean } } };
 
-export const ProductCardFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProductCardFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"WggSearchProduct"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayPrice"}},{"kind":"Field","name":{"kind":"Name","value":"fullPrice"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"}},{"kind":"Field","name":{"kind":"Name","value":"available"}},{"kind":"Field","name":{"kind":"Name","value":"unitQuantity"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"amount"}}]}},{"kind":"Field","name":{"kind":"Name","value":"unitPrice"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"price"}}]}},{"kind":"Field","name":{"kind":"Name","value":"decorators"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}}]}},{"kind":"Field","name":{"kind":"Name","value":"provider"}}]}}]} as unknown as DocumentNode<ProductCardFragment, unknown>;
+export const ProductCardFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ProductCardFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"WggSearchProduct"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"displayPrice"}},{"kind":"Field","name":{"kind":"Name","value":"fullPrice"}},{"kind":"Field","name":{"kind":"Name","value":"imageUrl"}},{"kind":"Field","name":{"kind":"Name","value":"available"}},{"kind":"Field","name":{"kind":"Name","value":"unitQuantity"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"amount"}}]}},{"kind":"Field","name":{"kind":"Name","value":"unitPrice"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unit"}},{"kind":"Field","name":{"kind":"Name","value":"price"}}]}},{"kind":"Field","name":{"kind":"Name","value":"decorators"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"__typename"}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"SaleLabel"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"text"}}]}},{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"SaleValidity"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"validFrom"}},{"kind":"Field","name":{"kind":"Name","value":"validUntil"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"provider"}}]}}]} as unknown as DocumentNode<ProductCardFragment, unknown>;
 export const ViewerContextFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ViewerContext"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"AuthContext"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"isAdmin"}}]}}]} as unknown as DocumentNode<ViewerContextFragment, unknown>;
 export const LogoutMutationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"LogoutMutation"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"logout"}}]}}]} as unknown as DocumentNode<LogoutMutation, LogoutMutationVariables>;
+export const AddProductToCartDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"addProductToCart"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CartAddProductInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"cartCurrentSetProduct"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"data"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tallies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"priceCents"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"quantity"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]}}]}}]} as unknown as DocumentNode<AddProductToCartMutation, AddProductToCartMutationVariables>;
+export const RemoveProductFromCartDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"removeProductFromCart"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CartRemoveProductInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"cartCurrentRemoveProduct"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"data"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tallies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"priceCents"}},{"kind":"Field","name":{"kind":"Name","value":"provider"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contents"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"quantity"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}}]}}]}}]}}]}}]} as unknown as DocumentNode<RemoveProductFromCartMutation, RemoveProductFromCartMutationVariables>;
 export const ViewerInfoQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ViewerInfoQuery"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"viewer"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ViewerContext"}}]}}]}},...ViewerContextFragmentDoc.definitions]} as unknown as DocumentNode<ViewerInfoQuery, ViewerInfoQueryVariables>;
-export const GetAllPromotionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"getAllPromotions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"proSearchAll"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"query"},"value":{"kind":"StringValue","value":"banaan","block":false}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProductCardFragment"}}]}}]}},...ProductCardFragmentDoc.definitions]} as unknown as DocumentNode<GetAllPromotionsQuery, GetAllPromotionsQueryVariables>;
+export const GetAllPromotionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"getAllPromotions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"proPromotions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"provider"},"value":{"kind":"EnumValue","value":"PICNIC"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"limitedItems"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"InlineFragment","typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"WggSearchProduct"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProductCardFragment"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"proSearchAll"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"query"},"value":{"kind":"StringValue","value":"banaan","block":false}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ProductCardFragment"}}]}}]}},...ProductCardFragmentDoc.definitions]} as unknown as DocumentNode<GetAllPromotionsQuery, GetAllPromotionsQueryVariables>;
 export const SubmitLoginDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"submitLogin"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"email"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"password"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"login"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"email"},"value":{"kind":"Variable","name":{"kind":"Name","value":"email"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"password"},"value":{"kind":"Variable","name":{"kind":"Name","value":"password"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"user"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"email"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"isAdmin"}}]}}]}}]}}]} as unknown as DocumentNode<SubmitLoginMutation, SubmitLoginMutationVariables>;
