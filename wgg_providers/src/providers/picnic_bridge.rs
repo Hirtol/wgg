@@ -1,7 +1,7 @@
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton, NutritionalInfo,
     NutritionalItem, PrepTime, PriceInfo, PromotionProduct, SaleLabel, SaleValidity, SubNutritionalItem, TextType,
-    UnavailableItem, UnitPrice, WggProduct, WggSaleCategory,
+    UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
@@ -342,6 +342,12 @@ fn parse_picnic_full_product_to_product(
             Some(&mut result.price_info.display_price),
             Some(&mut result.available),
         )
+    }
+
+    if let Some(promo) = product.labels.promo {
+        result
+            .decorators
+            .push(WggDecorator::SaleLabel(SaleLabel { text: promo.text }))
     }
 
     // Parse misc items
