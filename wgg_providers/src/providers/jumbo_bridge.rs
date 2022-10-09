@@ -1,8 +1,4 @@
-use crate::models::{
-    AllergyTags, AllergyType, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo,
-    NutritionalItem, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem,
-    UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
-};
+use crate::models::{AllergyTags, AllergyType, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory};
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
@@ -168,19 +164,21 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             .map(|title| format!("{}\n{}", title, product.details_text.as_deref().unwrap_or_default()))
             .or(product.details_text)
             .unwrap_or_default(),
-        full_price: product.prices.price.amount,
-        display_price: product
-            .prices
-            .promotional_price
-            .map(|price| price.amount)
-            .unwrap_or(product.prices.price.amount),
+        price_info: PriceInfo {
+            display_price: product
+                .prices
+                .promotional_price
+                .map(|price| price.amount)
+                .unwrap_or(product.prices.price.amount),
+            original_price: product.prices.price.amount,
+            // Will be parsed
+            unit_price: None
+        },
         unit_quantity: product
             .quantity
             .as_deref()
             .and_then(common_bridge::parse_quantity)
             .unwrap_or_default(),
-        // Will be parsed
-        unit_price: None,
         available: product.available,
         image_urls: product.image_info.primary_view.into_iter().map(|i| i.url).collect(),
         // Will be parsed
@@ -199,14 +197,14 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
     // Unit Pricing
     if let Some(price) = product.prices.unit_price {
         if let Some(unit) = parse_unit_component(&price.unit) {
-            result.unit_price = UnitPrice {
+            result.price_info.unit_price = UnitPrice {
                 unit,
                 price: price.price.amount,
             }
             .into()
         }
     } else {
-        result.unit_price = derive_unit_price(&result.unit_quantity, result.display_price);
+        result.price_info.unit_price = derive_unit_price(&result.unit_quantity, result.price_info.display_price);
     }
 
     // Promotions
@@ -284,6 +282,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::PreparationAdvice,
                 text: prep_advice,
+                text_type: TextType::PlainText
             })
         }
 
@@ -291,6 +290,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::StorageAdvice,
                 text: storage,
+                text_type: TextType::PlainText
             })
         }
 
@@ -298,6 +298,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::SafetyWarning,
                 text: safety,
+                text_type: TextType::PlainText
             })
         }
     }
@@ -307,6 +308,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::CountryOfOrigin,
                 text: origin,
+                text_type: TextType::PlainText
             })
         }
     }

@@ -1,7 +1,7 @@
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton, NutritionalInfo,
-    NutritionalItem, PrepTime, PromotionProduct, SaleLabel, SaleValidity, SubNutritionalItem, UnavailableItem,
-    UnitPrice, WggProduct, WggSaleCategory,
+    NutritionalItem, PrepTime, PriceInfo, PromotionProduct, SaleLabel, SaleValidity, SubNutritionalItem, TextType,
+    UnavailableItem, UnitPrice, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo};
@@ -10,7 +10,7 @@ use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use itertools::Itertools;
 use regex::Regex;
 use std::borrow::Cow;
-use wgg_picnic::models::{Decorator, ImageSize, SubCategory, UnavailableReason};
+use wgg_picnic::models::{Body, Decorator, ImageSize, PmlComponent, SubCategory, UnavailableReason};
 use wgg_picnic::PicnicApi;
 
 use crate::Result;
@@ -84,7 +84,7 @@ impl ProviderInfo for PicnicBridge {
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Product: {:#?}", result);
 
-        parse_picnic_full_product_to_product(&self.api, result.product_details)
+        parse_picnic_full_product_to_product(&self.api, result)
     }
 
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
@@ -185,23 +185,32 @@ fn parse_picnic_full_product_to_product(
     picnic_api: &PicnicApi,
     product: wgg_picnic::models::ProductArticle,
 ) -> Result<WggProduct> {
-    // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
     let mut result = WggProduct {
         id: product.id,
         name: product.name,
-        description: product.description,
-        full_price: product.original_price.unwrap_or(product.display_price),
-        display_price: product.display_price,
+        description: {
+            let out = product.description.main;
+
+            if let Some(extra) = product.description.extension {
+                out + &extra
+            } else {
+                out
+            }
+        },
+        price_info: PriceInfo {
+            display_price: product.price_info.price,
+            original_price: product.price_info.original_price.unwrap_or(product.price_info.price),
+            // Will be parsed
+            unit_price: None,
+        },
         // Will be parsed
         unit_quantity: Default::default(),
         // Will be parsed
-        unit_price: None,
-        // Will be parsed
         available: true,
         image_urls: product
-            .image_ids
+            .images
             .into_iter()
-            .map(|url| picnic_api.image_url(url, ImageSize::Medium))
+            .map(|url| picnic_api.image_url(url.image_id, ImageSize::Medium))
             .collect(),
         // Will be parsed
         ingredients: Vec::new(),
@@ -230,76 +239,98 @@ fn parse_picnic_full_product_to_product(
     }
 
     // Parse unit price quantity
-    if let Some(unit_price_str) = &product.unit_quantity_sub {
-        result.unit_price = parse_unit_price(unit_price_str)
-            .or_else(|| common_bridge::derive_unit_price(&result.unit_quantity, result.display_price));
+    if let Some(unit_price_str) = &product.price_info.base_price_text {
+        result.price_info.unit_price = parse_unit_price(unit_price_str)
+            .or_else(|| common_bridge::derive_unit_price(&result.unit_quantity, result.price_info.display_price));
     } else {
-        result.unit_price = common_bridge::derive_unit_price(&result.unit_quantity, result.display_price)
+        result.price_info.unit_price =
+            common_bridge::derive_unit_price(&result.unit_quantity, result.price_info.display_price)
     }
 
-    // Parse Ingredients
-    if let Some(blob) = product.ingredients_blob {
-        result.ingredients = parse_picnic_ingredient_blob(&blob).unwrap_or_default();
-    }
-
-    // Parse nutritional, only parse if there is something of note.
-    if product.nutritional_info_unit.is_some() || !product.nutritional_values.is_empty() {
-        result.nutritional = NutritionalInfo {
-            info_unit: product.nutritional_info_unit.unwrap_or_else(|| "per 100g".to_string()),
-            items: product
-                .nutritional_values
-                .into_iter()
-                .map(|item| NutritionalItem {
-                    name: item.name,
-                    value: item.value,
-                    sub_values: item
-                        .sub_values
-                        .into_iter()
-                        .map(|item| SubNutritionalItem {
-                            name: item.name,
-                            value: item.value,
-                        })
-                        .collect(),
-                })
-                .collect(),
+    // Parse ingredients
+    if let Some(blob) = product.misc.iter().find(|i| i.header.text.contains("Ingrediënten")) {
+        if let wgg_picnic::models::Body::Pml { pml_content } = &blob.body {
+            if let wgg_picnic::models::PmlComponent::RichText(item) = &pml_content.component {
+                result.ingredients = parse_picnic_ingredient_blob(&item.markdown).unwrap_or_default();
+            } else {
+                tracing::warn!(product=?result, "Failed to find a rich-text component for the ingredient blob")
+            }
+        } else {
+            tracing::warn!(product=?result, "Failed to find a PML body for the ingredient blob")
         }
-        .into();
+    }
+
+    // Parse nutritional
+    if let Some(blob) = product.misc.iter().find(|i| i.header.text.contains("Voedingswaarde")) {
+        if let Body::NutritionalTable { nutritional_table } = &blob.body {
+            result.nutritional = NutritionalInfo {
+                info_unit: nutritional_table.default_unit.clone(),
+                items: nutritional_table
+                    .values
+                    .iter()
+                    .map(|item| NutritionalItem {
+                        name: item.name.clone(),
+                        value: item.value.clone(),
+                        sub_values: item
+                            .sub_values
+                            .iter()
+                            .map(|item| SubNutritionalItem {
+                                name: item.name.clone(),
+                                value: item.value.clone(),
+                            })
+                            .collect(),
+                    })
+                    .collect(),
+            }
+            .into();
+        } else {
+            tracing::warn!(product=?result, "Failed to find a NutritionTable body for the nutritional blob")
+        }
     }
 
     // Parse allergy info
     result.allergy_info = product
-        .tags
+        .allergies
+        .allergy_contains
         .into_iter()
         .map(|item| AllergyTags {
             name: item.name,
-            contains: {
-                // Examples: "Dit product bevat soja." vs. "Dit product kan selderij bevatten."
-                if item.description.contains("kan") {
-                    AllergyType::MayContain
-                } else {
-                    AllergyType::Contains
-                }
-            },
+            contains: AllergyType::Contains,
         })
+        .chain(
+            product
+                .allergies
+                .allergy_may_contain
+                .into_iter()
+                .map(|item| AllergyTags {
+                    name: item,
+                    contains: AllergyType::MayContain,
+                }),
+        )
         .collect();
 
     // Parse fresh label
-    if let Some(fresh) = product.fresh_label {
-        let multiplier = match &*fresh.unit {
-            "DAYS" | "days" | "day" => 1,
-            "WEEKS" | "weeks" | "week" => 7,
-            "MONTHS" | "months" | "month" => 30,
-            "YEARS" | "years" | "year" => 365,
-            _ => 1,
-        };
+    if let Some(fresh) = product.highlights.iter().find(|item| item.text.contains("dagen vers")) {
+        static REGEX: once_cell::sync::Lazy<Regex> =
+            once_cell::sync::Lazy::new(|| Regex::new(r#"(\d+) (dagen|dag|week|weken)"#).unwrap());
 
-        let fresh_label = FreshLabel {
-            days_fresh: fresh.number * multiplier,
-        };
+        for capture in REGEX.captures_iter(&fresh.text) {
+            let (number, unit) = (capture.get(1).unwrap(), capture.get(2).unwrap());
 
-        result
-            .decorators
-            .push(crate::models::WggDecorator::FreshLabel(fresh_label))
+            let multiplier = match unit.as_str() {
+                "dagen" | "dag" => 1,
+                "week" | "weken" => 7,
+                _ => 1,
+            };
+
+            let fresh_label = FreshLabel {
+                days_fresh: number.as_str().parse::<u32>().unwrap() * multiplier,
+            };
+
+            result
+                .decorators
+                .push(crate::models::WggDecorator::FreshLabel(fresh_label))
+        }
     }
 
     // Parse remaining decorators
@@ -308,39 +339,56 @@ fn parse_picnic_full_product_to_product(
             picnic_api,
             dec,
             &mut result.decorators,
-            Some(&mut result.display_price),
+            Some(&mut result.price_info.display_price),
             Some(&mut result.available),
         )
     }
 
-    // Parse items
-    result.additional_items = product
-        .items
-        .into_iter()
-        .flat_map(|mut item| {
-            // We already parse ingredients earlier.
-            if item.id == "ingredients" {
-                return None;
+    // Parse misc items
+    for item in product.misc {
+        // We already parse ingredients/nutritional info earlier.
+        if item.header.text == "Ingrediënten" || item.header.text == "Voedingswaarde" {
+            continue;
+        }
+        match item.body {
+            Body::Pml { pml_content } => match pml_content.component {
+                PmlComponent::Stack(stack) => {
+                    for child in stack.children.into_iter() {
+                        if child.markdown.contains("Bewaren") {
+                            result.additional_items.push(ItemInfo {
+                                item_type: ItemType::StorageAdvice,
+                                text: child.markdown,
+                                text_type: TextType::Markdown,
+                            })
+                        } else if child.markdown.contains("Land van herkomst") {
+                            result.additional_items.push(ItemInfo {
+                                item_type: ItemType::CountryOfOrigin,
+                                text: child.markdown,
+                                text_type: TextType::Markdown,
+                            })
+                        }
+                    }
+                }
+                PmlComponent::RichText(text) => {
+                    if item.header.text == "Bereiding" {
+                        result.additional_items.push(ItemInfo {
+                            item_type: ItemType::PreparationAdvice,
+                            text: text.markdown,
+                            text_type: TextType::Markdown,
+                        })
+                    } else {
+                        tracing::debug!(product=?result, "Received unknown RichText in Misc parsing");
+                    }
+                }
+                PmlComponent::Other => {
+                    tracing::warn!(product=?result, "Received `Other` content for misc item")
+                }
+            },
+
+            _ => {
+                tracing::warn!(product=?result, "Received `Other` body for misc item")
             }
-            // Picnic only ever seems to return one item in the sub-items list, so we'll just assume that's ok!
-            let item_of_interest = item.items.pop()?;
-
-            let item_type = match &*item_of_interest.id {
-                "preparation_advice" => ItemType::PreparationAdvice,
-                "countries_of_origin" => ItemType::CountryOfOrigin,
-                _ => ItemType::AdditionalInfo,
-            };
-
-            item_of_interest.text.map(|text| ItemInfo { item_type, text })
-        })
-        .collect();
-
-    // Filter out duplicate country_of_origin
-    if !product.additional_info.is_empty() && !product.additional_info.contains("herkomst") {
-        result.additional_items.push(ItemInfo {
-            item_type: ItemType::AdditionalInfo,
-            text: product.additional_info,
-        })
+        }
     }
 
     Ok(result)

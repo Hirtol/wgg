@@ -165,13 +165,10 @@ pub struct WggProduct {
     pub name: String,
     /// Full product description.
     pub description: String,
-    /// The full price of an article, ignoring any sales
-    pub full_price: CentPrice,
-    /// The present display price (taking into account active sales).
-    pub display_price: CentPrice,
+    /// All price related information
+    pub price_info: PriceInfo,
     /// The amount of weight/liters/pieces this product represents.
     pub unit_quantity: UnitQuantity,
-    pub unit_price: Option<UnitPrice>,
     /// A small check to see if the current item is unavailable.
     ///
     /// `decorators` might contains more information as to the nature of the disruption.
@@ -196,6 +193,15 @@ pub struct WggProduct {
     pub decorators: Vec<WggDecorator>,
     /// The grocery store this item is provided from.
     pub provider: Provider,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+pub struct PriceInfo {
+    /// The present display price (taking into account active sales).
+    pub display_price: CentPrice,
+    /// The full price of an article, ignoring any sales
+    pub original_price: CentPrice,
+    pub unit_price: Option<UnitPrice>,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
@@ -242,6 +248,13 @@ pub enum AllergyType {
 pub struct ItemInfo {
     pub item_type: ItemType,
     pub text: String,
+    pub text_type: TextType,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::Enum, Copy, Clone, Debug, PartialEq, Eq, PartialOrd)]
+pub enum TextType {
+    PlainText,
+    Markdown,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Enum, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -285,10 +298,10 @@ impl From<WggProduct> for WggSearchProduct {
         WggSearchProduct {
             id: product.id,
             name: product.name,
-            full_price: product.full_price,
-            display_price: product.display_price,
+            full_price: product.price_info.original_price,
+            display_price: product.price_info.display_price,
             unit_quantity: product.unit_quantity,
-            unit_price: product.unit_price,
+            unit_price: product.price_info.unit_price,
             available: product.available,
             image_url: product.image_urls.into_iter().next(),
             decorators: product.decorators,

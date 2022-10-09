@@ -126,8 +126,8 @@ pub struct PartialProduct {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CategoryInfo {
-    pub top_level_category: String,
-    pub top_level_category_id: String,
+    pub top_level_category: Option<String>,
+    pub top_level_category_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -246,8 +246,8 @@ pub struct Product {
     pub product_type: ProductType,
     pub quantity: Option<String>,
     pub image_info: ImageInfo,
-    pub top_level_category: String,
-    pub top_level_category_id: String,
+    #[serde(flatten)]
+    pub category: CategoryInfo,
     pub sample: bool,
     pub availability: Availability,
     pub has_related_products: bool,
