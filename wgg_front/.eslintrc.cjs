@@ -14,7 +14,16 @@ module.exports = {
     },
     rules: {
         '@typescript-eslint/no-inferrable-types': 'off',
-        'prefer-const': 'warn'
+        'prefer-const': 'warn',
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": [
+            "warn", // or "error"
+            { 
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_"
+            }
+        ],
     },
     env: {
         browser: true,
