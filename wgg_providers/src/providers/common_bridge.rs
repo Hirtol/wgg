@@ -45,7 +45,7 @@ pub(crate) fn parse_quantity(quantity: &str) -> Option<UnitQuantity> {
         let mut whitespaces = quantity.split_whitespace();
         let (quantity, unit) = (whitespaces.next()?, whitespaces.next()?);
         // TODO: This cuts of `1.5 liter` at the moment!
-        let quantity: f64 = quantity.parse().ok()?;
+        let quantity: f64 = quantity.replace(',', ".").parse().ok()?;
         let unit = parse_unit_component(unit)?;
 
         UnitQuantity { unit, amount: quantity }.into()
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     pub fn test_parse_quantity() {
-        let quantities = vec!["300 g", "380 g", "10 x 55 g"];
+        let quantities = vec!["300 g", "380 g", "10 x 55 g", "1,36 kg"];
         let expected = vec![
             UnitQuantity {
                 unit: Unit::Gram,
@@ -89,6 +89,10 @@ mod tests {
             UnitQuantity {
                 unit: Unit::Gram,
                 amount: 550.,
+            },
+            UnitQuantity {
+                unit: Unit::KiloGram,
+                amount: 1.36,
             },
         ];
 

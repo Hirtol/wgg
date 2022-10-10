@@ -13,7 +13,7 @@
     {#each data as card (card.id)}
         <ProductCard
             data={card}
-            quantity={cart.getProductQuantity(card.provider, card.id)[0]?.quantity ?? 0}
+            quantity={cart.getProductQuantity(card.providerInfo.provider, card.id)[0]?.quantity ?? 0}
             class="w-full" />
     {/each}
 </div>

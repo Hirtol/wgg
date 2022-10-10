@@ -27,10 +27,6 @@ export function initialiseCart(client: Client): CartStore {
     });
 }
 
-export interface CartQuery {
-    type: 'RawProduct' | 'Note' | 'AggregateIngredient';
-}
-
 export interface CartData extends CartFragment {
     getProductQuantity(provider: Provider, productId: ProductId): QuantityInfo[];
 }
@@ -46,7 +42,9 @@ function getProductQuantityImpl(cart: CartFragment, provider: Provider, productI
         .map((x) => {
             if (x.__typename == 'CartAggregateProduct') {
                 // Have to search constituent ingredients.
-                const item = x.aggregate.ingredients.find((y) => y.id == productId && y.provider == provider);
+                const item = x.aggregate.ingredients.find(
+                    (y) => y.id == productId && y.providerInfo.provider == provider
+                );
 
                 if (item != undefined) {
                     return {
@@ -55,7 +53,7 @@ function getProductQuantityImpl(cart: CartFragment, provider: Provider, productI
                     };
                 }
             } else if (x.__typename == 'CartProviderProduct') {
-                if (x.product.id == productId && x.product.provider == provider) {
+                if (x.product.id == productId && x.product.providerInfo.provider == provider) {
                     return {
                         quantity: x.quantity,
                         origin: 'Direct'

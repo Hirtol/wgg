@@ -25,7 +25,7 @@
     );
     $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
 
-    $: productUrl = `/products/${data.provider}/${data.id}`;
+    $: productUrl = `/products/${data.providerInfo.provider}/${data.id}`;
 
     async function setCartContent(productId: string, provider: Provider, newQuantity: number) {
         quantity = newQuantity;
@@ -63,13 +63,15 @@
 </script>
 
 <div class={classes}>
-    <header class="mx-auto">
+    <header class="relative mx-auto">
         <img
             src={data.imageUrl}
             draggable="false"
             loading="lazy"
             class="aspect-video h-[15vh] w-full cursor-pointer object-contain hover:object-scale-down md:h-[12vh]"
             alt={data.name} />
+
+        <img src={data.providerInfo.logoUrl} class="pointer-events-none absolute top-0 right-0 w-1/6" alt={data.providerInfo.provider} />
     </header>
 
     <div class="body">
@@ -89,7 +91,7 @@
             <AddComponent
                 class="ml-auto inline-block !h-6"
                 {quantity}
-                on:setQuantity={(e) => setCartContent(data.id, data.provider, e.detail)} />
+                on:setQuantity={(e) => setCartContent(data.id, data.providerInfo.provider, e.detail)} />
         </div>
 
         {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
