@@ -4,7 +4,7 @@ use crate::models::{
     UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::parse_quantity;
-use crate::providers::{common_bridge, ProviderInfo};
+use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use itertools::Itertools;
@@ -26,14 +26,24 @@ impl PicnicBridge {
     }
 }
 
-#[async_trait::async_trait]
-impl ProviderInfo for PicnicBridge {
-    fn provider(&self) -> Provider {
+impl StaticProviderInfo for PicnicBridge {
+    fn provider() -> Provider {
         Provider::Picnic
     }
 
-    fn logo_url(&self) -> Cow<'static, str> {
+    fn logo_url() -> Cow<'static, str> {
         "https://upload.wikimedia.org/wikipedia/commons/0/01/Picnic_logo.svg".into()
+    }
+}
+
+#[async_trait::async_trait]
+impl ProviderInfo for PicnicBridge {
+    fn provider(&self) -> Provider {
+        <Self as StaticProviderInfo>::provider()
+    }
+
+    fn logo_url(&self) -> Cow<'static, str> {
+        <Self as StaticProviderInfo>::logo_url()
     }
 
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]

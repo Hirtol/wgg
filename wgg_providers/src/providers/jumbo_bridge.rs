@@ -1,6 +1,6 @@
 use crate::models::{AllergyTags, AllergyType, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory};
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
-use crate::providers::{common_bridge, ProviderInfo};
+use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use crate::{ProviderError, Result};
 use cached::proc_macro::once;
@@ -20,14 +20,24 @@ impl JumboBridge {
     }
 }
 
-#[async_trait::async_trait]
-impl ProviderInfo for JumboBridge {
-    fn provider(&self) -> Provider {
+impl StaticProviderInfo for JumboBridge {
+    fn provider() -> Provider {
         Provider::Jumbo
     }
 
-    fn logo_url(&self) -> Cow<'static, str> {
+    fn logo_url() -> Cow<'static, str> {
         "https://upload.wikimedia.org/wikipedia/commons/8/8d/Jumbo_Logo.svg".into()
+    }
+}
+
+#[async_trait::async_trait]
+impl ProviderInfo for JumboBridge {
+    fn provider(&self) -> Provider {
+        <Self as StaticProviderInfo>::provider()
+    }
+
+    fn logo_url(&self) -> Cow<'static, str> {
+        <Self as StaticProviderInfo>::logo_url()
     }
 
     #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]
@@ -172,7 +182,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
                 .unwrap_or(product.prices.price.amount),
             original_price: product.prices.price.amount,
             // Will be parsed
-            unit_price: None
+            unit_price: None,
         },
         unit_quantity: product
             .quantity
@@ -282,7 +292,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::PreparationAdvice,
                 text: prep_advice,
-                text_type: TextType::PlainText
+                text_type: TextType::PlainText,
             })
         }
 
@@ -290,7 +300,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::StorageAdvice,
                 text: storage,
-                text_type: TextType::PlainText
+                text_type: TextType::PlainText,
             })
         }
 
@@ -298,7 +308,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::SafetyWarning,
                 text: safety,
-                text_type: TextType::PlainText
+                text_type: TextType::PlainText,
             })
         }
     }
@@ -308,7 +318,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             result.additional_items.push(ItemInfo {
                 item_type: ItemType::CountryOfOrigin,
                 text: origin,
-                text_type: TextType::PlainText
+                text_type: TextType::PlainText,
             })
         }
     }

@@ -9,8 +9,20 @@ use crate::models::{WggProduct, WggSaleCategory};
 pub(crate) use jumbo_bridge::*;
 pub(crate) use picnic_bridge::*;
 
+pub trait StaticProviderInfo {
+    /// The associated [Provider] for this bridge implementation
+    fn provider() -> Provider
+    where
+        Self: Sized;
+
+    /// A direct link to a SVG displaying the provider's logo.
+    fn logo_url() -> Cow<'static, str>
+    where
+        Self: Sized;
+}
+
 #[async_trait::async_trait]
-pub trait ProviderInfo {
+pub trait ProviderInfo: StaticProviderInfo {
     fn provider(&self) -> Provider;
 
     fn logo_url(&self) -> Cow<'static, str>;

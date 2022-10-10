@@ -1,53 +1,21 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+mod product;
+mod providers;
+mod sale;
+mod search_product;
+
+pub use product::*;
+pub use providers::*;
+pub use sale::*;
+pub use search_product::*;
 
 /// The price listed as cents.
 pub type CentPrice = u32;
 
-#[derive(Serialize, Deserialize, async_graphql::Enum, Hash, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Provider {
-    Picnic,
-    Jumbo,
-}
-
-impl FromStr for Provider {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "PICNIC" => Ok(Provider::Picnic),
-            "JUMBO" => Ok(Provider::Jumbo),
-            _ => anyhow::bail!("Failed to parse provider {}", s),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WggAutocomplete {
     pub name: String,
-}
-
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct WggSearchProduct {
-    pub id: String,
-    pub name: String,
-    /// The full price of an article, ignoring any sales
-    pub full_price: CentPrice,
-    /// The present display price (taking into account active sales).
-    pub display_price: CentPrice,
-    /// The amount of weight/liters/pieces this product represents.
-    pub unit_quantity: UnitQuantity,
-    pub unit_price: Option<UnitPrice>,
-    /// A small check to see if the current item is unavailable.
-    ///
-    /// `decorators` might contain more information as to the nature of the disruption.
-    pub available: bool,
-    /// Direct URL to product image.
-    pub image_url: Option<String>,
-    pub decorators: Vec<WggDecorator>,
-    /// The grocery store which provided this item.
-    pub provider: Provider,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -155,47 +123,7 @@ pub enum UnavailableReason {
     Unknown,
 }
 
-// ** Full Product **
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct WggProduct {
-    /// This service's ID for the current product.
-    /// Not transferable between [Provider]s
-    pub id: String,
-    /// The name of the product.
-    pub name: String,
-    /// Full product description.
-    pub description: String,
-    /// All price related information
-    pub price_info: PriceInfo,
-    /// The amount of weight/liters/pieces this product represents.
-    pub unit_quantity: UnitQuantity,
-    /// A small check to see if the current item is unavailable.
-    ///
-    /// `decorators` might contains more information as to the nature of the disruption.
-    pub available: bool,
-    /// Direct URL to product image.
-    pub image_urls: Vec<String>,
-    /// All ingredients in a structured format.
-    ///
-    /// Can be empty for base ingredients such as cucumbers, for example.
-    pub ingredients: Vec<IngredientInfo>,
-    /// Denotes the nutritional info, normalised to 100g.
-    pub nutritional: Option<NutritionalInfo>,
-    /// All information for allergy tags.
-    ///
-    /// Can be empty if the product has no allergens.
-    pub allergy_info: Vec<AllergyTags>,
-    /// Denotes all optional bits of information, such as preparation instructions or supplier information.
-    ///
-    /// These can be useful to add as additional collapsable tabs in the front-end ui.
-    pub additional_items: Vec<ItemInfo>,
-    /// All decorators describing the object in further detail.
-    pub decorators: Vec<WggDecorator>,
-    /// The grocery store this item is provided from.
-    pub provider: Provider,
-}
-
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct PriceInfo {
     /// The present display price (taking into account active sales).
     pub display_price: CentPrice,
@@ -264,48 +192,4 @@ pub enum ItemType {
     StorageAdvice,
     CountryOfOrigin,
     SafetyWarning,
-}
-
-// ** Promotions **
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-pub struct WggSaleCategory {
-    pub id: String,
-    pub name: String,
-    pub image_urls: Vec<String>,
-    /// A potentially limited selection of items, only supported for certain [Provider]s.
-    ///
-    /// Picnic is one example of such a provider.
-    /// Generally recommended to query for more detailed information when needed.
-    pub limited_items: Vec<PromotionProduct>,
-    pub decorators: Vec<WggDecorator>,
-    pub provider: Provider,
-}
-
-#[derive(Serialize, Deserialize, async_graphql::Interface, Clone, Debug, PartialEq, PartialOrd)]
-#[graphql(field(name = "id", type = "&String"))]
-pub enum PromotionProduct {
-    Product(WggSearchProduct),
-    ProductId(ProductId),
-}
-
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
-pub struct ProductId {
-    pub id: String,
-}
-
-impl From<WggProduct> for WggSearchProduct {
-    fn from(product: WggProduct) -> Self {
-        WggSearchProduct {
-            id: product.id,
-            name: product.name,
-            full_price: product.price_info.original_price,
-            display_price: product.price_info.display_price,
-            unit_quantity: product.unit_quantity,
-            unit_price: product.price_info.unit_price,
-            available: product.available,
-            image_url: product.image_urls.into_iter().next(),
-            decorators: product.decorators,
-            provider: product.provider,
-        }
-    }
 }
