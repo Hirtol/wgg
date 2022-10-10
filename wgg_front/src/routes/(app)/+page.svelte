@@ -1,13 +1,13 @@
 <script lang="ts">
-    // import { PageData } from '$types';
-    import { AppBar, LightSwitch } from '@brainandbones/skeleton';
-    import ProductCard from '$lib/components/product_list/ProductCard.svelte';
-    import type { PageData } from './$types';
-    import ProductList from '$lib/components/product_list/ProductList.svelte';
-    import PageRoot from '$lib/components/PageRoot.svelte';
+    import { getContextClient } from '$lib/api/urql';
     import AddComponent from '$lib/components/product_list/AddComponent.svelte';
+    import ProductList from '$lib/components/product_list/ProductList.svelte';
+    import { LightSwitch } from '@brainandbones/skeleton';
+    import type { PageData } from './$types';
 
     export let data: PageData;
+
+    const client = getContextClient();
 
     $: ({ result } = data);
 

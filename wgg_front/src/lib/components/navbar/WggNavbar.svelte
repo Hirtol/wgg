@@ -1,14 +1,17 @@
 <script lang="ts">
     import { page } from '$app/stores';
-    import { Navbar, NavBrand, NavLi, NavUl, NavHamburger } from 'flowbite-svelte';
     import logo from '$lib/assets/logo.svg';
-    import { Logout } from 'carbon-icons-svelte';
+    import { UserData } from '$lib/user';
     import { isMobileScreen } from '$lib/utils';
-    import { getContextClient } from '@urql/svelte';
-    import { LogoutMutationDocument } from '$lib/api/graphql_types';
-    import { asyncMutationStore } from '$lib/api/urql';
-    import { authSession } from '$lib/user';
-    import { goto } from '$app/navigation';
+    import { Logout } from 'carbon-icons-svelte';
+    import { Navbar, NavBrand, NavHamburger, NavLi, NavUl } from 'flowbite-svelte';
+    import { createEventDispatcher } from 'svelte';
+
+    export let user: UserData;
+
+    const dispatch = createEventDispatcher<{
+        logout: void;
+    }>();
 
     function classes(isActive: boolean): string {
         return isActive ? '!bg-primary-200 dark:!bg-primary-600 md:!bg-transparent unstyled' : 'unstyled';
@@ -21,15 +24,6 @@
             active: isActive,
             class: classes(isActive)
         };
-    }
-
-    async function logout() {
-        const client = getContextClient();
-        let _ = await asyncMutationStore({ query: LogoutMutationDocument, client });
-
-        authSession.set(undefined);
-
-        await goto('/login');
     }
 
     $: currentPage = $page.url.pathname;
@@ -47,14 +41,18 @@
         <NavLi {...linkProps('/sales', currentPage)}>Sales</NavLi>
         <NavLi {...linkProps('/cart', currentPage)}>Cart</NavLi>
         <a
-            class="unstyled inline-flex h-5 items-center pl-3 hover:dark:!bg-surface-700 md:justify-center md:pl-0"
+            class="unstyled inline-flex h-5 items-center py-2 pl-3  hover:dark:!bg-surface-700 md:justify-center md:pl-0"
             aria-label="Logout"
             href="/login"
-            on:click|preventDefault={logout}>
+            on:click|preventDefault={() => dispatch('logout')}>
             <Logout title="Logout" class="text-primary-900 dark:text-primary-200 hover:dark:text-primary-50" />
             {#if $isMobileScreen}
                 <p class="inline-block">Logout</p>
             {/if}
         </a>
+
+        <li>
+            <a class="unstyled py-2 pl-3" href="/">{user.username}</a>
+        </li>
     </NavUl>
 </Navbar>

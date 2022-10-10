@@ -3,12 +3,10 @@
     import { page } from '$app/stores';
     import type { ViewerContextFragment } from '$lib/api/graphql_types';
     import { notifications } from '$lib/components/notifications/notification';
-    import { authSession, isUserAuthenticated } from '$lib/user';
+    import { isUserAuthenticated } from '$lib/user';
     import LoginForm from './LoginForm.svelte';
 
     async function loginSuccess(loginResponse: CustomEvent<ViewerContextFragment>) {
-        authSession.set(loginResponse.detail);
-
         await goto($page.url.searchParams.get('redirect') ?? '/');
 
         notifications.info(`Signed in as: ${loginResponse.detail.username}`, 'Successful Login', 4000);

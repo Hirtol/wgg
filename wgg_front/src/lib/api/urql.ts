@@ -47,14 +47,12 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     UnavailableItem: () => null,
                     SaleLabel: () => null,
                     SaleValidity: () => null,
-                    PrepTime: () => null,
+                    PrepTime: () => null
                 },
                 updates: {
                     Mutation: {
                         logout(result, args, cache, info) {
-                            console.log("Cache", result, args, info, cache);
-                            
-                            cache.invalidate({__typename: 'AuthContext', id: result.logout as unknown as number})
+                            cache.invalidate({ __typename: 'AuthContext', id: result.logout as unknown as number });
                         }
                     }
                 }
@@ -81,17 +79,21 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
     let resolver: (value: any) => void;
     let rejector: (reason: any) => void;
 
-    const finalPromise: Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> = new Promise((accept, reject) => {
+    const finalPromise: Promise<{
+        store: OperationResultStore<Data, Variables>;
+        item: OperationResultState<Data, Variables>;
+    }> = new Promise((accept, reject) => {
         resolver = accept;
         rejector = reject;
     });
 
     const unsubscribe = result.subscribe((x) => {
-        if (x.data !== undefined) {
-            resolver({store: result, item: x});
+        if (x.data != undefined) {
+            resolver({ store: result, item: x });
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-            setTimeout(() => unsubscribe(), 10);
+
+            setTimeout(() => unsubscribe(), 1);
         }
 
         if (!x.fetching) {
@@ -99,7 +101,7 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
                 rejector(result);
                 // Hacky way to get around the situation where `x` has data immediately available.
                 // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-                setTimeout(() => unsubscribe(), 10);
+                setTimeout(() => unsubscribe(), 1);
             }
         }
     });
@@ -125,19 +127,20 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
     let resolver: (value: any) => void;
     let rejector: (reason: any) => void;
 
-    const finalPromise: Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> = new Promise(
-        (accept, reject) => {
-            resolver = accept;
-            rejector = reject;
-        }
-    );
+    const finalPromise: Promise<{
+        store: OperationResultStore<Data, Variables>;
+        item: OperationResultState<Data, Variables>;
+    }> = new Promise((accept, reject) => {
+        resolver = accept;
+        rejector = reject;
+    });
 
     const unsubscribe = result.subscribe(async (x) => {
         if (x.data != undefined) {
             resolver({ store: result, item: x });
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-            setTimeout(() => unsubscribe(), 10);
+            setTimeout(() => unsubscribe(), 1);
         }
 
         if (!x.fetching) {
@@ -145,7 +148,7 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
                 rejector(result);
                 // Hacky way to get around the situation where `x` has data immediately available.
                 // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-                setTimeout(() => unsubscribe(), 10);
+                setTimeout(() => unsubscribe(), 1);
             }
         }
     });

@@ -1,13 +1,14 @@
 <script lang="ts">
-    import { SubmitLoginDocument, type ViewerContextFragment } from '$lib/api/graphql_types';
-    import { asyncMutationStore, getContextClient } from '$lib/api/urql';
+    import { getContextClient } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
+    import { loginUser, UserData } from '$lib/user';
     import { Email, Password } from 'carbon-icons-svelte';
-    import { Button, Card, Checkbox, Helper, Input, Label } from 'flowbite-svelte';
+    import { Button, Card, Helper, Input, Label } from 'flowbite-svelte';
     import { createEventDispatcher } from 'svelte';
 
+    const client = getContextClient();
     const dispatch = createEventDispatcher<{
-        loginSuccess: ViewerContextFragment;
+        loginSuccess: UserData;
         loginFailed: any;
     }>();
 
@@ -16,7 +17,6 @@
 
     let awaitingLogin: boolean;
     let failedLogin: boolean;
-    const client = getContextClient();
 
     $: buttonDisabled = !(email && password) || awaitingLogin;
 
@@ -24,15 +24,9 @@
         awaitingLogin = true;
 
         try {
-            const { item } = await globalLoading.submit(
-                asyncMutationStore({
-                    query: SubmitLoginDocument,
-                    variables: { email, password },
-                    client
-                })
-            );
+            const { item } = await globalLoading.submit(loginUser(email, password, client));
 
-            dispatch('loginSuccess', item.login.user);
+            dispatch('loginSuccess', item);
         } catch (error) {
             failedLogin = true;
             dispatch('loginFailed', error);
