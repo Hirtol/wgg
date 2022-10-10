@@ -15,6 +15,8 @@
 
     export let data: ProductCardFragment;
 
+    export let quantity: number;
+
     const client = getContextClient();
 
     $: classes = classNames(
@@ -25,7 +27,8 @@
 
     $: productUrl = `/products/${data.provider}/${data.id}`;
 
-    async function setCartContent(productId: string, provider: Provider, quantity: number) {
+    async function setCartContent(productId: string, provider: Provider, newQuantity: number) {
+        quantity = newQuantity;
         if (quantity != 0) {
             // We should set the item quantity.
             let _ = await asyncMutationStore({
@@ -43,16 +46,18 @@
             });
         } else {
             // We should remove the item
-            notifications.warning('Implement removal of items from cart (requires database id!)');
-            // let _ = await asyncMutationStore({query: RemoveProductFromCartDocument, variables: {
-            //     input: {
-            //         rawProduct: {
-            //             productId,
-            //             provider,
-            //             quantity
-            //         }
-            //     }
-            // }, client});
+            let _ = await asyncMutationStore({
+                query: RemoveProductFromCartDocument,
+                variables: {
+                    input: {
+                        rawProduct: {
+                            productId,
+                            provider
+                        }
+                    }
+                },
+                client
+            });
         }
     }
 </script>
@@ -83,9 +88,8 @@
 
             <AddComponent
                 class="ml-auto inline-block !h-6"
-                quantity={0}
-                on:decrease={(e) => setCartContent(data.id, data.provider, e.detail)}
-                on:increase={(e) => setCartContent(data.id, data.provider, e.detail)} />
+                {quantity}
+                on:setQuantity={(e) => setCartContent(data.id, data.provider, e.detail)} />
         </div>
 
         {#if saleLabel && saleLabel.__typename == 'SaleLabel'}

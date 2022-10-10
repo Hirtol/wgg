@@ -1,12 +1,13 @@
-import { authenticateUser, authSession } from '$lib/state';
+import { authenticateUser, authSession, initialiseCart } from '$lib/state';
 import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async (event) => {
     // First check if we just had a login event, if not we proceed with the manual check.
+    const { client } = await event.parent();
+    
     if (get(authSession) == undefined) {
-        const { client } = await event.parent();
         const { isAuthenticated } = await authenticateUser(client);
 
         // Perform authentication check
@@ -15,5 +16,10 @@ export const load: LayoutLoad = async (event) => {
 
             throw redirect(302, loginUrl);
         }
+    }
+
+    // We can safely assume we're authenticated.
+    return {
+        cart: initialiseCart(client)
     }
 };

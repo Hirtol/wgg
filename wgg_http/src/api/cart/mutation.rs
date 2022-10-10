@@ -1,4 +1,5 @@
 use crate::api::cart::UserCart;
+use crate::api::error::GraphqlError;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
 use crate::db;
 use crate::db::Id;
@@ -35,6 +36,12 @@ impl CartMutation {
 
         if let Some(note) = input.notes {
             use db::cart_contents::notes::*;
+            if note.quantity == 0 {
+                return Err(GraphqlError::InvalidInput(
+                    "Can't set a product's quantity to 0, use remove() instead".to_string(),
+                ));
+            }
+
             let to_insert = ActiveModel {
                 id: ActiveValue::NotSet,
                 cart_id: cart.id.into_active_value(),
@@ -47,6 +54,11 @@ impl CartMutation {
         }
         if let Some(raw) = input.raw_product {
             use db::cart_contents::raw_product::*;
+            if raw.quantity == 0 {
+                return Err(GraphqlError::InvalidInput(
+                    "Can't set a product's quantity to 0, use remove() instead".to_string(),
+                ));
+            }
 
             // Insert new products.
             let to_insert = ActiveModel {
@@ -69,6 +81,11 @@ impl CartMutation {
         }
         if let Some(aggregate) = input.aggregate {
             use db::cart_contents::aggregate::*;
+            if aggregate.quantity == 0 {
+                return Err(GraphqlError::InvalidInput(
+                    "Can't set a product's quantity to 0, use remove() instead".to_string(),
+                ));
+            }
 
             // Insert aggregate
             let to_insert = ActiveModel {
@@ -96,8 +113,6 @@ impl CartMutation {
 
     /// Remove the provided item from the current cart.
     ///
-    /// The provided ID is assumed to be the database ID, *not* a product id.
-    ///
     /// # Accessible By
     ///
     /// Everyone.
@@ -122,15 +137,19 @@ impl CartMutation {
         }
         if let Some(raw_id) = input.raw_product {
             use db::cart_contents::raw_product::*;
-            Entity::delete_by_id(raw_id)
+
+            Entity::delete_many()
                 .filter(Column::CartId.eq(cart.id))
+                .filter(Column::ProviderProduct.eq(raw_id.product_id))
+                .filter(Column::ProviderId.eq(state.provider_id_from_provider(&raw_id.provider)))
                 .exec(&tx)
                 .await?;
         }
         if let Some(aggregate_id) = input.aggregate {
             use db::cart_contents::aggregate::*;
-            Entity::delete_by_id(aggregate_id)
+            Entity::delete_many()
                 .filter(Column::CartId.eq(cart.id))
+                .filter(Column::AggregateId.eq(aggregate_id))
                 .exec(&tx)
                 .await?;
         }
@@ -199,10 +218,16 @@ pub struct CartAddProductInput {
 pub struct CartRemoveProductInput {
     /// The note id.
     pub notes: Option<Id>,
-    /// The database id of this raw product (note, *not* the provider product id used to add this product!).
-    pub raw_product: Option<Id>,
+    /// The provider product id used to add this product
+    pub raw_product: Option<RemoveRawProductInput>,
     /// The aggregate id.
     pub aggregate: Option<Id>,
+}
+
+#[derive(Debug, async_graphql::InputObject)]
+pub struct RemoveRawProductInput {
+    pub product_id: ProductId,
+    pub provider: Provider,
 }
 
 #[derive(Debug, async_graphql::InputObject)]

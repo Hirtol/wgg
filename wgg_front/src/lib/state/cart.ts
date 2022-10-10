@@ -1,7 +1,74 @@
-import { CartFragment } from "$lib/api/graphql_types";
-import { Readable } from "svelte/store";
+import { CartCurrentQueryDocument, CartFragment, Provider } from '$lib/api/graphql_types';
+import { Client, queryStore } from '$lib/api/urql';
+import { derived, Readable } from 'svelte/store';
 
-export let cart: Readable<CartFragment> | undefined;
+export type ProductId = string;
+export type CartStore = Readable<CartData | undefined>;
+
+/**
+ * Initialise the global cart store, returns it to be passed to $page.data
+ */
+export function initialiseCart(client: Client): CartStore {
+    const store = queryStore({ query: CartCurrentQueryDocument, client });
+
+    return derived(store, (x, set) => {
+        if (!x.fetching) {
+            if (x.data) {
+                const cartInfo = x.data.cartCurrent;
+
+                set({
+                    getProductQuantity: (provider, productId) => getProductQuantityImpl(cartInfo, provider, productId),
+                    ...cartInfo
+                });
+            } else {
+                set(undefined);
+            }
+        }
+    });
+}
+
+export interface CartQuery {
+    type: 'RawProduct' | 'Note' | 'AggregateIngredient';
+}
+
+export interface CartData extends CartFragment {
+    getProductQuantity(provider: Provider, productId: ProductId): QuantityInfo[];
+}
+
+export interface QuantityInfo {
+    quantity: number;
+    origin: 'Indirect' | 'Direct';
+}
+
+function getProductQuantityImpl(cart: CartFragment, provider: Provider, productId: ProductId): QuantityInfo[] {
+    const results: QuantityInfo[] = cart.contents
+        .filter((x) => x.__typename != 'CartNoteProduct')
+        .map((x) => {
+            if (x.__typename == 'CartAggregateProduct') {
+                // Have to search constituent ingredients.
+                const item = x.aggregate.ingredients.find((y) => y.id == productId && y.provider == provider);
+
+                if (item != undefined) {
+                    return {
+                        quantity: x.quantity,
+                        origin: 'Indirect'
+                    };
+                }
+            } else if (x.__typename == 'CartProviderProduct') {
+                if (x.product.id == productId && x.product.provider == provider) {
+                    return {
+                        quantity: x.quantity,
+                        origin: 'Direct'
+                    };
+                }
+            }
+
+            return undefined;
+        })
+        .filter((x): x is QuantityInfo => x != undefined);
+
+    return results;
+}
 
 // export interface CartStore extends Readable<CartFragment> {
 //     send(notification: Notification): void;

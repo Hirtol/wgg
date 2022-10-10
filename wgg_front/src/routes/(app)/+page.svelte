@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { page } from '$app/stores';
     import { getContextClient } from '$lib/api/urql';
     import AddComponent from '$lib/components/product_list/AddComponent.svelte';
     import ProductList from '$lib/components/product_list/ProductList.svelte';
@@ -10,12 +11,20 @@
     const client = getContextClient();
 
     $: ({ result } = data);
+    $: ({ cart } = $page.data)
 
     $: firstItem = $result.data?.proPromotions[0].limitedItems;
     $: searchItems = $result.data?.proSearchAll;
 </script>
 
 <LightSwitch />
+
+{#if $cart}
+    <p>Cart Funds:</p>
+    {#each $cart.tallies as tally (tally.provider)}
+         <p>{tally.provider} - {tally.priceCents}</p>
+    {/each}
+{/if}
 
 <!-- <AppBar>
     <svelte:fragment slot="lead">
@@ -36,9 +45,11 @@
 
 <main class="container mx-auto px-0.5 md:px-0">
     <AddComponent normalButton permanentlyExpanded quantity={0} class="max-w-full" />
-    <ProductList data={firstItem} />
-    <!-- {#if firstItem}
-            <ProductCard class="max-w-[15rem]" data={firstItem} />
-        {/if} -->
-    <ProductList data={searchItems} />
+    {#if $cart}
+        <ProductList cart={$cart} data={firstItem} />
+        <!-- {#if firstItem}
+                <ProductCard class="max-w-[15rem]" data={firstItem} />
+            {/if} -->
+        <ProductList cart={$cart} data={searchItems} />
+    {/if}
 </main>

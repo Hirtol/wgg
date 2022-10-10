@@ -29,7 +29,7 @@
 
     let timeoutId: number | undefined;
 
-    const dispatch = createEventDispatcher<{ decrease: number; increase: number }>();
+    const dispatch = createEventDispatcher<{ setQuantity: number }>();
 
     function setExpanded() {
         // On refresh calls.
@@ -46,7 +46,7 @@
             setExpanded();
         }
 
-        dispatch('increase', quantity);
+        dispatch('setQuantity', quantity);
     }
 </script>
 

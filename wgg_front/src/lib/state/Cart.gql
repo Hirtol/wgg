@@ -1,3 +1,9 @@
+query CartCurrentQuery {
+  cartCurrent {
+    ...CartFragment
+  }
+}
+
 fragment CartFragment on UserCart {
     id
     contents {
