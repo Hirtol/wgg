@@ -1,0 +1,33 @@
+fragment CartFragment on UserCart {
+    id
+    contents {
+        id
+        quantity
+        createdAt
+        ... on CartNoteProduct {
+            note
+        }
+        ... on CartAggregateProduct {
+            aggregate {
+              id
+              name
+              imageUrl
+              createdAt
+              ingredients {
+                ...ProductCardFragment
+              }
+            }
+        }
+        ... on CartProviderProduct {
+            product {
+              ...ProductCardFragment
+            }
+        }
+    }
+    tallies {
+        priceCents
+        provider
+    }
+    completedAt
+    pickedProvider
+}

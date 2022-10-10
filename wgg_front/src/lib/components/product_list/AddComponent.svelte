@@ -56,7 +56,7 @@
             <div class="flex flex-nowrap justify-between gap-0.5" in:fly>
                 <button
                     class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
-                    on:click={() => setQuantity(quantity--)}>
+                    on:click={() => setQuantity(--quantity)}>
                     <Subtract size={24} />
                 </button>
                 <button
@@ -68,7 +68,7 @@
                 </button>
                 <button
                     class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
-                    on:click={() => setQuantity(quantity++)}>
+                    on:click={() => setQuantity(++quantity)}>
                     <Add size={24} />
                 </button>
             </div>
@@ -83,14 +83,14 @@
             </button>
         {/if}
     {:else if normalButton}
-        <button class="btn btn-sm rounded bg-primary-500" in:fly on:click={() => setQuantity(quantity++)}>
+        <button class="btn btn-sm rounded bg-primary-500" in:fly on:click={() => setQuantity(++quantity)}>
             Add to cart
         </button>
     {:else}
         <button
             class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
             in:fly
-            on:click={() => setQuantity(quantity++)}>
+            on:click={() => setQuantity(++quantity)}>
             <Add size={24} />
         </button>
     {/if}

@@ -41,10 +41,22 @@ export function createUrqlClient(opts?: ClientOptions): Client {
             requestPolicyExchange({ ttl: 3 * 60 * 1000 }),
             cacheExchange({
                 keys: {
-                    UnitQuantity: () => null
+                    UnitQuantity: () => null,
+                    FreshLabel: () => null,
+                    UnitPrice: () => null,
+                    UnavailableItem: () => null,
+                    SaleLabel: () => null,
+                    SaleValidity: () => null,
+                    PrepTime: () => null,
                 },
                 updates: {
-                    Mutation: {}
+                    Mutation: {
+                        logout(result, args, cache, info) {
+                            console.log("Cache", result, args, info, cache);
+                            
+                            cache.invalidate({__typename: 'AuthContext', id: result.logout as unknown as number})
+                        }
+                    }
                 }
             }),
             fetchExchange
@@ -63,20 +75,20 @@ export function createUrqlClient(opts?: ClientOptions): Client {
  */
 export async function asyncQueryStore<Data = any, Variables extends AnyVariables = AnyVariables>(
     args: QueryArgs<Data, Variables>
-): Promise<OperationResultStore<Data, Variables>> {
+): Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> {
     const result = queryStore(args);
 
     let resolver: (value: any) => void;
     let rejector: (reason: any) => void;
 
-    const finalPromise: Promise<OperationResultStore<Data, Variables>> = new Promise((accept, reject) => {
+    const finalPromise: Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> = new Promise((accept, reject) => {
         resolver = accept;
         rejector = reject;
     });
 
     const unsubscribe = result.subscribe((x) => {
         if (x.data !== undefined) {
-            resolver(result);
+            resolver({store: result, item: x});
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
             setTimeout(() => unsubscribe(), 10);
@@ -107,13 +119,13 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
 export async function asyncMutationStore<Data = any, Variables extends AnyVariables = AnyVariables>(
     args: MutationArgs<Data, Variables>,
     handler?: SubscriptionHandler<Data, Data>
-): Promise<{ store: OperationResultStore<Data, Variables>; item: Data }> {
+): Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> {
     const result = mutationStore(args, handler);
 
     let resolver: (value: any) => void;
     let rejector: (reason: any) => void;
 
-    const finalPromise: Promise<{ store: OperationResultStore<Data, Variables>; item: Data }> = new Promise(
+    const finalPromise: Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> = new Promise(
         (accept, reject) => {
             resolver = accept;
             rejector = reject;
@@ -122,7 +134,7 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
 
     const unsubscribe = result.subscribe(async (x) => {
         if (x.data != undefined) {
-            resolver({ store: result, item: x.data });
+            resolver({ store: result, item: x });
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
             setTimeout(() => unsubscribe(), 10);

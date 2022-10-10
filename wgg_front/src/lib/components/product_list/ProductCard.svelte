@@ -1,12 +1,21 @@
 <script lang="ts">
-    import type { ProductCardFragment } from '$lib/api/graphql_types';
+    import {
+        ProductCardFragment,
+        Provider,
+        RemoveProductFromCartDocument,
+        SetProductToCartDocument
+    } from '$lib/api/graphql_types';
+    import { asyncMutationStore, getContextClient } from '$lib/api/urql';
     import { centsToPrice, centsToTextPrice, unitToText } from '$lib/utils';
     import { Information } from 'carbon-icons-svelte';
     import classNames from 'classnames';
+    import { notifications } from '../notifications/notification';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
 
     export let data: ProductCardFragment;
+
+    const client = getContextClient();
 
     $: classes = classNames(
         $$restProps.class,
@@ -15,6 +24,37 @@
     $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
 
     $: productUrl = `/products/${data.provider}/${data.id}`;
+
+    async function setCartContent(productId: string, provider: Provider, quantity: number) {
+        if (quantity != 0) {
+            // We should set the item quantity.
+            let _ = await asyncMutationStore({
+                query: SetProductToCartDocument,
+                variables: {
+                    input: {
+                        rawProduct: {
+                            productId,
+                            provider,
+                            quantity
+                        }
+                    }
+                },
+                client
+            });
+        } else {
+            // We should remove the item
+            notifications.warning('Implement removal of items from cart (requires database id!)');
+            // let _ = await asyncMutationStore({query: RemoveProductFromCartDocument, variables: {
+            //     input: {
+            //         rawProduct: {
+            //             productId,
+            //             provider,
+            //             quantity
+            //         }
+            //     }
+            // }, client});
+        }
+    }
 </script>
 
 <div class={classes}>
@@ -41,7 +81,11 @@
                 {/if}
             </h6>
 
-            <AddComponent class="ml-auto inline-block !h-6" quantity={0} />
+            <AddComponent
+                class="ml-auto inline-block !h-6"
+                quantity={0}
+                on:decrease={(e) => setCartContent(data.id, data.provider, e.detail)}
+                on:increase={(e) => setCartContent(data.id, data.provider, e.detail)} />
         </div>
 
         {#if saleLabel && saleLabel.__typename == 'SaleLabel'}

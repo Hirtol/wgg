@@ -1,34 +1,16 @@
-mutation addProductToCart($input: CartAddProductInput! ) {
+mutation setProductToCart($input: CartAddProductInput!) {
     cartCurrentSetProduct(input: $input) {
-      data {
-        id
-        tallies {
-            priceCents
-            provider
+        data {
+            ...CartFragment
         }
-        contents {
-            id
-            quantity
-            createdAt
-        }
-      }
     }
 }
 
 mutation removeProductFromCart($input: CartRemoveProductInput!) {
     cartCurrentRemoveProduct(input: $input) {
-      data {
-        id
-        tallies {
-            priceCents
-            provider
+        data {
+            ...CartFragment
         }
-        contents {
-            id
-            quantity
-            createdAt
-        }
-      }
     }
 }
 
@@ -49,10 +31,10 @@ fragment ProductCardFragment on WggSearchProduct {
     }
     decorators {
         __typename
-        ...on SaleLabel {
+        ... on SaleLabel {
             text
         }
-        ...on SaleValidity {
+        ... on SaleValidity {
             validFrom
             validUntil
         }
