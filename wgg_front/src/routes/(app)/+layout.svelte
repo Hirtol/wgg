@@ -3,7 +3,7 @@
     import { getContextClient } from '$lib/api/urql';
     import WggNavbar from '$lib/components/navbar/WggNavbar.svelte';
     import PageRoot from '$lib/components/PageRoot.svelte';
-    import { authSession, logoutUser } from '$lib/user';
+    import { authSession, logoutUser } from '$lib/state';
 
     const client = getContextClient();
 

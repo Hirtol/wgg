@@ -1,7 +1,7 @@
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 
-import { UserStore } from '$lib/user';
+import { UserStore } from '$lib/state';
 
 // and what to do when importing types
 declare global {

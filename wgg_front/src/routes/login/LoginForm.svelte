@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getContextClient } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
-    import { loginUser, UserData } from '$lib/user';
+    import { loginUser, UserData } from '$lib/state';
     import { Email, Password } from 'carbon-icons-svelte';
     import { Button, Card, Helper, Input, Label } from 'flowbite-svelte';
     import { createEventDispatcher } from 'svelte';

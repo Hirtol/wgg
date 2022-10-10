@@ -3,7 +3,7 @@
     import { page } from '$app/stores';
     import type { ViewerContextFragment } from '$lib/api/graphql_types';
     import { notifications } from '$lib/components/notifications/notification';
-    import { isUserAuthenticated } from '$lib/user';
+    import { isUserAuthenticated } from '$lib/state';
     import LoginForm from './LoginForm.svelte';
 
     async function loginSuccess(loginResponse: CustomEvent<ViewerContextFragment>) {

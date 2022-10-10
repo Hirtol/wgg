@@ -1,4 +1,4 @@
-import { authenticateUser, authSession } from '$lib/user';
+import { authenticateUser, authSession } from '$lib/state';
 import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
 import type { LayoutLoad } from './$types';
