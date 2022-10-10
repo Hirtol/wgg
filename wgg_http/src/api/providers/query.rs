@@ -1,6 +1,6 @@
 use crate::api::{ContextExt, GraphqlResult};
 use async_graphql::{Context, Object};
-use wgg_providers::models::{Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
+use wgg_providers::models::{Provider, ProviderInfo, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
 
 #[derive(Default)]
 pub struct ProviderQuery;
@@ -89,5 +89,20 @@ impl ProviderQuery {
         let response = state.providers.promotions_sublist(provider, sublist_id).await?;
 
         Ok(response.items)
+    }
+
+    /// Return all providers which are currently active for this server.
+    #[tracing::instrument(skip(self, ctx))]
+    async fn pro_providers(&self, ctx: &Context<'_>) -> Vec<ProviderInfo> {
+        let state = ctx.wgg_state();
+
+        state
+            .providers
+            .iter()
+            .map(|prov| ProviderInfo {
+                provider: prov.provider(),
+                logo_url: prov.logo_url(),
+            })
+            .collect()
     }
 }

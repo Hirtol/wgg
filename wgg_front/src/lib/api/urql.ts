@@ -18,6 +18,7 @@ import {
     type SubscriptionHandler
 } from '@urql/svelte';
 import type { Readable } from 'svelte/store';
+import { ProviderInfo } from './graphql_types';
 
 export * from '@urql/svelte';
 
@@ -47,7 +48,9 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     UnavailableItem: () => null,
                     SaleLabel: () => null,
                     SaleValidity: () => null,
-                    PrepTime: () => null
+                    PrepTime: () => null,
+                    AllergyTags: () => null,
+                    ProviderInfo: (x) => (x as ProviderInfo).provider
                 },
                 updates: {
                     Mutation: {

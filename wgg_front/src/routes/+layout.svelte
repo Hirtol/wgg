@@ -1,15 +1,12 @@
 <script lang="ts">
-    import type { LayoutData } from './$types';
     import '@brainandbones/skeleton/themes/theme-vintage.css';
     import '../app.postcss';
+    import { afterNavigate, beforeNavigate, prefetchRoutes } from '$app/navigation';
     import { setContextClient } from '$lib/api/urql';
-    import { afterNavigate, beforeNavigate, goto, prefetchRoutes } from '$app/navigation';
-    import { notifications } from '$lib/components/notifications/notification';
-    import { navigating, page } from '$app/stores';
-    import { Spinner } from 'flowbite-svelte';
-    import Notifier from '$lib/components/notifications/Notifiers.svelte';
     import GlobalLoading from '$lib/components/global_progress/GlobalLoading.svelte';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
+    import Notifier from '$lib/components/notifications/Notifiers.svelte';
+    import type { LayoutData } from './$types';
 
     export let data: LayoutData;
 

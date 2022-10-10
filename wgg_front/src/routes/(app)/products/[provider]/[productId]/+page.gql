@@ -1,0 +1,85 @@
+query FullProductQuery($provider: Provider!, $productId: String!) {
+    proProduct(provider:$provider, productId:$productId){
+        ...FullProductFragment
+	}
+}
+
+fragment FullProductFragment on WggProduct {
+    id
+    name
+    description
+    priceInfo {
+    displayPrice
+    originalPrice
+    unitPrice {
+        unit
+        price
+    }
+    }
+    unitQuantity {
+    unit
+    amount
+    }
+    available
+    imageUrls
+    ingredients{
+    name
+    }
+    nutritional {
+    infoUnit
+    items {
+        name
+        value
+        subValues {
+        name
+        value
+        }
+    }
+    }
+    allergyInfo {
+    name
+    contains
+    }
+    additionalItems {
+    itemType
+    text
+    textType
+    }
+    decorators {
+    __typename
+    ... on FreshLabel {
+        daysFresh
+    }
+    ... on SaleLabel {
+        text
+    }
+    ... on SaleValidity {
+        validFrom
+        validUntil
+    }
+    ... on SaleDescription {
+        text
+    }
+    ... on UnavailableItem {
+        reason
+        explanationShort
+        explanationLong
+        replacements {
+        ...ProductCardFragment
+        }
+    }
+    ... on PrepTime {
+        timeMinutes
+    }
+    ... on NumberOfServings {
+        amount
+    }
+    ... on MoreButton {
+        images
+    }
+    }
+    providerInfo {
+    provider
+    logoUrl
+    }
+}

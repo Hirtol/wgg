@@ -199,9 +199,11 @@ fn parse_picnic_full_product_to_product(
         id: product.id,
         name: product.name,
         description: {
-            let out = product.description.main;
+            // Our model assumes there is always a description, so we'll just make an empty one if it doesn't exist.
+            let desc = product.description.unwrap_or_default();
+            let out = desc.main;
 
-            if let Some(extra) = product.description.extension {
+            if let Some(extra) = desc.extension {
                 out + &extra
             } else {
                 out

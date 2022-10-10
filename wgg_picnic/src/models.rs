@@ -302,7 +302,7 @@ pub struct ProductArticle {
     pub name: String,
     #[serde(default)]
     pub decorators: Vec<Decorator>,
-    pub description: Description,
+    pub description: Option<Description>,
     pub price_info: PriceInfo,
     pub labels: Labels,
     pub images: Vec<Image>,

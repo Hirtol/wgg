@@ -335,7 +335,7 @@ impl WggProvider {
     }
 
     /// Iterate over all providers allowing an action to be performed on all of them
-    fn iter(&self) -> ProvidersIter<'_> {
+    pub fn iter(&self) -> ProvidersIter<'_> {
         ProvidersIter { providers: self, i: 0 }
     }
 }
@@ -346,7 +346,7 @@ impl Default for WggProvider {
     }
 }
 
-struct ProvidersIter<'a> {
+pub struct ProvidersIter<'a> {
     providers: &'a WggProvider,
     i: usize,
 }
