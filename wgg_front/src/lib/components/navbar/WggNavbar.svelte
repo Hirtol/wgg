@@ -31,7 +31,7 @@
 
 <Navbar let:hidden let:toggle class="sticky rounded !bg-surface-200 shadow-sm dark:!bg-surface-900">
     <NavBrand href="/" class="unstyled">
-        <img src={logo} class="h-9 sm:h-12" alt="Wgg Logo" />
+        <img src={logo} class="aspect-square h-12 w-12 sm:h-12" alt="Wgg Logo" />
         <span class="self-center whitespace-nowrap text-xl font-semibold dark:text-white"> WGG </span>
     </NavBrand>
     <NavHamburger on:click={toggle} />

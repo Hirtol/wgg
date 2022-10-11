@@ -56,8 +56,10 @@
     },
     "type": "module",
     "dependencies": {
+        "@types/marked": "^4.0.7",
         "@urql/exchange-graphcache": "^5.0.1",
         "@urql/exchange-request-policy": "^1.0.0",
-        "@urql/svelte": "^3.0.1"
+        "@urql/svelte": "^3.0.1",
+        "marked": "^4.1.1"
     }
 }

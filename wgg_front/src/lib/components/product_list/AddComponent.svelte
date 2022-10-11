@@ -55,11 +55,13 @@
         {#if isExpanded}
             <div class="flex flex-nowrap justify-between gap-0.5" in:fly>
                 <button
+                    title="Subtract Quantity"
                     class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
                     on:click={() => setQuantity(--quantity)}>
                     <Subtract size={24} />
                 </button>
                 <button
+                    title="Hide"
                     class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
                     on:click={() => (isExpanded = permanentlyExpanded)}>
                     <p class="w-full rounded-full bg-primary-500 text-center text-surface-50">
@@ -67,6 +69,7 @@
                     </p>
                 </button>
                 <button
+                    title="Add Quantity"
                     class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
                     on:click={() => setQuantity(++quantity)}>
                     <Add size={24} />
@@ -74,6 +77,7 @@
             </div>
         {:else}
             <button
+                title="Show Controls"
                 class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
                 on:click={setExpanded}
                 in:fly>
@@ -83,11 +87,16 @@
             </button>
         {/if}
     {:else if normalButton}
-        <button class="btn btn-sm rounded bg-primary-500" in:fly on:click={() => setQuantity(++quantity)}>
+        <button
+            title="Add Quantity"
+            class="btn btn-sm rounded bg-primary-500"
+            in:fly
+            on:click={() => setQuantity(++quantity)}>
             Add to cart
         </button>
     {:else}
         <button
+            title="Add Quantity"
             class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
             in:fly
             on:click={() => setQuantity(++quantity)}>
