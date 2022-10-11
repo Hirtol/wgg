@@ -7,6 +7,7 @@
     } from '$lib/api/graphql_types';
     import { asyncMutationStore, getContextClient } from '$lib/api/urql';
     import { centsToPrice, centsToTextPrice, unitToText } from '$lib/utils';
+    import { tooltip } from '@brainandbones/skeleton';
     import { Information } from 'carbon-icons-svelte';
     import classNames from 'classnames';
     import { notifications } from '../notifications/notification';
@@ -26,6 +27,8 @@
     $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
 
     $: productUrl = `/products/${data.providerInfo.provider}/${data.id}`;
+
+    $: unavailableReason = data.decorators.find((u) => u.__typename == 'UnavailableItem');
 
     async function setCartContent(productId: string, provider: Provider, newQuantity: number) {
         quantity = newQuantity;
@@ -69,9 +72,19 @@
             draggable="false"
             loading="lazy"
             class="aspect-video h-[15vh] w-full cursor-pointer object-contain hover:object-scale-down md:h-[12vh]"
+            class:opacity-20={!data.available}
             alt={data.name} />
 
-        <img src={data.providerInfo.logoUrl} class="pointer-events-none absolute top-0 right-0 w-1/6" alt={data.providerInfo.provider} />
+        {#if !data.available && unavailableReason?.__typename == 'UnavailableItem'}
+            <p class="absolute bottom-0 left-0 w-full !text-warning-600 line-clamp-2 dark:!text-warning-300">
+                {unavailableReason.explanationShort}
+            </p>
+        {/if}
+
+        <img
+            src={data.providerInfo.logoUrl}
+            class="pointer-events-none absolute top-0 right-0 w-1/6"
+            alt={data.providerInfo.provider} />
     </header>
 
     <div class="body">

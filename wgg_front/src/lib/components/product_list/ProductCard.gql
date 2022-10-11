@@ -38,6 +38,15 @@ fragment ProductCardFragment on WggSearchProduct {
             validFrom
             validUntil
         }
+        ... on UnavailableItem {
+            reason
+            explanationShort
+            explanationLong
+            replacements {
+                name
+                imageUrl
+            }
+        }
     }
     providerInfo {
         provider,
