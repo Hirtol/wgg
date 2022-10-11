@@ -1,4 +1,4 @@
-use crate::models::{AllergyTags, AllergyType, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory};
+use crate::models::{AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory};
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
@@ -169,11 +169,18 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
     let mut result = WggProduct {
         id: product.id.into(),
         name: product.title,
-        description: product
-            .regulated_title
-            .map(|title| format!("{}\n{}", title, product.details_text.as_deref().unwrap_or_default()))
-            .or(product.details_text)
-            .unwrap_or_default(),
+        description: {
+            let text = product
+                .regulated_title
+                .map(|title| format!("{}\n{}", title, product.details_text.as_deref().unwrap_or_default()))
+                .or(product.details_text)
+                .unwrap_or_default();
+            
+            Description {
+                text,
+                text_type: TextType::PlainText
+            }
+        },
         price_info: PriceInfo {
             display_price: product
                 .prices

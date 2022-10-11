@@ -1,7 +1,7 @@
 use crate::models::{
-    AllergyTags, AllergyType, CentPrice, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton, NutritionalInfo,
-    NutritionalItem, PrepTime, PriceInfo, PromotionProduct, SaleLabel, SaleValidity, SubNutritionalItem, TextType,
-    UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
+    AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
+    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, PromotionProduct, SaleLabel, SaleValidity,
+    SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
@@ -201,12 +201,15 @@ fn parse_picnic_full_product_to_product(
         description: {
             // Our model assumes there is always a description, so we'll just make an empty one if it doesn't exist.
             let desc = product.description.unwrap_or_default();
-            let out = desc.main;
-
-            if let Some(extra) = desc.extension {
-                out + &extra
+            let out = if let Some(extra) = desc.extension {
+                desc.main + &extra
             } else {
-                out
+                desc.main
+            };
+
+            Description {
+                text: out,
+                text_type: TextType::Markdown,
             }
         },
         price_info: PriceInfo {

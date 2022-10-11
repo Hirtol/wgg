@@ -1,6 +1,4 @@
-use crate::models::{
-    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, ProviderInfo, UnitQuantity, WggDecorator,
-};
+use crate::models::{AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, ProviderInfo, TextType, UnitQuantity, WggDecorator};
 use crate::providers::StaticProviderInfo;
 use crate::{JumboBridge, PicnicBridge, Provider};
 use serde::{Deserialize, Serialize};
@@ -15,7 +13,7 @@ pub struct WggProduct {
     /// The name of the product.
     pub name: String,
     /// Full product description.
-    pub description: String,
+    pub description: Description,
     /// All price related information
     pub price_info: PriceInfo,
     /// The amount of weight/liters/pieces this product represents.
@@ -59,4 +57,10 @@ impl WggProduct {
             },
         }
     }
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
+pub struct Description {
+    pub text: String,
+    pub text_type: TextType,
 }
