@@ -2,6 +2,7 @@
     import { Carousel } from 'flowbite-svelte';
     import type { PageData } from './$types';
     import { marked } from 'marked';
+    import { TextType } from '$lib/api/graphql_types';
 
     export let data: PageData;
 
@@ -12,8 +13,7 @@
             id: i,
             imgurl: url
         })) ?? [];
-
-    $: descriptionMarkdown = marked(product?.description ?? '');
+    $: isPlainText = product?.description.textType != TextType.Markdown ?? true;
 </script>
 
 <main class="container mx-auto">
@@ -23,8 +23,12 @@
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2">
-            <div id="descriptionMd">
-                {@html descriptionMarkdown}
+            <div id="description" class:whitespace-pre-line={isPlainText}>
+                {#if !isPlainText}
+                    {@html marked(product?.description.text ?? '')}
+                {:else}
+                    {product?.description.text ?? ''}
+                {/if}
             </div>
 
             <Carousel {images} showCaptions={false} showThumbs={false} />
