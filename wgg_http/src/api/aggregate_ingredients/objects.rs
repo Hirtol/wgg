@@ -3,7 +3,7 @@ use crate::{db, db::Id};
 use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use sea_orm::{EntityTrait, QueryFilter};
-use wgg_providers::models::WggSearchProduct;
+use wgg_providers::models::{CentPrice, WggSearchProduct};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -37,6 +37,20 @@ impl AggregateIngredient {
 
         Ok(results)
     }
+
+    /// Returns the average price of all constituent ingredients.
+    pub async fn price(&self, ctx: &Context<'_>, format: PriceFilter) -> GraphqlResult<CentPrice> {
+        let products = self.ingredients(ctx).await??;
+        let price_iter = products.iter().map(|i| i.display_price);
+
+        let result = match format {
+            PriceFilter::Minimum => price_iter.min().unwrap_or_default(),
+            PriceFilter::Average => price_iter.sum::<CentPrice>() / products.len() as CentPrice,
+            PriceFilter::Maximum => price_iter.max().unwrap_or_default(),
+        };
+
+        Ok(result)
+    }
 }
 
 impl From<db::agg_ingredients::Model> for AggregateIngredient {
@@ -49,4 +63,11 @@ impl From<db::agg_ingredients::Model> for AggregateIngredient {
             created_at: model.created_at,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, async_graphql::Enum, PartialEq, Eq)]
+pub enum PriceFilter {
+    Minimum,
+    Average,
+    Maximum,
 }
