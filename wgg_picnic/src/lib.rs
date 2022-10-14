@@ -116,16 +116,14 @@ impl PicnicApi {
     ///
     /// Note that the last `item` in [crate::models::SearchResult] will always be a [crate::models::SearchItem::ItemSuggestionDialog].
     pub async fn search(&self, query: impl AsRef<str>) -> Result<Vec<SearchResult>> {
-        let encoded_term = urlencoding::encode(query.as_ref());
-        let response = self.get("/search", &[("search_term", encoded_term.as_ref())]).await?;
+        let response = self.get("/search", &[("search_term", query.as_ref())]).await?;
 
         Ok(response.json().await?)
     }
 
     /// Get a suggestion for the provided query.
     pub async fn suggestions(&self, query: impl AsRef<str>) -> Result<Vec<Suggestion>> {
-        let encoded_term = urlencoding::encode(query.as_ref());
-        let response = self.get("/suggest", &[("search_term", encoded_term.as_ref())]).await?;
+        let response = self.get("/suggest", &[("search_term", query.as_ref())]).await?;
 
         Ok(response.json().await?)
     }

@@ -44,20 +44,14 @@ pub struct UserInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct ConsentDecisions {
-    #[serde(rename = "MISC_COMMERCIAL_ADS")]
     pub misc_commercial_ads: bool,
-    #[serde(rename = "MISC_COMMERCIAL_EMAILS")]
     pub misc_commercial_emails: bool,
-    #[serde(rename = "MISC_COMMERCIAL_MESSAGES")]
     pub misc_commercial_messages: bool,
-    #[serde(rename = "MISC_READ_ADVERTISING_ID")]
     pub misc_read_advertising_id: bool,
-    #[serde(rename = "PERSONALIZED_RANKING_CONSENT")]
     pub personalized_ranking_consent: bool,
-    #[serde(rename = "PURCHASES_CATEGORY_CONSENT")]
     pub purchases_category_consent: bool,
-    #[serde(rename = "WEEKLY_COMMERCIAL_EMAILS")]
     pub weekly_commercial_emails: bool,
 }
 
@@ -90,7 +84,6 @@ pub struct Address {
 // ** SEARCH **
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -99,13 +92,11 @@ pub struct SearchResult {
     pub name: String,
     pub items: Vec<SearchItem>,
     pub level: i64,
-    #[serde(rename = "is_included_in_category_tree")]
     pub is_included_in_category_tree: bool,
     pub hidden: bool,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Link {
     #[serde(rename = "type")]
     pub type_field: String,

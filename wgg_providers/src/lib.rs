@@ -104,20 +104,21 @@ impl WggProvider {
             size = 100,
             time = 86400,
             result = true,
-            key = "(String, Option<u32>)",
-            convert = r#"{(query.to_string(), offset)}"#
+            key = "(String, Option<u32>, Provider)",
+            convert = r#"{(query.to_string(), offset, _provider)}"#
         )]
         async fn inner(
             prov: &(dyn ProviderInfo + Send + Sync),
             query: &str,
             offset: Option<u32>,
+            _provider: Provider,
         ) -> Result<OffsetPagination<WggSearchProduct>> {
             prov.search(query, offset).await
         }
 
         let provider_concrete = self.find_provider(provider)?;
 
-        let result = inner(provider_concrete, query.as_ref(), offset).await?;
+        let result = inner(provider_concrete, query.as_ref(), offset, provider_concrete.provider()).await?;
 
         // We persist any and all products for the sake of easing custom list searches.
         let mut guard = self.cache.lock().await;
@@ -218,19 +219,20 @@ impl WggProvider {
             size = 100,
             time = 86400,
             result = true,
-            key = "String",
-            convert = r#"{sublist_id.to_string()}"#
+            key = "(String, Provider)",
+            convert = r#"{(sublist_id.to_string(), _provider)}"#
         )]
         async fn inner(
             prov: &(dyn ProviderInfo + Send + Sync),
             sublist_id: &str,
+            _provider: Provider,
         ) -> Result<OffsetPagination<WggSearchProduct>> {
             prov.promotions_sublist(sublist_id).await
         }
 
         let provider = self.find_provider(provider)?;
 
-        let results = inner(provider, sublist_id.as_ref()).await?;
+        let results = inner(provider, sublist_id.as_ref(), provider.provider()).await?;
 
         // We persist any and all products for the sake of easing custom list searches.
         let mut guard = self.cache.lock().await;
