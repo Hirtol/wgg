@@ -1,4 +1,4 @@
-query getAllPromotions {
+query getAllPromotions($search: String!) {
     proPromotions(provider: PICNIC) {
         id
         name
@@ -8,7 +8,7 @@ query getAllPromotions {
             }
         }
     }
-    proSearchAll(query: "sun") {
+    proSearchAll(query: $search) {
         ...ProductCardFragment
     }
 }

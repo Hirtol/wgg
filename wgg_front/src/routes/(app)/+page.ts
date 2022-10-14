@@ -4,7 +4,11 @@ import { PageLoad } from './$types';
 
 export const load: PageLoad = async (event) => {
     const { client } = await event.parent();
-    const {store} = await asyncQueryStore({ query: GetAllPromotionsDocument, client: client });
+    const { store } = await asyncQueryStore({
+        query: GetAllPromotionsDocument,
+        client: client,
+        variables: { search: '' }
+    });
     return {
         result: store
     };

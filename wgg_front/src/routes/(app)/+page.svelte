@@ -1,28 +1,51 @@
 <script lang="ts">
     import { page } from '$app/stores';
-    import { getContextClient } from '$lib/api/urql';
+    import { GetAllPromotionsDocument } from '$lib/api/graphql_types';
+    import { asyncQueryStore, getContextClient } from '$lib/api/urql';
     import AddComponent from '$lib/components/product_list/AddComponent.svelte';
     import ProductList from '$lib/components/product_list/ProductList.svelte';
     import { LightSwitch } from '@brainandbones/skeleton';
+    import { Search } from 'flowbite-svelte';
     import type { PageData } from './$types';
-
-    export let data: PageData;
 
     const client = getContextClient();
 
+    export let data: PageData;
+
+    let searchText: string;
+
     $: ({ result } = data);
-    $: ({ cart } = $page.data)
+    $: ({ cart } = $page.data);
 
     $: firstItem = $result.data?.proPromotions[0].limitedItems;
     $: searchItems = $result.data?.proSearchAll;
+
+    async function newStuff(text: string) {
+        data.result = (
+            await asyncQueryStore({
+                query: GetAllPromotionsDocument,
+                client: client,
+                variables: { search: text }
+            })
+        ).store;
+    }
 </script>
 
+<svelte:head>
+    <title>Wgg - Home</title>
+</svelte:head>
+
 <LightSwitch />
+
+<form on:submit|preventDefault={async () => await newStuff(searchText)}>
+    <input type="search" bind:value={searchText} placeholder="Product Text" />
+    <button class="btn rounded bg-accent-600" on:click={async () => await newStuff(searchText)}>Search</button>
+</form>
 
 {#if $cart}
     <p>Cart Funds:</p>
     {#each $cart.tallies as tally (tally.provider)}
-         <p>{tally.provider} - {tally.priceCents}</p>
+        <p>{tally.provider} - {tally.priceCents}</p>
     {/each}
 {/if}
 

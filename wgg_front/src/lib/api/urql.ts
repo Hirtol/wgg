@@ -50,6 +50,8 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     SaleValidity: () => null,
                     PrepTime: () => null,
                     AllergyTags: () => null,
+                    NutritionalItem: () => null,
+                    ItemInfo: () => null,
                     ProviderInfo: (x) => (x as ProviderInfo).provider
                 },
                 updates: {

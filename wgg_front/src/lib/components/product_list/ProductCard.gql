@@ -43,6 +43,7 @@ fragment ProductCardFragment on WggSearchProduct {
             explanationShort
             explanationLong
             replacements {
+                id
                 name
                 imageUrl
             }
