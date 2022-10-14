@@ -6,6 +6,8 @@ pub enum ApiError {
     LoginFailed(String),
     #[error("The requested resource did not exist")]
     NotFound,
+    #[error("Can't request an empty search query")]
+    EmptySearch,
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]

@@ -116,6 +116,10 @@ impl PicnicApi {
     ///
     /// Note that the last `item` in [crate::models::SearchResult] will always be a [crate::models::SearchItem::ItemSuggestionDialog].
     pub async fn search(&self, query: impl AsRef<str>) -> Result<Vec<SearchResult>> {
+        if query.as_ref().is_empty() {
+            return Err(ApiError::EmptySearch);
+        }
+
         let response = self.get("/search", &[("search_term", query.as_ref())]).await?;
 
         Ok(response.json().await?)
