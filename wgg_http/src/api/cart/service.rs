@@ -3,6 +3,7 @@ use crate::db;
 use crate::db::Id;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, TransactionTrait};
 use std::collections::HashMap;
+use std::ops::{Add, AddAssign};
 use wgg_providers::models::{CentPrice, Provider};
 
 /// Calculate the total tally of the given cart for all providers that are part of that cart.
@@ -11,7 +12,7 @@ pub async fn calculate_tallies(
     db: &impl TransactionTrait,
     cart_id: Id,
     state: &State,
-) -> GraphqlResult<HashMap<Provider, CentPrice>> {
+) -> GraphqlResult<HashMap<Provider, TallyPriceInfo>> {
     let tx = db.begin().await?;
     let mut result = HashMap::with_capacity(state.db_providers.len());
 
@@ -33,7 +34,12 @@ pub async fn calculate_tallies(
             .search_product_by_id(provider, &product.provider_product)
             .await?;
 
-        let new_tally = product.quantity as u32 * search_product.display_price;
+        let new_tally = TallyPriceInfo {
+            full_price: search_product.full_price,
+            display_price: product.quantity as u32 * search_product.display_price,
+            discount: search_product.full_price - search_product.display_price,
+        };
+
         result
             .entry(provider)
             .and_modify(|tally| *tally += new_tally)
@@ -48,7 +54,12 @@ pub async fn calculate_tallies(
                 .search_product_by_id(provider, &product.provider_ingr_id)
                 .await?;
 
-            let new_tally = agg_ingredient.quantity as u32 * search_product.display_price;
+            let new_tally = TallyPriceInfo {
+                full_price: search_product.full_price,
+                display_price: agg_ingredient.quantity as u32 * search_product.display_price,
+                discount: search_product.full_price - search_product.display_price,
+            };
+
             result
                 .entry(provider)
                 .and_modify(|tally| *tally += new_tally)
@@ -57,4 +68,31 @@ pub async fn calculate_tallies(
     }
 
     Ok(result)
+}
+
+#[derive(Copy, Clone)]
+pub struct TallyPriceInfo {
+    pub full_price: CentPrice,
+    pub display_price: CentPrice,
+    pub discount: CentPrice,
+}
+
+impl Add for TallyPriceInfo {
+    type Output = TallyPriceInfo;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            full_price: self.full_price + rhs.full_price,
+            display_price: self.display_price + rhs.display_price,
+            discount: self.discount + rhs.discount,
+        }
+    }
+}
+
+impl AddAssign for TallyPriceInfo {
+    fn add_assign(&mut self, rhs: Self) {
+        self.full_price += rhs.full_price;
+        self.display_price += rhs.display_price;
+        self.discount += rhs.discount;
+    }
 }

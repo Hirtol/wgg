@@ -16,6 +16,7 @@ pub struct Model {
     pub cart_id: i32,
     pub provider_id: i32,
     pub price_cents: i32,
+    pub discount: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveColumn)]
@@ -23,6 +24,7 @@ pub enum Column {
     CartId,
     ProviderId,
     PriceCents,
+    Discount,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DerivePrimaryKey)]
@@ -51,6 +53,7 @@ impl ColumnTrait for Column {
             Self::CartId => ColumnType::Integer.def(),
             Self::ProviderId => ColumnType::Integer.def(),
             Self::PriceCents => ColumnType::Integer.def(),
+            Self::Discount => ColumnType::Integer.def(),
         }
     }
 }

@@ -76,7 +76,10 @@ async fn initialise_database(db_path: &Path) -> anyhow::Result<()> {
         .connect_with(options)
         .await?;
 
-    Ok(sqlx::migrate!("../migrations").run(&pool).await?)
+    Ok(sqlx::migrate::Migrator::new(Path::new("../migrations"))
+        .await?
+        .run(&pool)
+        .await?)
 }
 
 fn database_url(db_path: &Path) -> String {

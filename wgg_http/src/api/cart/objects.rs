@@ -61,7 +61,11 @@ impl UserCart {
 
             Ok(tallies
                 .into_iter()
-                .map(|(provider, price)| CartTally::Current { provider, price })
+                .map(|(provider, info)| CartTally::Current {
+                    provider,
+                    price: info.display_price,
+                    discount: info.discount,
+                })
                 .collect())
         }
     }
@@ -211,14 +215,25 @@ impl CartAggregateProduct {
 #[derive(Clone, Debug)]
 pub enum CartTally {
     Historical(db::cart_tally::Model),
-    Current { provider: Provider, price: CentPrice },
+    Current {
+        provider: Provider,
+        price: CentPrice,
+        discount: CentPrice,
+    },
 }
 
 #[async_graphql::Object]
 impl CartTally {
-    pub async fn price_cents(&self) -> u32 {
+    pub async fn full_price_cents(&self) -> CentPrice {
         match self {
-            CartTally::Historical(model) => model.price_cents as u32,
+            CartTally::Historical(model) => (model.price_cents + model.discount) as CentPrice,
+            CartTally::Current { discount, price, .. } => (discount + price),
+        }
+    }
+
+    pub async fn price_cents(&self) -> CentPrice {
+        match self {
+            CartTally::Historical(model) => model.price_cents as CentPrice,
             CartTally::Current { price, .. } => *price,
         }
     }
@@ -231,6 +246,13 @@ impl CartTally {
                 state.provider_from_id(model.provider_id)
             }
             CartTally::Current { provider, .. } => *provider,
+        }
+    }
+
+    pub async fn discount_cents(&self) -> CentPrice {
+        match self {
+            CartTally::Historical(model) => model.discount as CentPrice,
+            CartTally::Current { discount, .. } => *discount,
         }
     }
 }
