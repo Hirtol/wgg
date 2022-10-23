@@ -37,7 +37,7 @@ module.exports = plugin(() => {}, {
 function createColorExtensions() {
     let cssContent = fs.readFileSync(themeUsed);
     let css = postcss.parse(cssContent.toString());
-    let colorNodes = css.root().nodes[0].nodes;
+    let colorNodes = css.root().nodes.filter((x) => x.selector == ':root')[0].nodes;
     let nodes = colorNodes.filter((node) => (node.prop ? node.prop.includes('--color-') : false));
     // Split on `-`, get the name of the color variable (e.g, `primary`), then create a unique set
     let keyFields = new Set(nodes.map((item) => item.prop.split('-')[3]));

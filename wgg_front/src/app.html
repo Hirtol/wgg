@@ -12,6 +12,7 @@
         %sveltekit.head%
     </head>
     <body data-sveltekit-prefetch>
-        %sveltekit.body%
+        <!-- Needed due to: https://github.com/sveltejs/kit/issues/6244#issuecomment-1226600661 -->
+        <div class="h-full overflow-hidden">%sveltekit.body%</div>
     </body>
 </html>
