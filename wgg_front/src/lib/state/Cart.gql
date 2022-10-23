@@ -27,6 +27,8 @@ fragment CartFragment on UserCart {
     }
     tallies {
         priceCents
+        fullPriceCents
+        discountCents
         provider
     }
     completedAt

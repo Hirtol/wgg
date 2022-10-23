@@ -112,7 +112,8 @@
     }
 </script>
 
-<div class="card flex h-full flex-row overflow-hidden !bg-surface-50 p-2 transition-all dark:!bg-surface-700/75">
+<div
+    class="card flex h-full flex-row justify-between overflow-hidden !bg-surface-50 p-2 transition-all dark:!bg-surface-700/75">
     <!-- Left -->
     <div class="flex flex-row items-center justify-start gap-2">
         <AddComponent quantity={data.quantity} on:setQuantity={async (e) => await updateCartContent(e.detail)} />
@@ -144,7 +145,7 @@
     </div>
 
     <!-- Right -->
-    <div class="ml-auto flex flex-row">
+    <div class="flex flex-row">
         {#if priceData != undefined}
             <PriceComponent
                 dashed={unavailableReason != undefined}
