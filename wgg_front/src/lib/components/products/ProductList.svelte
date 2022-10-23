@@ -9,7 +9,7 @@
     export let columns = ['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'xl:grid-cols-5', '2xl:grid-cols-6'];
 </script>
 
-<div class="grid gap-0.5 md:gap-4 {columns.join(' ')}">
+<div class="grid gap-0.5 md:gap-2 {columns.join(' ')}">
     {#each data as card (card.id)}
         <ProductCard
             data={card}

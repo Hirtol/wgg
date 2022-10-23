@@ -3,6 +3,8 @@
 
     export {className as class};
 
+    export let title: string | undefined = undefined;
+
     export let blurImage: boolean = false;
 
     export let data: { imageUrl?: string; name: string };
@@ -21,4 +23,5 @@
     loading="lazy"
     class={classes}
     class:opacity-20={blurImage}
+    {title}
     alt={data.name} />

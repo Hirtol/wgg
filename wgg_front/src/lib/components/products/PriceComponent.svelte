@@ -4,6 +4,8 @@
 
     export let data: { displayPrice: number; fullPrice: number };
 
+    export let dashed: boolean = false;
+
     $: classes = classNames($$restProps.class, 'block');
     $: hasSale = data.displayPrice == data.fullPrice;
     $: displayPrice = centsToTextPrice(data.displayPrice);
@@ -11,12 +13,16 @@
 </script>
 
 <div class={classes}>
-    <h4>
+    <h4 class:line-through={dashed}>
         {#if !hasSale}
             <span class="inline-block text-gray-500 line-through dark:text-gray-400">{fullPrice}</span>
         {/if}
 
-        <span class="inline-block" class:text-warning-700={!hasSale} class:dark:text-warning-600={!hasSale}>
+        <span
+            class="inline-block"
+            class:text-warning-700={!hasSale}
+            class:dark:text-warning-600={!hasSale}
+            class:line-through={dashed}>
             {displayPrice}
         </span>
     </h4>

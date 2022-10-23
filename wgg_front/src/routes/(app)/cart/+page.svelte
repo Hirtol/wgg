@@ -6,10 +6,9 @@
 
     export let data: PageData;
 
-    $: ({ cart } = $page.data);
+    $: cart = data.result;
 </script>
 
 <PageRoot>
-    <p>Cart Page</p>
-    <CartProductList data={$cart?.contents ?? []}></CartProductList>
+    <CartProductList data={$cart.data?.cartCurrent.contents ?? []}></CartProductList>
 </PageRoot>

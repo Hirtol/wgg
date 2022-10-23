@@ -115,7 +115,7 @@
 <div class="card flex h-full flex-row overflow-hidden !bg-surface-50 p-2 transition-all dark:!bg-surface-700/75">
     <!-- Left -->
     <div class="flex flex-row items-center justify-start gap-2">
-        <AddComponent quantity={data.quantity} on:setQuantity={async (e) => updateCartContent(e.detail)} />
+        <AddComponent quantity={data.quantity} on:setQuantity={async (e) => await updateCartContent(e.detail)} />
         <!-- Images -->
         <div class="flex h-16 min-w-[4rem] content-center items-center">
             {#if imageData != undefined}
@@ -127,10 +127,18 @@
             {/if}
         </div>
 
+        <!-- Title/Sale/Unavailable -->
         <svelte:element this={productUrl != undefined ? 'a' : 'div'} class="unstyled flex flex-col" href={productUrl}>
             <h6 class="line-clamp-2">{cardTitle}</h6>
+
             {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
                 <span class="badge w-min bg-primary-300 dark:bg-primary-800">{saleLabel.text}</span>
+            {/if}
+
+            {#if unavailableReason != undefined && unavailableReason.__typename == 'UnavailableItem'}
+                <h6 class="text-xs text-black/70 line-clamp-2 dark:text-white/70">
+                    {unavailableReason.explanationShort}
+                </h6>
             {/if}
         </svelte:element>
     </div>
@@ -138,7 +146,10 @@
     <!-- Right -->
     <div class="ml-auto flex flex-row">
         {#if priceData != undefined}
-            <PriceComponent data={priceData} class="mt-auto whitespace-nowrap" />
+            <PriceComponent
+                dashed={unavailableReason != undefined}
+                data={priceData}
+                class="mt-auto whitespace-nowrap" />
         {/if}
     </div>
 </div>

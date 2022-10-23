@@ -1,20 +1,14 @@
 <script lang="ts">
-    import {
-        ProductCardFragment,
-        Provider,
-        RemoveProductFromCartDocument,
-        SetProductToCartDocument
-    } from '$lib/api/graphql_types';
-    import { asyncMutationStore, getContextClient } from '$lib/api/urql';
+    import { ProductCardFragment, Provider } from '$lib/api/graphql_types';
+    import { getContextClient } from '$lib/api/urql';
     import { setCartContent } from '$lib/state';
-    import { centsToPrice, centsToTextPrice, unitToText } from '$lib/utils';
-    import { tooltip } from '@brainandbones/skeleton';
+    import { centsToTextPrice, unitToText } from '$lib/utils';
     import { Information } from 'carbon-icons-svelte';
     import classNames from 'classnames';
-    import { notifications } from '../notifications/notification';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
     import ProductImage from './ProductImage.svelte';
+    import SaleLabel from './SaleLabel.svelte';
 
     export let data: ProductCardFragment;
 
@@ -34,7 +28,7 @@
 
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         quantity = newQuantity;
-        await setCartContent({productId, provider, quantity, __typename: "RawProduct"}, client);
+        await setCartContent({ productId, provider, quantity, __typename: 'RawProduct' }, client);
     }
 </script>
 
@@ -58,6 +52,7 @@
         <a class="unstyled text-base font-bold line-clamp-2 md:text-xl" title={data.name} href={productUrl}
             >{data.name}</a>
 
+        <!-- Quantity and Add/Remove -->
         <div class="text-s flex text-gray-500 dark:text-gray-400">
             <h6 class="text-s flex text-gray-500 line-clamp-1 dark:text-gray-400">
                 {data.unitQuantity.amount}
@@ -74,11 +69,13 @@
                 on:setQuantity={(e) => updateCartContent(data.id, data.providerInfo.provider, e.detail)} />
         </div>
 
+        <!-- Sale Label -->
         {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-            <span class="badge bg-primary-300 dark:bg-primary-800">{saleLabel.text}</span>
+            <SaleLabel text={saleLabel.text} />
         {/if}
     </div>
 
+    <!-- Footer/Price -->
     <div class="footer mt-auto justify-end pt-1">
         <div class="relative flex flex-row items-center justify-between">
             <a href={productUrl} title={data.name} class="unstyled">
