@@ -5,7 +5,7 @@ documents:
     - './src/**/*.gql'
 config:
     scalars:
-        NaiveDateTime: Date
+        DateTime: Date
 generates:
     ./src/lib/api/graphql_types.ts:
         plugins:

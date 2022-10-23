@@ -41,12 +41,13 @@
         timeoutId = window.setTimeout(() => (isExpanded = false), expandedDuration);
     }
 
-    function setQuantity(quantity: number) {
+    function setQuantity(quantityNew: number) {
         if (!permanentlyExpanded) {
             setExpanded();
         }
 
-        dispatch('setQuantity', quantity);
+        // quantity = quantityNew;
+        dispatch('setQuantity', quantityNew);
     }
 </script>
 

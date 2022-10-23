@@ -2,7 +2,7 @@
     import { goto } from '$app/navigation';
     import { getContextClient } from '$lib/api/urql';
     import WggNavbar from '$lib/components/navbar/WggNavbar.svelte';
-    import PageRoot from '$lib/components/PageRoot.svelte';
+    import OutroBlocker from '$lib/components/OutroBlocker.svelte';
     import { authSession, logoutUser } from '$lib/state';
 
     const client = getContextClient();
@@ -14,10 +14,14 @@
     }
 </script>
 
-<PageRoot>
-    {#if $authSession}
-        <WggNavbar user={$authSession} on:logout={logout} />
-    {/if}
+<!-- Block outro transitions when dismounting the page -->
+<OutroBlocker>
+    <!-- Show scroll-bar for main app content -->
+    <main class="overflow-auto">
+        {#if $authSession}
+            <WggNavbar user={$authSession} on:logout={logout} />
+        {/if}
 
-    <slot />
-</PageRoot>
+        <slot />
+    </main>
+</OutroBlocker>

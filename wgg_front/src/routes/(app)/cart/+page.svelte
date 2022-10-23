@@ -1,7 +1,15 @@
 <script lang="ts">
+    import { page } from '$app/stores';
+    import PageRoot from '$lib/components/PageRoot.svelte';
     import type { PageData } from './$types';
+    import CartProductList from './CartProductList.svelte';
 
     export let data: PageData;
+
+    $: ({ cart } = $page.data);
 </script>
 
-<p>Cart Page</p>
+<PageRoot>
+    <p>Cart Page</p>
+    <CartProductList data={$cart?.contents ?? []}></CartProductList>
+</PageRoot>

@@ -1,9 +1,3 @@
-<script lang="ts">
-    import OutroBlocker from './OutroBlocker.svelte';
-</script>
-
-<OutroBlocker>
-    <main class="overflow-auto">
-        <slot />
-    </main>
-</OutroBlocker>
+<main class="container mx-auto px-0.5 md:px-0">
+    <slot/>
+</main>

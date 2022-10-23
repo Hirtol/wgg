@@ -6,6 +6,7 @@
         SetProductToCartDocument
     } from '$lib/api/graphql_types';
     import { asyncMutationStore, getContextClient } from '$lib/api/urql';
+    import { setCartContent } from '$lib/state';
     import { centsToPrice, centsToTextPrice, unitToText } from '$lib/utils';
     import { tooltip } from '@brainandbones/skeleton';
     import { Information } from 'carbon-icons-svelte';
@@ -13,6 +14,7 @@
     import { notifications } from '../notifications/notification';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
+    import ProductImage from './ProductImage.svelte';
 
     export let data: ProductCardFragment;
 
@@ -30,50 +32,15 @@
 
     $: unavailableReason = data.decorators.find((u) => u.__typename == 'UnavailableItem');
 
-    async function setCartContent(productId: string, provider: Provider, newQuantity: number) {
+    async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         quantity = newQuantity;
-        if (quantity != 0) {
-            // We should set the item quantity.
-            let _ = await asyncMutationStore({
-                query: SetProductToCartDocument,
-                variables: {
-                    input: {
-                        rawProduct: {
-                            productId,
-                            provider,
-                            quantity
-                        }
-                    }
-                },
-                client
-            });
-        } else {
-            // We should remove the item
-            let _ = await asyncMutationStore({
-                query: RemoveProductFromCartDocument,
-                variables: {
-                    input: {
-                        rawProduct: {
-                            productId,
-                            provider
-                        }
-                    }
-                },
-                client
-            });
-        }
+        await setCartContent({productId, provider, quantity, __typename: "RawProduct"}, client);
     }
 </script>
 
 <div class={classes}>
     <header class="relative mx-auto">
-        <img
-            src={data.imageUrl}
-            draggable="false"
-            loading="lazy"
-            class="aspect-video h-[15vh] w-full cursor-pointer object-contain hover:object-scale-down md:h-[12vh]"
-            class:opacity-20={!data.available}
-            alt={data.name} />
+        <ProductImage {data} blurImage={!data.available} />
 
         {#if !data.available && unavailableReason?.__typename == 'UnavailableItem'}
             <p class="absolute bottom-0 left-0 w-full !text-warning-600 line-clamp-2 dark:!text-warning-300">
@@ -104,7 +71,7 @@
             <AddComponent
                 class="ml-auto inline-block !h-6"
                 {quantity}
-                on:setQuantity={(e) => setCartContent(data.id, data.providerInfo.provider, e.detail)} />
+                on:setQuantity={(e) => updateCartContent(data.id, data.providerInfo.provider, e.detail)} />
         </div>
 
         {#if saleLabel && saleLabel.__typename == 'SaleLabel'}

@@ -1,9 +1,26 @@
-import { CartCurrentQueryDocument, CartFragment, Provider } from '$lib/api/graphql_types';
-import { Client, queryStore } from '$lib/api/urql';
+import {
+    AggregateProductInput,
+    CartCurrentQueryDocument,
+    CartFragment,
+    NoteProductInput,
+    Provider,
+    RawProductInput,
+    RemoveProductFromCartDocument,
+    RemoveRawProductInput,
+    SetProductToCartDocument
+} from '$lib/api/graphql_types';
+import { asyncMutationStore, Client, queryStore } from '$lib/api/urql';
 import { derived, Readable } from 'svelte/store';
 
 export type ProductId = string;
 export type CartStore = Readable<CartData | undefined>;
+
+export interface CartData extends CartFragment {
+    /**
+     * Returns the quantity of this product that is present in this cart.
+     */
+    getProductQuantity(provider: Provider, productId: ProductId): QuantityInfo[];
+}
 
 /**
  * Initialise the global cart store, returns it to be passed to $page.data
@@ -27,8 +44,58 @@ export function initialiseCart(client: Client): CartStore {
     });
 }
 
-export interface CartData extends CartFragment {
-    getProductQuantity(provider: Provider, productId: ProductId): QuantityInfo[];
+/**
+ * Set (or delete if `newQuantity == 0`) the provided product into the cart.
+ */
+export async function setCartContent(
+    productInput: RawProductInput & { __typename: 'RawProduct' } | AggregateProductInput & { __typename: 'Aggregate' } | NoteProductInput & { __typename: 'Note' },
+    client: Client
+) {
+    if (productInput.quantity != 0) {
+        // We should set the item quantity.
+        const input = {
+            rawProduct:  productInput.__typename == "RawProduct" ? {
+                productId: productInput.productId,
+                provider: productInput.provider,
+                quantity: productInput.quantity
+            } : undefined,
+            aggregate: productInput.__typename == "Aggregate" ? {
+                aggregateId: productInput.aggregateId,
+                quantity: productInput.quantity,
+            } : undefined,
+            notes: productInput.__typename == "Note" ? {
+                id: productInput.id,
+                content: productInput.content,
+                quantity: productInput.quantity
+            } : undefined
+        };
+
+        const _ = await asyncMutationStore({
+            query: SetProductToCartDocument,
+            variables: {
+                input
+            },
+            client
+        });
+    } else {
+        // We should remove the item
+        const input = {
+            rawProduct: productInput.__typename == "RawProduct" ? {
+                productId: productInput.productId,
+                provider: productInput.provider
+            } : undefined,
+            aggregate: productInput.__typename == "Aggregate" ? productInput.aggregateId : undefined,
+            notes: productInput.__typename == "Note" && productInput.id ? productInput.id : undefined
+        };
+    
+        const _ = await asyncMutationStore({
+            query: RemoveProductFromCartDocument,
+            variables: {
+                input
+            },
+            client
+        });
+    }
 }
 
 export interface QuantityInfo {
@@ -67,70 +134,3 @@ function getProductQuantityImpl(cart: CartFragment, provider: Provider, productI
 
     return results;
 }
-
-// export interface CartStore extends Readable<CartFragment> {
-//     send(notification: Notification): void;
-
-//     remove(i: number): void;
-
-//     error(msg: string, title?: string, timeout?: number): void;
-
-//     warning(msg: string, title?: string, timeout?: number): void;
-
-//     info(msg: string, title?: string, timeout?: number): void;
-
-//     success(msg: string, title?: string, timeout?: number): void;
-// }
-
-// function createNotificationStore(): NotificationStore {
-//     const backing_store: Writable<Notification[]> = writable([]);
-
-//     const send = (notification: Notification) => {
-//         backing_store.update((state) => {
-//             return [...state, notification];
-//         });
-//     };
-
-//     const remove = (index: number) => {
-//         backing_store.update((state) => {
-//             state.splice(index, 1);
-//             return state;
-//         });
-//     };
-
-//     const derived_notifications: Readable<Notification[]> = derived(backing_store, ($_notifications, set) => {
-//         // Set the value to our normal store's value.
-//         set($_notifications);
-
-//         if ($_notifications.length > 0) {
-//             // Set timeouts one at a time
-//             const timeout = setTimeout(() => {
-//                 backing_store.update((state) => {
-//                     state.shift();
-//                     return state;
-//                 });
-//             }, $_notifications[0].timeToLiveMs);
-
-//             // Clear timeouts in case of destruction
-//             return () => {
-//                 clearTimeout(timeout);
-//             };
-//         }
-//     });
-
-//     const { subscribe } = derived_notifications;
-
-//     return {
-//         subscribe,
-//         send,
-//         remove,
-//         error: (msg: string, title: string = 'Error', timeout: number = NOTIFICATION_TIMEOUT) =>
-//             send(new Notification(NotificationType.Error, msg, title, timeout)),
-//         warning: (msg: string, title: string = 'Warning', timeout: number = NOTIFICATION_TIMEOUT) =>
-//             send(new Notification(NotificationType.Warning, msg, title, timeout)),
-//         info: (msg: string, title: string = 'Info', timeout: number = NOTIFICATION_TIMEOUT) =>
-//             send(new Notification(NotificationType.Info, msg, title, timeout)),
-//         success: (msg: string, title: string = 'Success', timeout: number = NOTIFICATION_TIMEOUT) =>
-//             send(new Notification(NotificationType.Success, msg, title, timeout))
-//     };
-// }

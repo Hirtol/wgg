@@ -2,10 +2,9 @@
     import { page } from '$app/stores';
     import { GetAllPromotionsDocument } from '$lib/api/graphql_types';
     import { asyncQueryStore, getContextClient } from '$lib/api/urql';
-    import AddComponent from '$lib/components/product_list/AddComponent.svelte';
-    import ProductList from '$lib/components/product_list/ProductList.svelte';
+    import AddComponent from '$lib/components/products/AddComponent.svelte';
+    import ProductList from '$lib/components/products/ProductList.svelte';
     import { LightSwitch } from '@brainandbones/skeleton';
-    import { Search } from 'flowbite-svelte';
     import type { PageData } from './$types';
 
     const client = getContextClient();

@@ -29,7 +29,7 @@
                     iconBgColor={notification.bgColorClass}
                     color={notification.color}
                     on:click={() => notifications.remove(i)}
-                    class="bg-surface-800">
+                    class="bg-surface-300 dark:bg-surface-800">
                     <svelte:fragment slot="icon">
                         <svelte:component this={icons[notification.type]} />
                     </svelte:fragment>
