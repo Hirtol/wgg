@@ -2,7 +2,7 @@ use crate::api::cart::UserCart;
 use crate::api::error::GraphqlError;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
 use crate::db;
-use crate::db::Id;
+use crate::db::{Id, IntoActiveValueExt};
 use async_graphql::Context;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{
@@ -43,14 +43,14 @@ impl CartMutation {
             }
 
             let to_insert = ActiveModel {
-                id: ActiveValue::NotSet,
+                id: note.id.into_flattened_active_value(),
                 cart_id: cart.id.into_active_value(),
                 note: note.content.into_active_value(),
                 quantity: (note.quantity as i32).into_active_value(),
                 created_at: ActiveValue::NotSet,
             };
 
-            let _ = to_insert.insert(&tx).await?;
+            let _ = to_insert.save(&tx).await?;
         }
         if let Some(raw) = input.raw_product {
             use db::cart_contents::raw_product::*;
@@ -232,6 +232,9 @@ pub struct RemoveRawProductInput {
 
 #[derive(Debug, async_graphql::InputObject)]
 pub struct NoteProductInput {
+    /// If the note already exists and you want to update it then set this Id,
+    /// otherwise a new note will be created based on `content`.
+    pub id: Option<Id>,
     pub content: String,
     pub quantity: u32,
 }

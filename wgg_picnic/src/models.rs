@@ -356,7 +356,7 @@ pub struct PriceInfo {
     pub price_color: Option<String>,
     /// Original price in case the item has a sale, `None` otherwise.
     pub original_price: Option<u32>,
-    pub deposit: Option<String>,
+    pub deposit: Option<u32>,
     /// Contains information like `€3.99/kg`
     pub base_price_text: Option<String>,
 }
@@ -566,7 +566,7 @@ pub struct Order {
     pub checkout_total_price: i64,
     pub total_savings: i64,
     /// Only available once the total price exceeds the minimum (at the moment, 35,- euros) quantity.
-    pub total_deposit: Option<i64>,
+    pub total_deposit: Option<u32>,
     /// Only available once the order has been placed.
     pub cancellable: Option<bool>,
     /// Only available once the order has been placed, and cancelled.
