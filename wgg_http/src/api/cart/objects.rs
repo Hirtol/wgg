@@ -8,7 +8,7 @@ use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
-use wgg_providers::models::{CentPrice, Provider, WggSearchProduct};
+use wgg_providers::models::{CentPrice, Provider, ProviderInfo, WggSearchProduct};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -227,7 +227,7 @@ impl CartTally {
     pub async fn full_price_cents(&self) -> CentPrice {
         match self {
             CartTally::Historical(model) => (model.price_cents + model.discount) as CentPrice,
-            CartTally::Current { discount, price, .. } => (discount + price),
+            CartTally::Current { discount, price, .. } => discount + price,
         }
     }
 
@@ -238,14 +238,19 @@ impl CartTally {
         }
     }
 
-    pub async fn provider(&self, ctx: &Context<'_>) -> Provider {
-        match self {
+    pub async fn provider_info(&self, ctx: &Context<'_>) -> ProviderInfo {
+        let provider = match self {
             CartTally::Historical(model) => {
                 let state = ctx.wgg_state();
 
                 state.provider_from_id(model.provider_id)
             }
             CartTally::Current { provider, .. } => *provider,
+        };
+
+        ProviderInfo {
+            provider,
+            logo_url: provider.get_logo_url(),
         }
     }
 

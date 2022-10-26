@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::num::NonZeroUsize;
 use std::time::Duration;
-use tokio::sync::Mutex;
 use wgg_jumbo::BaseJumboApi;
 use wgg_picnic::PicnicApi;
 
@@ -25,7 +24,7 @@ type Result<T> = std::result::Result<T, ProviderError>;
 pub struct WggProvider {
     pub(crate) picnic: Option<PicnicBridge>,
     pub(crate) jumbo: JumboBridge,
-    cache: Mutex<WggProviderCache>,
+    cache: WggProviderCache,
 }
 
 impl WggProvider {
@@ -36,11 +35,11 @@ impl WggProvider {
         WggProvider {
             picnic: None,
             jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
-            cache: Mutex::new(WggProviderCache::new(
+            cache: WggProviderCache::new(
                 Provider::items().iter().map(|i| i.value),
                 NonZeroUsize::new(1000).unwrap(),
                 Duration::from_secs(86400),
-            )),
+            ),
         }
     }
 
@@ -121,10 +120,9 @@ impl WggProvider {
         let result = inner(provider_concrete, query.as_ref(), offset, provider_concrete.provider()).await?;
 
         // We persist any and all products for the sake of easing custom list searches.
-        let mut guard = self.cache.lock().await;
 
         for item in &result.items {
-            guard.insert_search_product(provider, Cow::Borrowed(item));
+            self.cache.insert_search_product(provider, Cow::Borrowed(item));
         }
 
         Ok(result)
@@ -164,10 +162,8 @@ impl WggProvider {
             .ok_or(ProviderError::NothingFound)?;
 
         // We persist any and all products for the sake of easing custom list searches.
-        let mut guard = self.cache.lock().await;
-
         for item in &results.items {
-            guard.insert_search_product(item.provider, Cow::Borrowed(item));
+            self.cache.insert_search_product(item.provider, Cow::Borrowed(item));
         }
 
         Ok(results)
@@ -235,10 +231,8 @@ impl WggProvider {
         let results = inner(provider, sublist_id.as_ref(), provider.provider()).await?;
 
         // We persist any and all products for the sake of easing custom list searches.
-        let mut guard = self.cache.lock().await;
-
         for item in &results.items {
-            guard.insert_search_product(item.provider, Cow::Borrowed(item));
+            self.cache.insert_search_product(item.provider, Cow::Borrowed(item));
         }
 
         Ok(results)
@@ -249,10 +243,11 @@ impl WggProvider {
     /// Note that this `product_id` needs to be obtained from this specific `provider`. Product ids do not cross provider boundaries.
     #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
     pub async fn product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<WggProduct> {
-        let mut guard = self.cache.lock().await;
-
-        self.product_cache_or_network(provider, &product_id.as_ref().to_string(), &mut guard)
-            .await
+        if let Some(item) = self.cache.get_product(provider, product_id.as_ref()) {
+            Ok(item)
+        } else {
+            self.product_network(provider, product_id.as_ref()).await
+        }
     }
 
     /// Retrieve the search product representation of the requested product.
@@ -266,11 +261,11 @@ impl WggProvider {
         product_id: impl AsRef<str>,
     ) -> Result<WggSearchProduct> {
         let id = product_id.as_ref().to_string();
-        let mut guard = self.cache.lock().await;
-        if let Some(item) = guard.get_search_product(provider, &id) {
+
+        if let Some(item) = self.cache.get_search_product(provider, &id) {
             Ok(item)
         } else {
-            Ok(self.product_cache_or_network(provider, &id, &mut guard).await?.into())
+            Ok(self.product_network(provider, &id).await?.into())
         }
     }
 
@@ -287,41 +282,29 @@ impl WggProvider {
         provider: Provider,
         product_ids: impl IntoIterator<Item = impl AsRef<str> + Debug>,
     ) -> Result<Vec<WggSearchProduct>> {
-        let mut guard = self.cache.lock().await;
         let mut result = Vec::with_capacity(2);
 
-        for product in product_ids {
-            let id = product.as_ref().to_string();
-            if let Some(item) = guard.get_search_product(provider, &id) {
+        for id in product_ids {
+            let id = id.as_ref();
+
+            if let Some(item) = self.cache.get_search_product(provider, id) {
                 result.push(item);
             } else {
-                result.push(self.product_cache_or_network(provider, &id, &mut guard).await?.into());
+                result.push(self.product_network(provider, id).await?.into());
             }
         }
 
         Ok(result)
     }
 
-    /// Perform a cache lookup and, upon a cache miss, request the current product.
-    ///
-    /// Takes a mutable reference to the cache to allow this to be called in a loop, without re-acquiring the Mutex
-    /// every time.
-    async fn product_cache_or_network(
-        &self,
-        provider: Provider,
-        product_id: &String,
-        cache: &mut WggProviderCache,
-    ) -> Result<WggProduct> {
-        if let Some(item) = cache.get_product(provider, product_id) {
-            Ok(item)
-        } else {
-            let provider_concrete = self.find_provider(provider)?;
-            let result = provider_concrete.product(product_id).await?;
+    /// Perform a network request for the requested product.
+    async fn product_network(&self, provider: Provider, product_id: &str) -> Result<WggProduct> {
+        let provider_concrete = self.find_provider(provider)?;
+        let result = provider_concrete.product(product_id).await?;
 
-            cache.insert_product(provider, Cow::Borrowed(&result));
+        self.cache.insert_product(provider, Cow::Borrowed(&result));
 
-            Ok(result)
-        }
+        Ok(result)
     }
 
     /// Return a reference to the requested provider.
