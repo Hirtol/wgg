@@ -83,6 +83,8 @@ pub struct AppConfig {
     pub cookie_secret_key: String,
     /// The directory where the front-end is located.
     pub static_dir: PathBuf,
+    /// The directory where the provider product cache is stored between runs
+    pub cache_dir: PathBuf,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -113,6 +115,7 @@ impl Default for AppConfig {
             static_dir: std::env::current_dir()
                 .expect("Can't get current directory")
                 .join("static"),
+            cache_dir: crate::utils::get_app_dirs().config_dir.join("cache"),
         }
     }
 }

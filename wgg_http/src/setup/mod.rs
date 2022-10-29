@@ -22,11 +22,13 @@ use tower_http::trace::TraceLayer;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 
+mod caching;
+
 pub struct Application {
     pub tcp: TcpListener,
     pub config: SharedConfig,
     pub db: DatabaseConnection,
-    pub providers: WggProvider,
+    pub providers: Arc<WggProvider>,
     pub db_providers: BTreeMap<Provider, Id>,
 }
 
@@ -42,7 +44,9 @@ impl Application {
         crate::utils::first_time_setup(&sea_db).await?;
 
         tracing::debug!("Creating Providers...");
-        let mut providers = WggProvider::new();
+        let cache = caching::setup_cache(&config).await;
+        let mut providers = WggProvider::new(cache);
+
         if let Some(auth_token) = config.auth.picnic_auth_token.clone() {
             providers = providers.with_picnic(wgg_providers::PicnicCredentials::new(auth_token, "1".to_string()))
         } else if let Some((username, password)) = config
@@ -62,7 +66,7 @@ impl Application {
             tcp,
             config: Arc::new(ArcSwap::from_pointee(config)),
             db: sea_db,
-            providers,
+            providers: providers.into(),
             db_providers,
         };
 
@@ -77,14 +81,24 @@ impl Application {
     /// * `quitter` - A way to inform the spawned runtime to shut down. Especially useful for tests
     /// where we won't provide a signal for shutdown.
     pub async fn run(self, quitter: Arc<tokio::sync::Notify>) -> anyhow::Result<()> {
-        let app = construct_server(self.db, self.config, self.providers, self.db_providers).await?;
+        tracing::info!("Setup complete, starting server...");
+        let app = construct_server(self.db, self.config.clone(), self.providers.clone(), self.db_providers).await?;
         tracing::info!("Listening on {:?}", self.tcp);
         let server = axum::Server::from_tcp(self.tcp)?.serve(app.into_make_service());
 
         let result = tokio::select! {
             _ = quitter.notified() => Ok(()),
+            res = tokio::signal::ctrl_c() => {
+                tracing::trace!("Received CTRL-C notification, exiting...");
+                // Should notify all dependant sub-processes.
+                quitter.notify_waiters();
+                res.map_err(|e| anyhow::anyhow!(e))
+            },
             res = server => res.map_err(|e| anyhow::anyhow!(e))
         };
+
+        // Persist data cache
+        caching::teardown_cache(self.providers.serialized_cache(), &self.config.load()).await;
 
         result
     }
@@ -97,7 +111,7 @@ impl Application {
 async fn construct_server(
     db: DatabaseConnection,
     config: SharedConfig,
-    providers: WggProvider,
+    providers: Arc<WggProvider>,
     db_providers: BTreeMap<Provider, Id>,
 ) -> anyhow::Result<axum::Router> {
     let cfg: DynGuard<Config> = config.load();
@@ -106,7 +120,7 @@ async fn construct_server(
     let state = State {
         db,
         config,
-        providers: Arc::new(providers),
+        providers,
         db_providers,
     };
     let schema = create_graphql_schema(state.clone(), secret_key.clone());

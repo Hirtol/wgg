@@ -11,6 +11,8 @@ use crate::cache::WggProviderCache;
 use crate::pagination::OffsetPagination;
 pub use error::ProviderError;
 use providers::{JumboBridge, PicnicBridge, ProviderInfo};
+
+pub use crate::cache::SerdeWggCache;
 pub use wgg_picnic::Credentials as PicnicCredentials;
 
 mod cache;
@@ -31,14 +33,15 @@ impl WggProvider {
     /// Create a new collection of providers.
     ///
     /// By default only the `JumboApi` is enabled, see [Self::with_picnic] or [Self::with_picnic_login] to enable `Picnic`.
-    pub fn new() -> Self {
+    pub fn new(cache: Option<SerdeWggCache>) -> Self {
         WggProvider {
             picnic: None,
             jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
             cache: WggProviderCache::new(
+                cache,
+                Duration::from_secs(86400),
                 Provider::items().iter().map(|i| i.value),
                 NonZeroUsize::new(1000).unwrap(),
-                Duration::from_secs(86400),
             ),
         }
     }
@@ -59,6 +62,12 @@ impl WggProvider {
         self.picnic = Some(PicnicBridge::new(picnic));
 
         Ok(self)
+    }
+
+    /// Return a serializable form of the in-memory product cache used for quick responses within the `WggProvider` instance.
+    ///
+    pub fn serialized_cache(&self) -> SerdeWggCache {
+        self.cache.as_serde_cache()
     }
 
     /// Return the currently used [PicnicCredentials], if the Picnic provider has been created.
@@ -322,12 +331,6 @@ impl WggProvider {
     /// Iterate over all providers allowing an action to be performed on all of them
     pub fn iter(&self) -> ProvidersIter<'_> {
         ProvidersIter { providers: self, i: 0 }
-    }
-}
-
-impl Default for WggProvider {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

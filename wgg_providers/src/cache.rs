@@ -1,4 +1,5 @@
 use crate::{Provider, WggProduct, WggSearchProduct};
+use chrono::{DateTime, Utc};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
@@ -9,45 +10,64 @@ use std::time::Duration;
 
 type ProductId = String;
 
-#[derive(Serialize, Deserialize)]
 pub(crate) struct WggProviderCache {
     full_products: WggCacheMap<WggProduct>,
     search_products: WggCacheMap<WggSearchProduct>,
+    ttl: chrono::Duration,
 }
 
 impl WggProviderCache {
     /// Create a new bounded cache instance.
     ///
     /// # Arguments
+    /// * `previous_cache` - Optional previous incarnation of this cache.
     /// * `providers` - All providers for whom we wish to create a product cache.
     /// * `max_products` - The maximum amount of products *for each individual provider* after which the oldest item will be evicted.
     /// * `cache_lifetime` - How long the entries should life in the cache before being evicted.
     pub fn new(
+        previous_cache: Option<SerdeWggCache>,
+        cache_lifetime: Duration,
         providers: impl Iterator<Item = Provider>,
         max_products: NonZeroUsize,
-        cache_lifetime: Duration,
     ) -> Self {
+        let cache = previous_cache.unwrap_or_default();
         let mut result = Self {
-            full_products: WggCacheMap::new(),
-            search_products: WggCacheMap::new(),
+            full_products: cache.full_products,
+            search_products: cache.search_products,
+            ttl: chrono::Duration::from_std(cache_lifetime).unwrap(),
         };
 
         for provider in providers {
-            result.full_products.insert(
-                provider,
+            result.full_products.entry(provider).or_insert_with(|| {
                 moka::sync::CacheBuilder::new(max_products.get() as u64)
                     .time_to_live(cache_lifetime)
-                    .build(),
-            );
-            result.search_products.insert(
-                provider,
+                    .build()
+            });
+            result.search_products.entry(provider).or_insert_with(|| {
                 moka::sync::CacheBuilder::new(max_products.get() as u64)
                     .time_to_live(cache_lifetime)
-                    .build(),
-            );
+                    .build()
+            });
         }
 
         result
+    }
+
+    /// Clones this cache into a new Serializable/Deserializable struct
+    pub fn as_serde_cache(&self) -> SerdeWggCache {
+        SerdeWggCache {
+            full_products: self.full_products.clone(),
+            search_products: self.search_products.clone(),
+        }
+    }
+
+    /// Turns this cache into a new Serializable/Deserializable struct
+    #[allow(dead_code)]
+    pub fn to_serde_cache(self) -> SerdeWggCache {
+        SerdeWggCache {
+            full_products: self.full_products,
+            search_products: self.search_products,
+        }
     }
 
     /// Try to find the provided `product_id`.
@@ -57,36 +77,57 @@ impl WggProviderCache {
     /// Taking `&String` as argument is intentional due to the internal cache API being a little stupid.
     pub fn get_search_product(&self, provider: Provider, product_id: &str) -> Option<WggSearchProduct> {
         let search_cache = self.search_products.get(&provider)?;
-        if let Some(item) = search_cache.get(product_id) {
-            Some(item)
+        if let Some(entry) = search_cache.get(product_id) {
+            if let Some(item) = entry.get_if_valid(self.ttl) {
+                Some(item)
+            } else {
+                // Past the time to live
+                search_cache.invalidate(product_id);
+                None
+            }
         } else {
-            let full_cache = self.full_products.get(&provider)?;
-
-            full_cache.get(product_id).map(|item| item.into())
+            self.get_product(provider, product_id).map(|item| item.into())
         }
     }
 
     pub fn get_product(&self, provider: Provider, product_id: &str) -> Option<WggProduct> {
         let full_cache = self.full_products.get(&provider)?;
+        let entry = full_cache.get(product_id)?;
 
-        full_cache.get(product_id)
+        if let Some(item) = entry.get_if_valid(self.ttl) {
+            Some(item)
+        } else {
+            // Past the time to live
+            full_cache.invalidate(product_id);
+            None
+        }
     }
 
     pub fn insert_search_product(&self, provider: Provider, product: Cow<'_, WggSearchProduct>) -> Option<()> {
         let search_cache = self.search_products.get(&provider)?;
-        search_cache.insert(product.id.clone(), product.into_owned());
+        let to_insert = CacheEntry {
+            entry: product.into_owned(),
+            inserted_at: Utc::now(),
+        };
+
+        search_cache.insert(to_insert.entry.id.clone(), to_insert);
         Some(())
     }
 
     pub fn insert_product(&self, provider: Provider, product: Cow<'_, WggProduct>) -> Option<()> {
         let search_cache = self.full_products.get(&provider)?;
-        search_cache.insert(product.id.clone(), product.into_owned());
+        let to_insert = CacheEntry {
+            entry: product.into_owned(),
+            inserted_at: Utc::now(),
+        };
+
+        search_cache.insert(to_insert.entry.id.clone(), to_insert);
         Some(())
     }
 }
 
 #[derive(Clone)]
-struct WggCacheMap<I>(HashMap<Provider, moka::sync::Cache<ProductId, I>>);
+struct WggCacheMap<I>(HashMap<Provider, moka::sync::Cache<ProductId, CacheEntry<I>>>);
 
 impl<I> WggCacheMap<I> {
     pub fn new() -> Self {
@@ -116,7 +157,8 @@ impl<'de, I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static> WggCa
     where
         D: Deserializer<'de>,
     {
-        let nested_map: HashMap<Provider, HashMap<ProductId, I>> = serde::Deserialize::deserialize(deserializer)?;
+        let nested_map: HashMap<Provider, HashMap<ProductId, CacheEntry<I>>> =
+            serde::Deserialize::deserialize(deserializer)?;
 
         let result = nested_map
             .into_iter()
@@ -145,7 +187,7 @@ impl<'de, I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static> Deser
 }
 
 impl<I> Deref for WggCacheMap<I> {
-    type Target = HashMap<Provider, moka::sync::Cache<ProductId, I>>;
+    type Target = HashMap<Provider, moka::sync::Cache<ProductId, CacheEntry<I>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -155,5 +197,41 @@ impl<I> Deref for WggCacheMap<I> {
 impl<I> DerefMut for WggCacheMap<I> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// We keep track of the `inserted_at` time separately from `moka` as there is no way for us to know the TTL.
+/// This duplicates the timestamp and conversely increase the memory footprint by 12 bytes. :(
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+struct CacheEntry<I> {
+    entry: I,
+    inserted_at: DateTime<Utc>,
+}
+
+impl<I> CacheEntry<I> {
+    /// Return the `entry` value if the entry is still valid given the `ttl`.
+    pub fn get_if_valid(self, ttl: chrono::Duration) -> Option<I> {
+        if self.inserted_at + ttl > Utc::now() {
+            Some(self.entry)
+        } else {
+            // Past the time to live
+            None
+        }
+    }
+}
+
+/// Dummy struct to allow for fine grained serialization
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SerdeWggCache {
+    full_products: WggCacheMap<WggProduct>,
+    search_products: WggCacheMap<WggSearchProduct>,
+}
+
+impl Default for SerdeWggCache {
+    fn default() -> Self {
+        Self {
+            full_products: WggCacheMap::new(),
+            search_products: WggCacheMap::new(),
+        }
     }
 }
