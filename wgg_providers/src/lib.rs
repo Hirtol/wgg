@@ -48,7 +48,8 @@ impl WggProvider {
 
     /// Create a new provider from pre-existing *valid* [wgg_picnic::Credentials].
     pub fn with_picnic(mut self, picnic_credentials: PicnicCredentials) -> Self {
-        self.picnic = PicnicBridge::new(PicnicApi::new(picnic_credentials, Default::default())).into();
+        let rps = providers::PICNIC_RECOMMENDED_RPS;
+        self.picnic = PicnicBridge::new(PicnicApi::new(picnic_credentials, Default::default()), rps).into();
 
         self
     }
@@ -59,7 +60,8 @@ impl WggProvider {
     pub async fn with_picnic_login(mut self, username: &str, password: &str) -> Result<Self> {
         let picnic = PicnicApi::from_login(username, password, Default::default()).await?;
 
-        self.picnic = Some(PicnicBridge::new(picnic));
+        let rps = providers::PICNIC_RECOMMENDED_RPS;
+        self.picnic = Some(PicnicBridge::new(picnic, rps));
 
         Ok(self)
     }

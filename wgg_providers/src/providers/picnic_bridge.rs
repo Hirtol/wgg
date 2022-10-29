@@ -7,22 +7,37 @@ use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
+use governor::clock::DefaultClock;
+use governor::state::{InMemoryState, NotKeyed};
+use governor::{Jitter, Quota};
 use itertools::Itertools;
 use regex::Regex;
 use std::borrow::Cow;
+use std::num::NonZeroU32;
+use std::time::Duration;
 use wgg_picnic::models::{Body, Decorator, ImageSize, PmlComponent, SubCategory, UnavailableReason};
 use wgg_picnic::PicnicApi;
 
 use crate::Result;
 
+pub const PICNIC_RECOMMENDED_RPS: Option<NonZeroU32> = NonZeroU32::new(5);
+const JITTER: Duration = Duration::from_secs(1);
+
 /// A separate bridge struct to allow for easier caching.
 pub(crate) struct PicnicBridge {
     pub api: PicnicApi,
+    limiter: governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
 }
 
 impl PicnicBridge {
-    pub fn new(api: PicnicApi) -> Self {
-        PicnicBridge { api }
+    pub fn new(api: PicnicApi, limit_rps: Option<NonZeroU32>) -> Self {
+        let limiter =
+            governor::RateLimiter::direct(Quota::per_second(limit_rps.unwrap_or(PICNIC_RECOMMENDED_RPS.unwrap())));
+        PicnicBridge { api, limiter }
+    }
+
+    async fn wait_rate_limit(&self) {
+        self.limiter.until_ready_with_jitter(Jitter::up_to(JITTER)).await
     }
 }
 
@@ -48,6 +63,7 @@ impl ProviderInfo for PicnicBridge {
 
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
     async fn autocomplete(&self, query: &str) -> Result<Vec<WggAutocomplete>> {
+        self.wait_rate_limit().await;
         let result = self.api.suggestions(query).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -61,6 +77,7 @@ impl ProviderInfo for PicnicBridge {
 
     #[tracing::instrument(name = "picnic_search", level = "debug", skip(self, _offset))]
     async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
+        self.wait_rate_limit().await;
         let result = self.api.search(query).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -89,6 +106,7 @@ impl ProviderInfo for PicnicBridge {
     }
 
     async fn product(&self, product_id: &str) -> Result<WggProduct> {
+        self.wait_rate_limit().await;
         let result = self.api.product(product_id).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -98,6 +116,7 @@ impl ProviderInfo for PicnicBridge {
     }
 
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
+        self.wait_rate_limit().await;
         let result = self.api.promotions(None, 3).await?;
 
         #[cfg(feature = "trace-original-api")]
@@ -107,6 +126,7 @@ impl ProviderInfo for PicnicBridge {
     }
 
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<WggSearchProduct>> {
+        self.wait_rate_limit().await;
         let result = self.api.promotions(Some(sublist_id), 3).await?;
 
         #[cfg(feature = "trace-original-api")]
