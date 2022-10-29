@@ -149,7 +149,7 @@ impl<'db, C: ConnectionTrait, E: EntityTrait> OffsetPaginator<'db, C, E> {
 pub trait IntoActiveValueExt<V: Into<Value>> {
     /// The default `into_active_value` converts an `Option<T> -> ActiveValue<Option<T>>`.
     ///
-    /// This is undesired for our use-case, where we frequently have optional, updates for non-nullable values (aka, single `Option`)
+    /// This is undesired for our use-case, where we frequently have optional updates for non-nullable values (aka, single `Option`)
     ///
     /// There is probably an existing trait/method which does what we want, but it has yet to be discovered.
     fn into_flattened_active_value(self) -> ActiveValue<V>;
