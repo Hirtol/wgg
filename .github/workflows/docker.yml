@@ -35,12 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions-rs/toolchain@v1
-        id: rust-toolchain
-        with:
-          toolchain: stable
-          profile: default
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Dependencies
         uses: Swatinem/rust-cache@v1.2.0
@@ -84,13 +79,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: wgg_front/package-lock.json
 
-      - uses: actions-rs/toolchain@v1
-        id: rust-toolchain
-        name: Setup Rust Toolchain
-        with:
-          toolchain: stable
-          profile: default
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v1.2.0
