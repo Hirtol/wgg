@@ -1,4 +1,4 @@
-import { authenticateUser, authSession, initialiseCart } from '$lib/state';
+import { authenticateUser, authSession, initialiseRealCart } from '$lib/state';
 import { redirect } from '@sveltejs/kit';
 import { get } from 'svelte/store';
 import type { LayoutLoad } from './$types';
@@ -20,6 +20,6 @@ export const load: LayoutLoad = async (event) => {
 
     // We can safely assume we're authenticated.
     return {
-        cart: initialiseCart(client)
+        cart: initialiseRealCart(client)
     }
 };

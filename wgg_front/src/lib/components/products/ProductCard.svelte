@@ -1,7 +1,7 @@
 <script lang="ts">
     import { ProductCardFragment, Provider } from '$lib/api/graphql_types';
     import { getContextClient } from '$lib/api/urql';
-    import { setCartContent } from '$lib/state';
+    import { CartDataStoreInt } from '$lib/state';
     import { centsToTextPrice, unitToText } from '$lib/utils';
     import { Information } from 'carbon-icons-svelte';
     import classNames from 'classnames';
@@ -11,6 +11,8 @@
     import SaleLabel from './SaleLabel.svelte';
 
     export let data: ProductCardFragment;
+
+    export let cartStore: CartDataStoreInt;
 
     export let quantity: number;
 
@@ -28,7 +30,7 @@
 
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         quantity = newQuantity;
-        await setCartContent({ productId, provider, quantity, __typename: 'RawProduct' }, client);
+        await cartStore.setCartContent({ productId, provider, quantity, __typename: 'RawProduct' }, client);
     }
 </script>
 

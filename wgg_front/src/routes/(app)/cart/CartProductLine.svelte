@@ -10,7 +10,7 @@
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
     import ProductImage from '$lib/components/products/ProductImage.svelte';
-    import { setCartContent } from '$lib/state';
+    import { CartDataStoreInt, setCartContent } from '$lib/state';
     import { centsToPrice, centsToTextPrice, unitToText } from '$lib/utils';
     import { tooltip } from '@brainandbones/skeleton';
     import { Information, Pen } from 'carbon-icons-svelte';
@@ -20,6 +20,7 @@
 
     export { className as class };
     export let data: CartContentFragment;
+    export let cart: CartDataStoreInt;
 
     let className: string = '';
     let quantity: number = data.quantity;
@@ -83,7 +84,7 @@
     async function updateCartContent(newQuantity: number) {
         quantity = newQuantity;
         if (data.__typename == 'CartAggregateProduct') {
-            await setCartContent(
+            await cart.setCartContent(
                 {
                     aggregateId: data.aggregate.id,
                     quantity,
@@ -92,7 +93,7 @@
                 client
             );
         } else if (data.__typename == 'CartProviderProduct') {
-            await setCartContent(
+            await cart.setCartContent(
                 {
                     productId: data.product.id,
                     provider: data.product.providerInfo.provider,
@@ -102,7 +103,7 @@
                 client
             );
         } else if (data.__typename == 'CartNoteProduct') {
-            await setCartContent(
+            await cart.setCartContent(
                 {
                     id: data.id,
                     content: data.note,

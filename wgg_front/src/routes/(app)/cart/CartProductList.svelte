@@ -1,5 +1,6 @@
 <script lang="ts">
     import { CartContentFragment } from '$lib/api/graphql_types';
+    import { CartDataStoreInt } from '$lib/state';
     import classNames from 'classnames';
     import CartProductLine from './CartProductLine.svelte';
 
@@ -7,6 +8,7 @@
     let className: string = '';
 
     export let data: CartContentFragment[];
+    export let cart: CartDataStoreInt;
 
     export let columns = ['grid-cols-1'];
 
@@ -15,6 +17,6 @@
 
 <div class={classes}>
     {#each data as content}
-        <CartProductLine data={content} class="h-full w-full" />
+        <CartProductLine data={content} class="h-full w-full" {cart} />
     {/each}
 </div>

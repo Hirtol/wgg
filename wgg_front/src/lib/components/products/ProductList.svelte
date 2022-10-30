@@ -1,9 +1,10 @@
 <script lang="ts">
     import { ProductCardFragment } from '$lib/api/graphql_types';
-    import { CartData } from '$lib/state';
+    import { CartData, CartDataStoreInt } from '$lib/state';
     import ProductCard from './ProductCard.svelte';
 
     export let data: ProductCardFragment[];
+    export let cartStore: CartDataStoreInt;
     export let cart: CartData;
 
     export let columns = ['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'xl:grid-cols-5', '2xl:grid-cols-6'];
@@ -13,6 +14,7 @@
     {#each data as card (card.id)}
         <ProductCard
             data={card}
+            {cartStore}
             quantity={cart.getProductQuantity(card.providerInfo.provider, card.id)[0]?.quantity ?? 0}
             class="w-full" />
     {/each}
