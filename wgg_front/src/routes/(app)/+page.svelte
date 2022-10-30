@@ -43,8 +43,8 @@
 
 {#if $cart}
     <p>Cart Funds:</p>
-    {#each $cart.tallies as tally (tally.provider)}
-        <p>{tally.provider} - {tally.priceCents}</p>
+    {#each $cart.tallies as tally (tally.providerInfo.provider)}
+        <p>{tally.providerInfo.provider} - {tally.priceCents}</p>
     {/each}
 {/if}
 
@@ -67,7 +67,7 @@
 
 <main class="container mx-auto px-0.5 md:px-0">
     <AddComponent normalButton permanentlyExpanded quantity={0} class="max-w-full" />
-    {#if $cart}
+    {#if $cart && firstItem && searchItems}
         <ProductList cart={$cart} data={firstItem} />
         <!-- {#if firstItem}
                 <ProductCard class="max-w-[15rem]" data={firstItem} />

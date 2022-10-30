@@ -115,7 +115,7 @@
 <div
     class="card flex h-full flex-row justify-between overflow-hidden !bg-surface-50 p-2 transition-all dark:!bg-surface-700/75">
     <!-- Left -->
-    <div class="flex flex-row items-center justify-start gap-2">
+    <div class="flex min-w-0 flex-row items-center justify-start gap-2">
         <AddComponent quantity={data.quantity} on:setQuantity={async (e) => await updateCartContent(e.detail)} />
         <!-- Images -->
         <div class="flex h-16 min-w-[4rem] content-center items-center">
@@ -129,11 +129,14 @@
         </div>
 
         <!-- Title/Sale/Unavailable -->
-        <svelte:element this={productUrl != undefined ? 'a' : 'div'} class="unstyled flex flex-col" href={productUrl}>
+        <svelte:element
+            this={productUrl != undefined ? 'a' : 'div'}
+            class="unstyled flex min-w-0 flex-col"
+            href={productUrl}>
             <h6 class="line-clamp-2">{cardTitle}</h6>
 
             {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-                <span class="badge w-min bg-primary-300 dark:bg-primary-800">{saleLabel.text}</span>
+                <span class="badge w-min min-w-0 bg-primary-300 dark:bg-primary-800">{saleLabel.text}</span>
             {/if}
 
             {#if unavailableReason != undefined && unavailableReason.__typename == 'UnavailableItem'}

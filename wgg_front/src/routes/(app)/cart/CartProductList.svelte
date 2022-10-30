@@ -10,11 +10,11 @@
 
     export let columns = ['grid-cols-1'];
 
-    $: classes = classNames('grid gap-0.5 md:gap-2', columns.join(' '), className);
+    $: classes = classNames('grid gap-0.5 gap-2', columns.join(' '), className);
 </script>
 
 <div class={classes}>
-    {#each data as content ({ id: content.id, __typename: content.__typename })}
+    {#each data as content}
         <CartProductLine data={content} class="w-full" />
     {/each}
 </div>

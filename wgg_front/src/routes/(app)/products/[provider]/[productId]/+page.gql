@@ -1,7 +1,7 @@
 query FullProductQuery($provider: Provider!, $productId: String!) {
-    proProduct(provider:$provider, productId:$productId){
+    proProduct(provider: $provider, productId: $productId) {
         ...FullProductFragment
-	}
+    }
 }
 
 fragment FullProductFragment on WggProduct {
@@ -12,77 +12,77 @@ fragment FullProductFragment on WggProduct {
         textType
     }
     priceInfo {
-    displayPrice
-    originalPrice
-    unitPrice {
-        unit
-        price
-    }
+        displayPrice
+        originalPrice
+        unitPrice {
+            unit
+            price
+        }
     }
     unitQuantity {
-    unit
-    amount
+        unit
+        amount
     }
     available
     imageUrls
-    ingredients{
-    name
+    ingredients {
+        name
     }
     nutritional {
-    infoUnit
-    items {
-        name
-        value
-        subValues {
-        name
-        value
+        infoUnit
+        items {
+            name
+            value
+            subValues {
+                name
+                value
+            }
         }
-    }
     }
     allergyInfo {
-    name
-    contains
+        name
+        contains
     }
     additionalItems {
-    itemType
-    text
-    textType
+        itemType
+        text
+        textType
     }
     decorators {
-    __typename
-    ... on FreshLabel {
-        daysFresh
-    }
-    ... on SaleLabel {
-        text
-    }
-    ... on SaleValidity {
-        validFrom
-        validUntil
-    }
-    ... on SaleDescription {
-        text
-    }
-    ... on UnavailableItem {
-        reason
-        explanationShort
-        explanationLong
-        replacements {
-        ...ProductCardFragment
+        __typename
+        ... on FreshLabel {
+            daysFresh
+        }
+        ... on SaleLabel {
+            text
+        }
+        ... on SaleValidity {
+            validFrom
+            validUntil
+        }
+        ... on SaleDescription {
+            text
+        }
+        ... on UnavailableItem {
+            reason
+            explanationShort
+            explanationLong
+            replacements {
+                ...ProductCardFragment
+            }
+        }
+        ... on PrepTime {
+            timeMinutes
+        }
+        ... on NumberOfServings {
+            amount
+        }
+        ... on MoreButton {
+            images
         }
     }
-    ... on PrepTime {
-        timeMinutes
-    }
-    ... on NumberOfServings {
-        amount
-    }
-    ... on MoreButton {
-        images
-    }
-    }
     providerInfo {
-    provider
-    logoUrl
+        provider
+        logoUrl
     }
 }

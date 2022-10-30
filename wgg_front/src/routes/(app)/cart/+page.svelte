@@ -12,7 +12,7 @@
 
 <PageRoot>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <CartProductList columns={['grid-cols-1', 'md:grid-cols-2']} data={$cart.data?.cartCurrent.contents ?? []} />
+        <CartProductList columns={['grid-cols-1', '2xl:grid-cols-2']} data={$cart.data?.cartCurrent.contents ?? []} />
 
         <div class="card h-min p-4">
             <h4 class="text-center">Overview</h4>
