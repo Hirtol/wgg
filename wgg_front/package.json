@@ -15,7 +15,7 @@
         "codegen": "graphql-codegen --config codegen.yml"
     },
     "devDependencies": {
-        "@brainandbones/skeleton": "^0.50.7",
+        "@brainandbones/skeleton": "^0.56.2",
         "@graphql-codegen/add": "^3.2.1",
         "@graphql-codegen/cli": "2.13.3",
         "@graphql-codegen/typed-document-node": "^2.3.3",

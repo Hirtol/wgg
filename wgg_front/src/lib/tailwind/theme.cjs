@@ -7,8 +7,9 @@ const fs = require('fs');
 const mode = process.env.NODE_ENV;
 const dev = !mode || mode === 'development';
 
-const skeletonThemePath = require.resolve('@brainandbones/skeleton');
-const themeUsed = skeletonThemePath + '/../themes/theme-vintage.css';
+// const skeletonThemePath = require.resolve('@brainandbones/skeleton');
+// const themeUsed = skeletonThemePath + '/../themes/theme-vintage.css';
+const themeUsed = __dirname + '/../../theme.postcss';
 
 module.exports = plugin(() => {}, {
     theme: {

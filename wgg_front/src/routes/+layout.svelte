@@ -1,5 +1,5 @@
 <script lang="ts">
-    import '@brainandbones/skeleton/themes/theme-vintage.css';
+    import '../theme.postcss'
     import '../app.postcss';
     import { afterNavigate, beforeNavigate, prefetchRoutes } from '$app/navigation';
     import { setContextClient } from '$lib/api/urql';

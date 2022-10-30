@@ -13,7 +13,7 @@
     </div>
 
     <!-- Raw discount -->
-    <div class="text-wraning-700 flex flex-row justify-between dark:text-warning-600">
+    <div class="flex flex-row justify-between text-warning-700 dark:text-warning-600">
         <h6 class="self-end">Discount</h6>
         <h5 class="inline-block">-{centsToTextPrice(data.discountCents)}</h5>
     </div>
