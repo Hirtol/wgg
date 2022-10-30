@@ -21,7 +21,7 @@ use wgg_picnic::PicnicApi;
 use crate::Result;
 
 pub const PICNIC_RECOMMENDED_RPS: Option<NonZeroU32> = NonZeroU32::new(5);
-const JITTER: Duration = Duration::from_secs(1);
+const JITTER: Duration = Duration::from_millis(100);
 
 /// A separate bridge struct to allow for easier caching.
 pub(crate) struct PicnicBridge {
