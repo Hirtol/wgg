@@ -52,11 +52,13 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     AllergyTags: () => null,
                     NutritionalItem: () => null,
                     ItemInfo: () => null,
-                    ProviderInfo: (x) => (x as ProviderInfo).provider
+                    ProviderInfo: (x) => (x as ProviderInfo).provider,
+                    IngredientInfo: () => null,
+                    CartTally: () => null
                 },
                 updates: {
                     Mutation: {
-                        logout(result, args, cache, info) {
+                        logout(result, _variables, cache, _info) {
                             cache.invalidate({ __typename: 'AuthContext', id: result.logout as unknown as number });
                         }
                     }
@@ -179,7 +181,7 @@ export type OperationResultStore<Data = any, Variables extends AnyVariables = An
  * @param ids Ids in the form of a single number or an array.
  * @returns An array form of the provided ids
  */
-function numberOrArray(ids: any): number[] {
+function _numberOrArray(ids: any): number[] {
     if (Array.isArray(ids)) {
         return ids;
     } else {

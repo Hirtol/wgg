@@ -21,10 +21,13 @@
     export { className as class };
     export let data: CartContentFragment;
 
-    let className: string;
+    let className: string = '';
     let quantity: number = data.quantity;
 
-    $: classes = classNames('card !bg-surface-50 dark:!bg-surface-700/75 h-full flex flex-row', className);
+    $: classes = classNames(
+        'card flex flex-row justify-between overflow-hidden !bg-surface-50 p-2 transition-all dark:!bg-surface-700/75',
+        className
+    );
     $: productUrl = getProductUrl(data);
     $: imageData = getImageData(data);
     $: cardTitle = getCardTitle(data);
@@ -112,8 +115,7 @@
     }
 </script>
 
-<div
-    class="card flex h-full flex-row justify-between overflow-hidden !bg-surface-50 p-2 transition-all dark:!bg-surface-700/75">
+<div class={classes}>
     <!-- Left -->
     <div class="flex min-w-0 flex-row items-center justify-start gap-2">
         <AddComponent quantity={data.quantity} on:setQuantity={async (e) => await updateCartContent(e.detail)} />
