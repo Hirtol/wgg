@@ -1,4 +1,9 @@
-use crate::models::{AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings, NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct, WggSaleCategory};
+use crate::models::{
+    AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
+    NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity,
+    SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct,
+    WggSaleCategory, WggSaleCategoryComplete,
+};
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
@@ -106,63 +111,97 @@ impl ProviderInfo for JumboBridge {
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Jumbo Promotions: {:#?}", result);
 
-        parse_jumbo_promotions(result)
+        Ok(result
+            .categories
+            .into_iter()
+            .flat_map(|item| item.promotions)
+            .map(parse_jumbo_promotion)
+            .collect())
     }
 
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<WggSearchProduct>> {
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleCategoryComplete> {
         let promo_id = sublist_id.parse()?;
-        let result = self.api.products_promotion(Some(&promo_id), 100, 0).await?.products;
+        let promotion = self.api.promotion(&promo_id);
+        let result = self.api.products_promotion(Some(&promo_id), 100, 0);
+
+        let (promotion, product_list) = futures::try_join!(promotion, result)?;
 
         #[cfg(feature = "trace-original-api")]
-        tracing::trace!("Jumbo Promotion Products: {:#?}", result);
+        tracing::trace!("Jumbo Promotion Products: {:#?}", product_list);
 
-        Ok(OffsetPagination {
-            items: result.data.into_iter().map(parse_jumbo_item_to_search_item).collect(),
-            total_items: result.total as usize,
-            offset: result.offset,
-        })
+        parse_jumbo_promotion_complete(promotion, product_list)
     }
 }
 
-fn parse_jumbo_promotions(promotion: PromotionGroup) -> Result<Vec<WggSaleCategory>> {
-    let result = promotion
-        .categories
+fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleCategory {
+    let mut result = WggSaleCategory {
+        id: promotion.id.into(),
+        name: promotion.title,
+        image_urls: vec![promotion.image.url],
+        limited_items: promotion
+            .products
+            .into_iter()
+            .map(|product| PromotionProduct::ProductId(ProductId { id: product.into() }))
+            .collect(),
+        decorators: vec![],
+        provider: Provider::Jumbo,
+    };
+
+    if let Some(sub) = promotion.subtitle {
+        result
+            .decorators
+            .push(WggDecorator::SaleDescription(SaleDescription { text: sub }));
+    }
+
+    if let Some(tag) = promotion.tags.into_iter().next() {
+        result.decorators.push(WggDecorator::SaleLabel(SaleLabel { text: tag }));
+    }
+
+    result.decorators.push(WggDecorator::SaleValidity(SaleValidity {
+        valid_from: promotion.start_date,
+        valid_until: promotion.end_date,
+    }));
+
+    result
+}
+
+fn parse_jumbo_promotion_complete(
+    promotion: wgg_jumbo::models::Promotion,
+    product_list: wgg_jumbo::models::ProductList,
+) -> Result<WggSaleCategoryComplete> {
+    let items = product_list
+        .products
+        .data
         .into_iter()
-        .flat_map(|item| item.promotions)
-        .map(|item| {
-            let mut result = WggSaleCategory {
-                id: item.id.into(),
-                name: item.title,
-                image_urls: vec![item.image.url],
-                limited_items: item
-                    .products
-                    .into_iter()
-                    .map(|product| PromotionProduct::ProductId(ProductId { id: product.into() }))
-                    .collect(),
-                decorators: vec![],
-                provider: Provider::Jumbo,
-            };
-
-            if let Some(sub) = item.subtitle {
-                result
-                    .decorators
-                    .push(WggDecorator::SaleDescription(SaleDescription { text: sub }));
-            }
-
-            if let Some(tag) = item.tags.into_iter().next() {
-                result.decorators.push(WggDecorator::SaleLabel(SaleLabel { text: tag }));
-            }
-
-            result.decorators.push(WggDecorator::SaleValidity(SaleValidity {
-                valid_from: item.start_date,
-                valid_until: item.end_date,
+        .map(parse_jumbo_item_to_search_item)
+        .map(|mut item| {
+            // As it turns out Jumbo doesn't embed the sale info into the individual sale items,
+            // we have to do this ourselves!.
+            item.decorators.extend(
+                promotion
+                    .tags
+                    .iter()
+                    .map(|text| SaleLabel { text: text.clone() })
+                    .map(WggDecorator::SaleLabel),
+            );
+            item.decorators.push(WggDecorator::SaleValidity(SaleValidity {
+                valid_from: promotion.start_date,
+                valid_until: promotion.end_date,
             }));
 
-            result
-        })
-        .collect();
+            item
+        }).collect();
 
-    Ok(result)
+    let promo = parse_jumbo_promotion(promotion);
+
+    Ok(WggSaleCategoryComplete {
+        id: promo.id,
+        name: promo.name,
+        image_urls: promo.image_urls,
+        items,
+        decorators: promo.decorators,
+        provider: promo.provider,
+    })
 }
 
 fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product) -> WggProduct {
@@ -175,10 +214,10 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
                 .map(|title| format!("{}\n{}", title, product.details_text.as_deref().unwrap_or_default()))
                 .or(product.details_text)
                 .unwrap_or_default();
-            
+
             Description {
                 text,
-                text_type: TextType::PlainText
+                text_type: TextType::PlainText,
             }
         },
         price_info: PriceInfo {

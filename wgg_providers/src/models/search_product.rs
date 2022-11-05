@@ -31,13 +31,7 @@ pub struct WggSearchProduct {
 impl WggSearchProduct {
     /// Grocery store information associated with this item
     async fn provider_info(&self) -> ProviderInfo {
-        ProviderInfo {
-            provider: self.provider,
-            logo_url: match self.provider {
-                Provider::Picnic => PicnicBridge::logo_url(),
-                Provider::Jumbo => JumboBridge::logo_url(),
-            },
-        }
+        self.provider.as_provider_info()
     }
 }
 

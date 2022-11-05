@@ -1,6 +1,8 @@
-use crate::models::{AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, ProviderInfo, TextType, UnitQuantity, WggDecorator};
-use crate::providers::StaticProviderInfo;
-use crate::{JumboBridge, PicnicBridge, Provider};
+use crate::models::{
+    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, ProviderInfo, TextType, UnitQuantity,
+    WggDecorator,
+};
+use crate::Provider;
 use serde::{Deserialize, Serialize};
 
 // ** Full Product **
@@ -49,13 +51,7 @@ pub struct WggProduct {
 impl WggProduct {
     /// Grocery store information associated with this item
     async fn provider_info(&self) -> ProviderInfo {
-        ProviderInfo {
-            provider: self.provider,
-            logo_url: match self.provider {
-                Provider::Picnic => PicnicBridge::logo_url(),
-                Provider::Jumbo => JumboBridge::logo_url(),
-            },
-        }
+        self.provider.as_provider_info()
     }
 }
 

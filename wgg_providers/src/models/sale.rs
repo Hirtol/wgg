@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct WggSaleCategory {
     pub id: String,
     pub name: String,
+    /// May contain a image for a 'More' button
     pub image_urls: Vec<String>,
     /// A potentially limited selection of items, only supported for certain [Provider]s.
     ///
@@ -24,13 +25,28 @@ pub struct WggSaleCategory {
 impl WggSaleCategory {
     /// Grocery store information associated with this item
     async fn provider_info(&self) -> ProviderInfo {
-        ProviderInfo {
-            provider: self.provider,
-            logo_url: match self.provider {
-                Provider::Picnic => PicnicBridge::logo_url(),
-                Provider::Jumbo => JumboBridge::logo_url(),
-            },
-        }
+        self.provider.as_provider_info()
+    }
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[graphql(complex)]
+pub struct WggSaleCategoryComplete {
+    pub id: String,
+    pub name: String,
+    pub image_urls: Vec<String>,
+    /// All items that are part of this promotion.
+    pub items: Vec<WggSearchProduct>,
+    pub decorators: Vec<WggDecorator>,
+    #[graphql(skip)]
+    pub provider: Provider,
+}
+
+#[async_graphql::ComplexObject]
+impl WggSaleCategoryComplete {
+    /// Grocery store information associated with this item
+    async fn provider_info(&self) -> ProviderInfo {
+        self.provider.as_provider_info()
     }
 }
 

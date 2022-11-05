@@ -2,10 +2,11 @@ use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
     NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, PromotionProduct, SaleLabel, SaleValidity,
     SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
+    WggSaleCategoryComplete,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
+use crate::{OffsetPagination, Provider, ProviderError, WggAutocomplete, WggSearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
@@ -21,7 +22,7 @@ use wgg_picnic::PicnicApi;
 use crate::Result;
 
 pub const PICNIC_RECOMMENDED_RPS: Option<NonZeroU32> = NonZeroU32::new(5);
-const JITTER: Duration = Duration::from_millis(100);
+const JITTER: Duration = Duration::from_millis(500);
 
 /// A separate bridge struct to allow for easier caching.
 pub(crate) struct PicnicBridge {
@@ -37,7 +38,10 @@ impl PicnicBridge {
     }
 
     async fn wait_rate_limit(&self) {
-        self.limiter.until_ready_with_jitter(Jitter::up_to(JITTER)).await
+        // Only use Jitter if we have to start delaying calls.
+        if let Err(_) = self.limiter.check() {
+            self.limiter.until_ready_with_jitter(Jitter::up_to(JITTER)).await
+        }
     }
 }
 
@@ -124,92 +128,92 @@ impl ProviderInfo for PicnicBridge {
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions: {:#?}", result);
 
-        parse_picnic_promotions(&self.api, result)
+        Ok(result
+            .into_iter()
+            .flat_map(|item| parse_picnic_promotion(&self.api, item))
+            .collect())
     }
 
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<OffsetPagination<WggSearchProduct>> {
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleCategoryComplete> {
         self.wait_rate_limit().await;
-        let result = self.api.promotions(Some(sublist_id), 3).await?;
+        // When querying for a sublist with `depth > 1` we just get a raw array of SingleArticles
+        let result = self.api.promotions(Some(sublist_id), 0).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
-        // When querying for a sublist with depth>0 we just get a raw array of SingleArticles
-        let result: Vec<WggSearchProduct> = result
+
+        let sale_cat = result
             .into_iter()
-            .flat_map(|res| {
-                if let SubCategory::SingleArticle(article) = res {
-                    Some(parse_picnic_item_to_search_item(&self.api, article))
-                } else {
-                    None
-                }
-            })
-            .collect();
+            .flat_map(|res| parse_picnic_promotion(&self.api, res))
+            .next()
+            .ok_or(ProviderError::NothingFound)?;
 
-        let offset = OffsetPagination {
-            total_items: result.len(),
-            items: result,
-            offset: 0,
-        };
-
-        Ok(offset)
-    }
-}
-
-fn parse_picnic_promotions(
-    picnic_api: &wgg_picnic::PicnicApi,
-    promotions: Vec<SubCategory>,
-) -> Result<Vec<WggSaleCategory>> {
-    Ok(promotions
-        .into_iter()
-        .flat_map(|item| match item {
-            SubCategory::Category(cat) => Some(cat),
-            _ => {
-                tracing::warn!(?item, "Expected categories in promotion parsing, but found articles");
-                None
-            }
-        })
-        .map(|category| {
-            let mut result = WggSaleCategory {
-                id: category.id,
-                name: category.name,
-                image_urls: vec![],
-                limited_items: vec![],
-                decorators: vec![],
-                provider: Provider::Picnic,
-            };
-
-            // Decorators
-            for dec in category.decorators {
-                if let Decorator::MoreButton { images, .. } = &dec {
-                    result.image_urls = images
-                        .iter()
-                        .map(|id| picnic_api.image_url(id, ImageSize::Medium))
-                        .collect();
-                }
-
-                parse_decorator(picnic_api, dec, &mut result.decorators, None, None);
-            }
-
-            result.limited_items = category
-                .items
+        Ok(WggSaleCategoryComplete {
+            id: sale_cat.id,
+            name: sale_cat.name,
+            image_urls: sale_cat.image_urls,
+            items: sale_cat
+                .limited_items
                 .into_iter()
                 .flat_map(|item| match item {
-                    SubCategory::SingleArticle(itm) => Some(itm),
+                    PromotionProduct::Product(product) => Some(product),
                     _ => {
-                        tracing::warn!(
-                            ?item,
-                            "Expected single article in promotion parsing, but found articles"
-                        );
+                        tracing::warn!(?item, "Sublist completion was provided a non-complete SearchProduct!");
                         None
                     }
                 })
-                .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
-                .map(PromotionProduct::Product)
-                .collect();
-
-            result
+                .collect(),
+            decorators: sale_cat.decorators,
+            provider: sale_cat.provider,
         })
-        .collect())
+    }
+}
+
+fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Option<WggSaleCategory> {
+    let SubCategory::Category(category) = promotion else {
+        tracing::warn!(?promotion, "Expected category for promotion parsing, but found other");
+        return None;
+    };
+
+    let mut result = WggSaleCategory {
+        id: category.id,
+        name: category.name,
+        image_urls: vec![],
+        limited_items: vec![],
+        decorators: vec![],
+        provider: Provider::Picnic,
+    };
+
+    // Decorators
+    for dec in category.decorators {
+        if let Decorator::MoreButton { images, .. } = &dec {
+            result.image_urls = images
+                .iter()
+                .map(|id| picnic_api.image_url(id, ImageSize::Medium))
+                .collect();
+        }
+
+        parse_decorator(picnic_api, dec, &mut result.decorators, None, None);
+    }
+
+    result.limited_items = category
+        .items
+        .into_iter()
+        .flat_map(|item| match item {
+            SubCategory::SingleArticle(itm) => Some(itm),
+            _ => {
+                tracing::warn!(
+                    ?item,
+                    "Expected single article in promotion parsing, but found articles"
+                );
+                None
+            }
+        })
+        .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
+        .map(PromotionProduct::Product)
+        .collect();
+
+    Some(result)
 }
 
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]

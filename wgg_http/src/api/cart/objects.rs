@@ -248,10 +248,7 @@ impl CartTally {
             CartTally::Current { provider, .. } => *provider,
         };
 
-        ProviderInfo {
-            provider,
-            logo_url: provider.get_logo_url(),
-        }
+        provider.as_provider_info()
     }
 
     pub async fn discount_cents(&self) -> CentPrice {

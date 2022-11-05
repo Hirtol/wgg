@@ -4,6 +4,13 @@ use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::str::FromStr;
 
+pub fn provider_info(provider: Provider) -> ProviderInfo {
+    ProviderInfo {
+        provider,
+        logo_url: provider.get_logo_url(),
+    }
+}
+
 #[derive(Serialize, Deserialize, async_graphql::Enum, Hash, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Provider {
     Picnic,
@@ -16,6 +23,14 @@ impl Provider {
         match self {
             Provider::Picnic => PicnicBridge::logo_url(),
             Provider::Jumbo => JumboBridge::logo_url(),
+        }
+    }
+
+    /// Retrieve a ProviderInfo object which contains the logo url for the current provider.
+    pub fn as_provider_info(&self) -> ProviderInfo {
+        ProviderInfo {
+            provider: *self,
+            logo_url: self.get_logo_url(),
         }
     }
 }

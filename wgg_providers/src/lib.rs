@@ -1,4 +1,6 @@
-use crate::models::{Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
+use crate::models::{
+    Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleCategoryComplete, WggSearchProduct,
+};
 use async_graphql::EnumType;
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -222,7 +224,7 @@ impl WggProvider {
         &self,
         provider: Provider,
         sublist_id: impl AsRef<str>,
-    ) -> Result<OffsetPagination<WggSearchProduct>> {
+    ) -> Result<WggSaleCategoryComplete> {
         #[cached::proc_macro::cached(
             size = 100,
             time = 86400,
@@ -234,7 +236,7 @@ impl WggProvider {
             prov: &(dyn ProviderInfo + Send + Sync),
             sublist_id: &str,
             _provider: Provider,
-        ) -> Result<OffsetPagination<WggSearchProduct>> {
+        ) -> Result<WggSaleCategoryComplete> {
             prov.promotions_sublist(sublist_id).await
         }
 
