@@ -1,3 +1,4 @@
+use crate::api::pagination::{ConnectionResult, QueryResult};
 use crate::api::{ContextExt, GraphqlResult};
 use async_graphql::{Context, Object};
 use wgg_providers::models::{Provider, ProviderInfo, WggAutocomplete, WggProduct, WggSaleCategory, WggSearchProduct};
@@ -24,13 +25,27 @@ impl ProviderQuery {
     async fn pro_search(
         &self,
         ctx: &Context<'_>,
-        #[graphql(desc = "The product vendor/provider", default_with = "Provider::Picnic")] provider: Provider,
-        #[graphql(desc = "The product query")] query: String,
-    ) -> GraphqlResult<Vec<WggSearchProduct>> {
+        after: Option<String>,
+        first: Option<i32>,
+        #[graphql(desc = "Filters for the collection")] filters: SearchFilter,
+    ) -> ConnectionResult<WggSearchProduct> {
+        // Assert that the user is logged in.
+        let _ = ctx.wgg_user()?;
         let state = ctx.wgg_state();
-        let response = state.providers.search(provider, query, None).await?;
 
-        Ok(response.items)
+        crate::api::pagination::offset_query(after, first, |offset, limit| async move {
+            let response = state
+                .providers
+                .search(filters.provider, filters.query, offset.map(|i| i.index() as u32))
+                .await?;
+            let total_count = response.total_items as u64;
+
+            Ok(QueryResult {
+                iter: response.items.into_iter().take(limit),
+                total_count,
+            })
+        })
+        .await
     }
 
     #[tracing::instrument(skip(self, ctx))]
@@ -62,12 +77,30 @@ impl ProviderQuery {
     async fn pro_promotions(
         &self,
         ctx: &Context<'_>,
-        #[graphql(desc = "The product vendor/provider", default_with = "Provider::Picnic")] provider: Provider,
-    ) -> GraphqlResult<Vec<WggSaleCategory>> {
+        after: Option<String>,
+        first: Option<i32>,
+        #[graphql(desc = "Filters for the collection, defaults to Picnic filter")] filters: Option<PromotionsFilter>,
+    ) -> ConnectionResult<WggSaleCategory> {
+        // Assert that the user is logged in.
+        let _ = ctx.wgg_user()?;
         let state = ctx.wgg_state();
-        let response = state.providers.promotions(provider).await?;
+        let filter = filters.unwrap_or(PromotionsFilter {
+            provider: Provider::Picnic,
+        });
 
-        Ok(response)
+        crate::api::pagination::offset_query(after, first, |offset, limit| async move {
+            let response = state.providers.promotions(filter.provider).await?;
+            let total_count = response.len() as u64;
+
+            Ok(QueryResult {
+                iter: response
+                    .into_iter()
+                    .skip(offset.unwrap_or_default().index())
+                    .take(limit),
+                total_count,
+            })
+        })
+        .await
     }
 
     #[tracing::instrument(skip(self, ctx))]
@@ -105,4 +138,17 @@ impl ProviderQuery {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Clone, async_graphql::InputObject)]
+struct PromotionsFilter {
+    pub provider: Provider,
+}
+
+#[derive(Debug, Clone, async_graphql::InputObject)]
+struct SearchFilter {
+    /// The provider to search in
+    pub provider: Provider,
+    /// The product name query
+    pub query: String,
 }

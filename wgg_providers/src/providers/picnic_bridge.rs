@@ -75,10 +75,11 @@ impl ProviderInfo for PicnicBridge {
             .collect())
     }
 
-    #[tracing::instrument(name = "picnic_search", level = "debug", skip(self, _offset))]
-    async fn search(&self, query: &str, _offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
+    #[tracing::instrument(name = "picnic_search", level = "debug", skip(self))]
+    async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
         self.wait_rate_limit().await;
         let result = self.api.search(query).await?;
+        let offset = offset.unwrap_or_default();
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Search: {:#?}", result);
@@ -94,12 +95,13 @@ impl ProviderInfo for PicnicBridge {
                     }
                 })
             })
+            .skip(offset as usize)
             .collect();
 
         let offset = OffsetPagination {
-            total_items: result.len(),
+            total_items: result.len() + offset as usize,
             items: result,
-            offset: 0,
+            offset,
         };
 
         Ok(offset)

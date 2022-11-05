@@ -8,7 +8,7 @@ pub const DEFAULT_PAGE_SIZE: usize = 100;
 
 pub type ConnectionResult<T> = GraphqlResult<Connection<T>>;
 
-pub struct QueryResult<T, I: ExactSizeIterator<Item = T>> {
+pub struct QueryResult<T, I: IntoIterator<Item = T>> {
     pub iter: I,
     pub total_count: u64,
 }
@@ -21,7 +21,7 @@ pub struct QueryResult<T, I: ExactSizeIterator<Item = T>> {
 /// * `after` - The cursor after which we want to get results.
 /// * `first` - The first x items we want, mutually exclusive with `last`
 /// * `f` - Function which will return an iterator and optional total row count of the desired object.
-pub async fn offset_query<Node: OutputType, F, R, I: ExactSizeIterator<Item = Node>>(
+pub async fn offset_query<Node: OutputType, F, R, I: IntoIterator<Item = Node>>(
     after: Option<String>,
     first: Option<i32>,
     f: F,
@@ -45,7 +45,7 @@ where
 /// * `first` - The first x items we want, mutually exclusive with `last`
 /// * `last` - The last x items we want, mutually exclusive with `first`
 /// * `f` - Function which will return an iterator and optional total row count of the desired object.
-pub async fn d_query<Node: OutputType, F, R, I: ExactSizeIterator<Item = Node>>(
+pub async fn d_query<Node: OutputType, F, R, I: IntoIterator<Item = Node>>(
     after: Option<String>,
     before: Option<String>,
     first: Option<i32>,
@@ -92,7 +92,7 @@ where
 /// * `last` - The last x items we want, mutually exclusive with `first`
 /// * `default_page_size` - The default size of one page for this query
 /// * `total_count` - The optional total row count for this query, if elided it will take the length of `iter` instead.
-pub async fn query<T: OutputType, I: ExactSizeIterator<Item = T>>(
+pub async fn query<T: OutputType, I: IntoIterator<Item = T>>(
     iter: I,
     after: Option<WggCursor>,
     before: Option<WggCursor>,

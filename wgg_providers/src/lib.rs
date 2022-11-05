@@ -101,6 +101,7 @@ impl WggProvider {
     }
 
     /// Search for the provided query in the given [Provider].
+    /// `offset` will always be respected, even if the underlying API does not support it.
     ///
     /// For searching all providers at the same time see [Self::search_all]
     #[tracing::instrument(level="debug", skip_all, fields(query = query.as_ref()))]
