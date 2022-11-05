@@ -54,7 +54,9 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     ItemInfo: () => null,
                     ProviderInfo: (x) => (x as ProviderInfo).provider,
                     IngredientInfo: () => null,
-                    CartTally: () => null
+                    CartTally: () => null,
+                    MoreButton: () => null,
+                    NumberOfServings: () => null
                 },
                 updates: {
                     Mutation: {

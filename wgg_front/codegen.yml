@@ -18,4 +18,5 @@ generates:
             - 'typed-document-node'
         config:
             dedupeOperationSuffix: true
+            dedupeFragments: true
             maybeValue: T
