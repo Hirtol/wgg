@@ -16,7 +16,6 @@
     $: ({ result } = data);
     $: cart = data.cart;
 
-    $: firstItem = $result.data?.proPromotions[0].limitedItems;
     $: searchItems = $result.data?.proSearchAll;
 
     async function newStuff(text: string) {
@@ -67,8 +66,8 @@
 
 <main class="container mx-auto px-0.5 md:px-0">
     <AddComponent normalButton permanentlyExpanded quantity={0} class="max-w-full" />
-    {#if $cart && firstItem && searchItems}
-        <ProductList cart={$cart} data={firstItem} cartStore={cart} />
+    {#if $cart && searchItems}
+        <!-- <ProductList cart={$cart} data={firstItem} cartStore={cart} /> -->
         <!-- {#if firstItem}
                 <ProductCard class="max-w-[15rem]" data={firstItem} />
             {/if} -->

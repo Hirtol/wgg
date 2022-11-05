@@ -1,26 +1,20 @@
 <script lang="ts">
     import {
-        CartContentFragment,
-        ProductCardFragment,
-        Provider,
-        RemoveProductFromCartDocument,
-        SetProductToCartDocument
+        CartContentFragment
     } from '$lib/api/graphql_types';
-    import { asyncMutationStore, getContextClient } from '$lib/api/urql';
+    import { getContextClient } from '$lib/api/urql';
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
     import ProductImage from '$lib/components/products/ProductImage.svelte';
-    import { CartDataStoreInt, setCartContent } from '$lib/state';
-    import { centsToPrice, centsToTextPrice, unitToText } from '$lib/utils';
-    import { tooltip } from '@brainandbones/skeleton';
-    import { Information, Pen } from 'carbon-icons-svelte';
+    import { CartStore } from '$lib/state';
+    import { Pen } from 'carbon-icons-svelte';
     import classNames from 'classnames';
 
     const client = getContextClient();
 
     export { className as class };
     export let data: CartContentFragment;
-    export let cart: CartDataStoreInt;
+    export let cart: CartStore;
 
     let className: string = '';
     let quantity: number = data.quantity;

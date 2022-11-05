@@ -12,11 +12,17 @@ export interface Preferences {
      * a general price to look at.
      */
     displayPrice: DisplayPriceOptions;
+
+    /**
+     * The provider which is selected by default when entering new pages.
+     */
+    favoriteProvider: Provider;
 }
 
 export function createPreferenceStore(): Writable<Preferences> {
     const defaultItem: Preferences = {
-        displayPrice: 'AVERAGE'
+        displayPrice: 'AVERAGE',
+        favoriteProvider: Provider.Picnic
     };
 
     const store = createPersistentWritable('wggPreferences', defaultItem);

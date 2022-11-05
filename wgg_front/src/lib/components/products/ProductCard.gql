@@ -14,27 +14,31 @@ fragment ProductCardFragment on WggSearchProduct {
         price
     }
     decorators {
-        __typename
-        ... on SaleLabel {
-            text
-        }
-        ... on SaleValidity {
-            validFrom
-            validUntil
-        }
-        ... on UnavailableItem {
-            reason
-            explanationShort
-            explanationLong
-            replacements {
-                id
-                name
-                imageUrl
-            }
-        }
+        ...ProductCardDecoratorFragment
     }
     providerInfo {
         provider,
         logoUrl
+    }
+}
+
+fragment ProductCardDecoratorFragment on WggDecorator {
+    __typename
+    ... on SaleLabel {
+        text
+    }
+    ... on SaleValidity {
+        validFrom
+        validUntil
+    }
+    ... on UnavailableItem {
+        reason
+        explanationShort
+        explanationLong
+        replacements {
+            id
+            name
+            imageUrl
+        }
     }
 }

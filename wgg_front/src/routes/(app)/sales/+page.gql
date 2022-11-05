@@ -1,0 +1,25 @@
+query getFilteredPromotions($after: String, $first: Int, $filters: PromotionsFilter!) {
+    proPromotions(after: $after, first: $first, filters: $filters) {
+        totalCount
+        edges {
+            cursor
+            node {
+                id
+                name
+                imageUrls
+                decorators {
+                    ...ProductCardDecoratorFragment
+                }
+                providerInfo {
+                    provider
+                    logoUrl
+                }
+                limitedItems {
+                    ... on WggSearchProduct {
+                        ...ProductCardFragment
+                    }
+                }
+            }
+        }
+    }
+}

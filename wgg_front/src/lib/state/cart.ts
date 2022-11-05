@@ -9,13 +9,12 @@ import {
     RemoveRawProductInput,
     SetProductToCartDocument
 } from '$lib/api/graphql_types';
-import { asyncMutationStore, Client, queryStore } from '$lib/api/urql';
-import { derived, Readable, writable } from 'svelte/store';
+import { asyncMutationStore, Client } from '$lib/api/urql';
+import { Readable, writable } from 'svelte/store';
 
 export type ProductId = string;
-export type CartStore = CartDataStoreInt;
 
-export interface CartDataStoreInt extends Readable<CartData> {
+export interface CartStore extends Readable<CartData> {
     /**
      * Set (or delete if `newQuantity == 0`) the provided product into the cart.
      */
@@ -42,29 +41,7 @@ export interface CartData {
     data: CartFragment | undefined;
 }
 
-// /**
-//  * Initialise the global cart store, returns it to be passed to $page.data
-//  */
-// export function initialiseCart(client: Client): CartStore {
-//     const store = queryStore({ query: CartCurrentQueryDocument, client });
-
-//     return derived(store, (x, set) => {
-//         if (!x.fetching) {
-//             if (x.data) {
-//                 const cartInfo = x.data.cartCurrent;
-
-//                 set({
-//                     getProductQuantity: (provider, productId) => getProductQuantityImpl(cartInfo, provider, productId),
-//                     ...cartInfo
-//                 });
-//             } else {
-//                 set(undefined);
-//             }
-//         }
-//     });
-// }
-
-export async function initialiseRealCart(client: Client): Promise<CartDataStoreInt> {
+export async function initialiseRealCart(client: Client): Promise<CartStore> {
     const item = await client.query(CartCurrentQueryDocument, {}).toPromise();
 
     const cartInfo = item.data?.cartCurrent;

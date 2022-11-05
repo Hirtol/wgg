@@ -15,7 +15,7 @@ export { isMobileScreen } from '../utils';
 
     const item = localStorage.getItem(key);
     if (item) {
-        startValue = JSON.parse(item);
+        startValue = Object.assign({}, startValue,JSON.parse(item));
     }
 
     const store = writable(startValue);

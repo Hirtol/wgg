@@ -1,13 +1,4 @@
 query getAllPromotions($search: String!) {
-    proPromotions(provider: PICNIC) {
-        id
-        name
-        limitedItems {
-            ... on WggSearchProduct {
-                ...ProductCardFragment
-            }
-        }
-    }
     proSearchAll(query: $search) {
         ...ProductCardFragment
     }
