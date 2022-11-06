@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Provider } from '$lib/api/graphql_types';
     import PageRoot from '$lib/components/PageRoot.svelte';
+    import { getProviders } from '$lib/state';
     import { AccordionGroup, AccordionItem } from '@brainandbones/skeleton';
     import { get } from 'svelte/store';
     import type { PageData } from './$types';
@@ -12,16 +13,13 @@
     /**
      * Contains all providers and whether their Tally accordion is expanded.
      */
-    let talliesExpanded: { [key: string]: boolean } = Object.values(Provider).reduce((result, key) => {
+    let talliesExpanded: { [key: string]: boolean } = getProviders().reduce((result, key) => {
         const preference = get(data.preferences);
         (result as any)[key] = preference.displayPrice == key;
         return result;
     }, {});
 
-    $: console.log(talliesExpanded);
-
-    $: cart = data.cart
-    $: preferences = data.preferences;
+    $: cart = data.cart;
     $: tallies = $cart.data?.tallies ?? [];
     $: tallies.sort((a, b) => a.providerInfo.provider.localeCompare(b.providerInfo.provider));
 </script>
@@ -32,7 +30,7 @@
 
 <PageRoot>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <CartProductList columns={['grid-cols-1', '2xl:grid-cols-2']} data={$cart.data?.contents ?? []} cart={cart} />
+        <CartProductList columns={['grid-cols-1', '2xl:grid-cols-2']} data={$cart.data?.contents ?? []} {cart} />
 
         <div class="card card-body h-min">
             <h4 class="text-center">Overview</h4>

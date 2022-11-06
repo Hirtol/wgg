@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import { derived, type Readable, writable, type Writable } from 'svelte/store';
 
+/**
+ * The global store for tracking some kind of progress
+ */
 export const globalLoading = createGlobalProgressStore();
 
 export enum Progress {

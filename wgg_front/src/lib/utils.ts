@@ -1,22 +1,12 @@
-import { type Readable, readable, type Subscriber } from 'svelte/store';
+import { goto } from '$app/navigation';
 import { Unit } from './api/graphql_types';
 
-export const isMobileScreen: Readable<boolean> = readable(false, (set: Subscriber<boolean>) => {
-    // Initialise the value
-    onResize();
-    window.addEventListener('resize', onResize);
-
-    function onResize() {
-        set(window.matchMedia('only screen and (max-width: 760px)').matches);
-    }
-
-    return () => {
-        window.removeEventListener('resize', onResize);
-    };
-});
+export function capitaliseFirst(input: string): string {
+    return input.charAt(0).toUpperCase() + input.substring(1).toLocaleLowerCase();
+}
 
 export function centsToTextPrice(input: number): string {
-    return centsToPrice(input).toFixed(2)
+    return centsToPrice(input).toFixed(2);
 }
 
 export function centsToPrice(input: number): number {
@@ -47,5 +37,16 @@ export function unitToText(unit: Unit, short: boolean = false, plural: boolean =
             break;
     }
 
-    return output.charAt(0) + output.substring(1).toLocaleLowerCase() + (plural ? '(s)' : '');
+    return capitaliseFirst(output) + (plural ? '(s)' : '');
+}
+
+/**
+ * Update a query parameter, and goto the new page to update browser history.
+ */
+export async function updateQueryParameter(currentUrl: URL, key: string, value: string, opts?: { replaceState: boolean }) {
+    const newUrl = new URL(currentUrl);
+    newUrl.searchParams.set(key, value);
+    if (currentUrl.searchParams.get(key) != newUrl.searchParams.get(key)) {
+        await goto(newUrl, opts);
+    }
 }

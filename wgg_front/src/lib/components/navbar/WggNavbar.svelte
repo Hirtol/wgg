@@ -2,7 +2,7 @@
     import { page } from '$app/stores';
     import logo from '$lib/assets/logo.svg';
     import { UserData } from '$lib/state';
-    import { isMobileScreen } from '$lib/utils';
+    import { isMobileScreen } from '$lib/state';
     import { Logout } from 'carbon-icons-svelte';
     import { Navbar, NavBrand, NavHamburger, NavLi, NavUl } from 'flowbite-svelte';
     import { createEventDispatcher } from 'svelte';

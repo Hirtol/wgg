@@ -6,7 +6,6 @@ import {
     Provider,
     RawProductInput,
     RemoveProductFromCartDocument,
-    RemoveRawProductInput,
     SetProductToCartDocument
 } from '$lib/api/graphql_types';
 import { asyncMutationStore, Client } from '$lib/api/urql';
@@ -76,7 +75,7 @@ function createCartData(cart: CartFragment | undefined): CartData {
 /**
  * Set (or delete if `newQuantity == 0`) the provided product into the cart.
  */
-export async function setCartContent(
+async function setCartContent(
     productInput:
         | (RawProductInput & { __typename: 'RawProduct' })
         | (AggregateProductInput & { __typename: 'Aggregate' })

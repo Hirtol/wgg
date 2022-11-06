@@ -15,6 +15,7 @@ query getFilteredPromotions($after: String, $first: Int, $filters: PromotionsFil
                     logoUrl
                 }
                 limitedItems {
+                    id
                     ... on WggSearchProduct {
                         ...ProductCardFragment
                     }
