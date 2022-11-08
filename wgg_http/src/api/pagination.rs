@@ -4,7 +4,7 @@ use async_graphql::connection::{CursorType, PageInfo};
 use async_graphql::OutputType;
 use std::future::Future;
 
-pub const DEFAULT_PAGE_SIZE: usize = 100;
+pub const DEFAULT_PAGE_SIZE: usize = 200;
 
 pub type ConnectionResult<T> = GraphqlResult<Connection<T>>;
 

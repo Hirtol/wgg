@@ -1,8 +1,7 @@
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
-    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, PromotionProduct, SaleLabel, SaleValidity,
-    SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory,
-    WggSaleCategoryComplete,
+    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, SaleLabel, SaleValidity, SubNutritionalItem, TextType,
+    UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
 };
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
@@ -134,7 +133,7 @@ impl ProviderInfo for PicnicBridge {
             .collect())
     }
 
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleCategoryComplete> {
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete> {
         self.wait_rate_limit().await;
         // When querying for a sublist with `depth > 1` we just get a raw array of SingleArticles
         let result = self.api.promotions(Some(sublist_id), 0).await?;
@@ -148,22 +147,24 @@ impl ProviderInfo for PicnicBridge {
             .next()
             .ok_or(ProviderError::NothingFound)?;
 
-        Ok(WggSaleCategoryComplete {
-            id: sale_cat.id,
+        Ok(WggSaleGroupComplete {
+            id: sale_cat
+                .id
+                .expect("Picnic Category does not have an id when it is expected"),
             name: sale_cat.name,
             image_urls: sale_cat.image_urls,
             items: sale_cat
-                .limited_items
+                .items
                 .into_iter()
                 .flat_map(|item| match item {
-                    PromotionProduct::Product(product) => Some(product),
+                    WggSaleItem::Product(product) => Some(product),
                     _ => {
                         tracing::warn!(?item, "Sublist completion was provided a non-complete SearchProduct!");
                         None
                     }
                 })
                 .collect(),
-            decorators: sale_cat.decorators,
+            decorators: Vec::new(),
             provider: sale_cat.provider,
         })
     }
@@ -176,12 +177,12 @@ fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Opt
     };
 
     let mut result = WggSaleCategory {
-        id: category.id,
+        id: Some(category.id),
         name: category.name,
         image_urls: vec![],
-        limited_items: vec![],
-        decorators: vec![],
+        items: vec![],
         provider: Provider::Picnic,
+        complete: true,
     };
 
     // Decorators
@@ -191,12 +192,14 @@ fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Opt
                 .iter()
                 .map(|id| picnic_api.image_url(id, ImageSize::Medium))
                 .collect();
-        }
 
-        parse_decorator(picnic_api, dec, &mut result.decorators, None, None);
+            result.complete = false;
+        } else {
+            tracing::debug!(?dec, "Unknown decorator encountered in parsing Picnic sale")
+        }
     }
 
-    result.limited_items = category
+    result.items = category
         .items
         .into_iter()
         .flat_map(|item| match item {
@@ -210,7 +213,7 @@ fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Opt
             }
         })
         .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
-        .map(PromotionProduct::Product)
+        .map(WggSaleItem::Product)
         .collect();
 
     Some(result)

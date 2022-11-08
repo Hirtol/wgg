@@ -2,7 +2,7 @@ use crate::api::pagination::{ConnectionResult, QueryResult};
 use crate::api::{ContextExt, GraphqlResult};
 use async_graphql::{Context, Object};
 use wgg_providers::models::{
-    Provider, ProviderInfo, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleCategoryComplete, WggSearchProduct,
+    Provider, ProviderInfo, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSearchProduct,
 };
 
 #[derive(Default)]
@@ -119,7 +119,7 @@ impl ProviderQuery {
         ctx: &Context<'_>,
         #[graphql(desc = "The product vendor/provider", default_with = "Provider::Picnic")] provider: Provider,
         #[graphql(desc = "The sublist id")] sublist_id: String,
-    ) -> GraphqlResult<WggSaleCategoryComplete> {
+    ) -> GraphqlResult<WggSaleGroupComplete> {
         let state = ctx.wgg_state();
         let response = state.providers.promotions_sublist(provider, sublist_id).await?;
 

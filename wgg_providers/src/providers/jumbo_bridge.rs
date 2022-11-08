@@ -1,8 +1,8 @@
 use crate::models::{
     AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, PriceInfo, ProductId, PromotionProduct, SaleDescription, SaleLabel, SaleValidity,
+    NutritionalInfo, NutritionalItem, PriceInfo, ProductId, SaleDescription, SaleLabel, SaleValidity,
     SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct,
-    WggSaleCategory, WggSaleCategoryComplete,
+    WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
 };
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
@@ -12,7 +12,7 @@ use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::borrow::Cow;
-use wgg_jumbo::models::{AvailabilityType, PromotionGroup};
+use wgg_jumbo::models::AvailabilityType;
 use wgg_jumbo::{BaseApi, BaseJumboApi};
 
 pub(crate) struct JumboBridge {
@@ -114,12 +114,23 @@ impl ProviderInfo for JumboBridge {
         Ok(result
             .categories
             .into_iter()
-            .flat_map(|item| item.promotions)
-            .map(parse_jumbo_promotion)
+            .map(|item| WggSaleCategory {
+                id: None,
+                name: item.title,
+                provider: Provider::Jumbo,
+                items: item
+                    .promotions
+                    .into_iter()
+                    .map(parse_jumbo_promotion)
+                    .map(WggSaleItem::Group)
+                    .collect(),
+                image_urls: Vec::new(),
+                complete: true,
+            })
             .collect())
     }
 
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleCategoryComplete> {
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete> {
         let promo_id = sublist_id.parse()?;
         let promotion = self.api.promotion(&promo_id);
         let result = self.api.products_promotion(Some(&promo_id), 100, 0);
@@ -133,15 +144,15 @@ impl ProviderInfo for JumboBridge {
     }
 }
 
-fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleCategory {
-    let mut result = WggSaleCategory {
+fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleGroupLimited {
+    let mut result = WggSaleGroupLimited {
         id: promotion.id.into(),
         name: promotion.title,
         image_urls: vec![promotion.image.url],
-        limited_items: promotion
+        items: promotion
             .products
             .into_iter()
-            .map(|product| PromotionProduct::ProductId(ProductId { id: product.into() }))
+            .map(|product| ProductId { id: product.into() })
             .collect(),
         decorators: vec![],
         provider: Provider::Jumbo,
@@ -168,7 +179,7 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleCate
 fn parse_jumbo_promotion_complete(
     promotion: wgg_jumbo::models::Promotion,
     product_list: wgg_jumbo::models::ProductList,
-) -> Result<WggSaleCategoryComplete> {
+) -> Result<WggSaleGroupComplete> {
     let items = product_list
         .products
         .data
@@ -190,11 +201,12 @@ fn parse_jumbo_promotion_complete(
             }));
 
             item
-        }).collect();
+        })
+        .collect();
 
     let promo = parse_jumbo_promotion(promotion);
 
-    Ok(WggSaleCategoryComplete {
+    Ok(WggSaleGroupComplete {
         id: promo.id,
         name: promo.name,
         image_urls: promo.image_urls,

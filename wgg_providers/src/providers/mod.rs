@@ -5,7 +5,7 @@ mod common_bridge;
 mod jumbo_bridge;
 mod picnic_bridge;
 
-use crate::models::{WggProduct, WggSaleCategory, WggSaleCategoryComplete};
+use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 pub(crate) use jumbo_bridge::*;
 pub(crate) use picnic_bridge::*;
 
@@ -45,5 +45,5 @@ pub trait ProviderInfo: StaticProviderInfo {
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>>;
 
     /// Retrieve a specific promotion
-    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleCategoryComplete>;
+    async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete>;
 }

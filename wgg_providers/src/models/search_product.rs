@@ -1,6 +1,5 @@
 use crate::models::{CentPrice, ProviderInfo, UnitPrice, UnitQuantity, WggDecorator};
-use crate::providers::StaticProviderInfo;
-use crate::{JumboBridge, PicnicBridge, Provider, WggProduct};
+use crate::{Provider, WggProduct};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
