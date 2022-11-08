@@ -36,6 +36,7 @@
         "classnames": "^2.3.2",
         "concurrently": "^7.4.0",
         "eslint": "^8.16.0",
+        "svelte-tiny-virtual-list": "^2.0.5",
         "eslint-config-prettier": "^8.3.0",
         "eslint-plugin-svelte3": "^4.0.0",
         "flowbite": "^1.5.3",
@@ -60,7 +61,6 @@
         "@urql/exchange-graphcache": "^5.0.1",
         "@urql/exchange-request-policy": "^1.0.0",
         "@urql/svelte": "^3.0.1",
-        "marked": "^4.1.1",
-        "svelte-tiny-virtual-list": "^2.0.5"
+        "marked": "^4.1.1"
     }
 }

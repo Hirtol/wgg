@@ -18,7 +18,7 @@ import {
     type SubscriptionHandler
 } from '@urql/svelte';
 import type { Readable } from 'svelte/store';
-import { ProviderInfo } from './graphql_types';
+import { ProviderInfo, WggSaleCategory } from './graphql_types';
 
 export * from '@urql/svelte';
 
@@ -58,7 +58,13 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     MoreButton: () => null,
                     NumberOfServings: () => null,
                     ProductId: () => null,
-                    SaleDescription: () => null
+                    SaleDescription: () => null,
+                    WggSaleCategory: (x) => {
+                        const data = x as WggSaleCategory;
+                        const id = data.providerInfo + data.name + data.id;
+
+                        return id;
+                    }
                 },
                 updates: {
                     Mutation: {

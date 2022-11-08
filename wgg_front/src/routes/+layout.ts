@@ -13,6 +13,5 @@ export const load: LayoutLoad = async (event) => {
     return {
         client,
         preferences,
-        cart: readable()
     };
 };

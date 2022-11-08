@@ -12,6 +12,7 @@
     import { getProviders } from '$lib/state';
     import { capitaliseFirst, updateQueryParameter } from '$lib/utils';
     import type { PageData } from './$types';
+    import SalesList from './SalesList.svelte';
 
     export let data: PageData;
 
@@ -39,9 +40,12 @@
 <PageRoot>
     <div class="grid grid-cols-1 gap-y-4 md:grid-cols-4 md:gap-4">
         <div id="product-list-section" class="order-2 md:order-1 md:col-span-3">
-            <p>t</p>
+            <SalesList
+                {cart}
+                data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []}
+                totalCount={$result.data?.proPromotions.totalCount ?? 0} />
         </div>
-        <div class="flex w-full flex-grow justify-center order-1 md:order-2">
+        <div class="order-1 flex justify-center md:order-2">
             <label class="w-full">
                 <span>Current Provider Sales</span>
                 <select bind:value={currentProvider} on:change={updateHistory}>

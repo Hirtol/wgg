@@ -4,23 +4,44 @@ query getFilteredPromotions($after: String, $first: Int, $filters: PromotionsFil
         edges {
             cursor
             node {
-                id
-                name
-                imageUrls
-                decorators {
-                    ...ProductCardDecoratorFragment
-                }
-                providerInfo {
-                    provider
-                    logoUrl
-                }
-                limitedItems {
-                    id
-                    ... on WggSearchProduct {
-                        ...ProductCardFragment
-                    }
-                }
+                ...SaleCategoryFragment
             }
+        }
+    }
+}
+
+fragment SaleCategoryFragment on WggSaleCategory {
+    id
+    name
+    imageUrls
+    complete
+    providerInfo {
+        provider
+        logoUrl
+    }
+    items {
+        id
+        ... on WggSaleGroupLimited {
+            ...SaleGroupFragment
+        }
+        ... on WggSearchProduct {
+            ...ProductCardFragment
+        }
+    }
+}
+
+fragment SaleGroupFragment on WggSaleGroupLimited {
+    id
+    name
+    imageUrls
+    decorators {
+        ...ProductCardDecoratorFragment
+        ... on SaleDescription {
+            text
+        }
+        ... on SaleValidity {
+            validFrom
+            validUntil
         }
     }
 }

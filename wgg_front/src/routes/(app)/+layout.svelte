@@ -4,8 +4,15 @@
     import WggNavbar from '$lib/components/navbar/WggNavbar.svelte';
     import OutroBlocker from '$lib/components/OutroBlocker.svelte';
     import { authSession, logoutUser } from '$lib/state';
+    import { setContextCart } from '$lib/utils';
+    import type { LayoutData } from './$types';
 
     const client = getContextClient();
+
+    export let data: LayoutData;
+
+    // Set global cart object
+    setContextCart(data.cart);
 
     async function logout() {
         await logoutUser(client);

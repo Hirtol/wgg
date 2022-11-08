@@ -12,7 +12,7 @@
     let className: string = '';
 
     $: classes = classNames(
-        'aspect-video h-[15vh] cursor-pointer object-contain hover:object-scale-down md:h-[12vh]',
+        'aspect-video h-24 cursor-pointer object-contain hover:object-scale-down md:h-32',
         className
     );
 </script>

@@ -9,12 +9,14 @@
     import { ProductCardFragment, Provider } from '$lib/api/graphql_types';
     import { centsToTextPrice, unitToText } from '$lib/utils';
     import { Information } from 'carbon-icons-svelte';
-    import classNames from 'classnames';
     import { createEventDispatcher } from 'svelte';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
+    import ProductCardSkeleton from './ProductCardSkeleton.svelte';
     import ProductImage from './ProductImage.svelte';
     import SaleLabel from './SaleLabel.svelte';
+
+    export { className as class };
 
     export let data: ProductCardFragment;
 
@@ -24,10 +26,8 @@
         updateCartContent: { productId: string; provider: Provider; newQuantity: number };
     }>();
 
-    $: classes = classNames(
-        $$restProps.class,
-        'card card-body !bg-surface-50 dark:!bg-surface-700/75 h-full flex flex-col'
-    );
+    let className: string = '';
+
     $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
 
     $: productUrl = `/products/${data.providerInfo.provider}/${data.id}`;
@@ -40,7 +40,7 @@
     }
 </script>
 
-<div class={classes}>
+<ProductCardSkeleton class={className}>
     <header class="relative mx-auto">
         <ProductImage {data} blurImage={!data.available} />
 
@@ -93,4 +93,4 @@
             <PriceComponent {data} />
         </div>
     </div>
-</div>
+</ProductCardSkeleton>

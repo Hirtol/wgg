@@ -1,5 +1,17 @@
 import { goto } from '$app/navigation';
+import { getContext, setContext } from 'svelte';
 import { Unit } from './api/graphql_types';
+import { CartStore } from './state';
+
+const CART_CONTEXT_KEY = 'cart';
+
+export function setContextCart(cart: CartStore) {
+    setContext(CART_CONTEXT_KEY, cart);
+}
+
+export function getContextCart(): CartStore {
+    return getContext(CART_CONTEXT_KEY);
+}
 
 export function capitaliseFirst(input: string): string {
     return input.charAt(0).toUpperCase() + input.substring(1).toLocaleLowerCase();

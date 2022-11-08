@@ -11,7 +11,7 @@
     $: classes = classNames(
         $$props.class,
         transitionComplete ? 'invisible' : 'visible',
-        'fixed top-0 progress-wrapper w-full h-1'
+        'fixed top-0 progress-wrapper w-full h-1 z-50'
     );
     $: fillPercent = transitionComplete ? 0 : fillPercentages[currentProgress];
 
