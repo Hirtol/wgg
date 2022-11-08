@@ -44,7 +44,7 @@ pub fn save_config(app_settings: &Config) -> anyhow::Result<()> {
         .write(true)
         .create(true)
         .truncate(true)
-        .open(&get_full_config_path())?;
+        .open(get_full_config_path())?;
 
     let basic_output = toml::to_string_pretty(app_settings)?;
 
