@@ -122,7 +122,7 @@ impl ProviderInfo for PicnicBridge {
 
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
         self.wait_rate_limit().await;
-        let result = self.api.promotions(None, 3).await?;
+        let result = self.api.promotions(None, 1).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions: {:#?}", result);

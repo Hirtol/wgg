@@ -2,11 +2,12 @@ use crate::models::{
     Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct,
     MyStore, Order, OrderStatus, PartialDelivery, ProductArticle, SearchResult, SubCategory, Suggestion, UserInfo,
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use md5::Digest;
 use reqwest::{Response, StatusCode};
 use serde::Serialize;
 
+use reqwest::header::HeaderMap;
 use std::time::Duration;
 
 pub use crate::{config::Config, error::ApiError};
@@ -64,7 +65,13 @@ impl PicnicApi {
         let login = LoginRequest {
             key: username.into(),
             secret: hex,
-            client_id: 1,
+            client_id: config
+                .picnic_details
+                .as_ref()
+                .map(|i| i.client_id.clone())
+                .unwrap_or_else(|| "1".to_string()),
+            client_version: config.picnic_details.as_ref().map(|i| i.client_version.clone()),
+            device_id: None,
         };
 
         let response = client
@@ -364,10 +371,22 @@ impl PicnicApi {
     }
 
     async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-picnic-auth",
+            (&self.credentials.auth_token)
+                .try_into()
+                .context("Failed to convert agent")?,
+        );
+
+        if let Some(agent) = self.config.picnic_agent() {
+            headers.insert("x-picnic-agent", agent.try_into().context("Failed to convert agent")?);
+        }
+
         let response = self
             .client
             .get(self.config.get_full_url(url_suffix))
-            .header("x-picnic-auth", &self.credentials.auth_token)
+            .headers(headers)
             .query(payload)
             .send()
             .await?;
@@ -386,10 +405,22 @@ impl PicnicApi {
     }
 
     async fn post<T: Serialize + ?Sized>(&self, url: &str, payload: &T) -> Result<Response> {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-picnic-auth",
+            (&self.credentials.auth_token)
+                .try_into()
+                .context("Failed to convert agent")?,
+        );
+
+        if let Some(agent) = self.config.picnic_agent() {
+            headers.insert("x-picnic-agent", agent.try_into().context("Failed to convert agent")?);
+        }
+
         let response = self
             .client
             .post(self.config.get_full_url(url))
-            .header("x-picnic-auth", &self.credentials.auth_token)
+            .headers(headers)
             .json(payload)
             .send()
             .await?;

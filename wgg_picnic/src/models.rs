@@ -10,10 +10,14 @@ use std::fmt::{Display, Formatter};
 pub(crate) struct LoginRequest {
     pub key: String,
     pub secret: String,
-    pub client_id: i64,
+    pub client_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct LoginResponse {
     pub user_id: String,
     pub second_factor_authentication_required: bool,
@@ -578,6 +582,8 @@ pub struct Order {
     #[serde(default)]
     pub deposit_breakdown: Vec<DepositBreakdown>,
     pub decorator_overrides: HashMap<String, Vec<Decorator>>,
+    /// Only available when adding/removing a product to the cart which has an associated sale.
+    pub promo_progress: Option<PromoProgress>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -634,6 +640,18 @@ pub enum CheckoutStatus {
     Ongoing,
     Unknown,
     Unsupported,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromoProgress {
+    /// The amount of items needed to complete this
+    pub total: u32,
+    pub completed_savings: Option<u32>,
+    /// For example "2e halve prijs" or "1+1 gratis"
+    pub label: String,
+    pub description: Option<String>,
+    pub product_ids: Vec<String>,
+    pub promotion_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
