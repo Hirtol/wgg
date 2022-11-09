@@ -2,6 +2,7 @@ use crate::ids::{ProductId, PromotionId, RuntimeId, TabId};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use std::collections::HashMap;
 
 // ** Promotions **
 
@@ -492,4 +493,57 @@ pub struct Communication {
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromotionCompletionRequest {
+    #[serde(bound(deserialize = "BasketItem: Deserialize<'de>"))]
+    pub basket_items: Vec<BasketItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BasketItem {
+    pub(crate) sku: ProductId,
+    pub(crate) unit: &'static str,
+    pub(crate) quantity: u32,
+}
+
+impl BasketItem {
+    pub fn new(sku: ProductId, quantity: u32) -> Self {
+        // `unit` needs to be some instance of [Unit]... but SCREAMING_CASE.
+        Self {
+            sku,
+            unit: "PIECES",
+            quantity,
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromotionCompletion {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub promotion_id: String,
+    pub required_quantity_to_fulfil_promotion: u32,
+    pub remaining_quantity_to_fulfil_promotion: u32,
+    pub required_value_to_fulfil_promotion: StringPrice,
+    pub remaining_value_to_fulfil_promotion: StringPrice,
+    pub times_promotion_fulfilled: u32,
+    pub skus_in_basket: Vec<ProductId>,
+    /// E.g `1+1 gratis`.
+    pub goal: String,
+    pub title: String,
+    pub subtitle: String,
+    #[serde(default)]
+    pub product_images: HashMap<ProductId, Vec<ProductImage>>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StringPrice {
+    pub amount: String,
+    pub currency: String,
 }

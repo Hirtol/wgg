@@ -1,11 +1,13 @@
 use crate::ids::{Id, ProductId, PromotionId, RuntimeId, TabId};
 use crate::models::{
-    AutoCompleteResponse, FullProductResponse, ProductList, Promotion, PromotionGroup, PromotionTabs, SortedByQuery,
+    AutoCompleteResponse, FullProductResponse, ProductList, Promotion, PromotionCompletion, PromotionCompletionRequest,
+    PromotionGroup, PromotionTabs, SortedByQuery,
 };
 use crate::{ApiError, Result};
 use crate::{Config, Query};
 use anyhow::anyhow;
 use reqwest::{Response, StatusCode};
+use serde::Serialize;
 
 /// Contains all unauthenticated routes for the `Jumbo` API.
 #[async_trait::async_trait]
@@ -20,6 +22,27 @@ pub trait BaseApi {
         let url = self.get_config().get_full_url(url_suffix);
 
         let response = self.get_http().get(url).query(payload).send().await?;
+
+        match response.status() {
+            StatusCode::OK => Ok(response),
+            StatusCode::NOT_FOUND => Err(ApiError::NotFound),
+            _ => {
+                tracing::warn!(status = %response.status(), ?response, "Jumbo API Error occurred");
+                Err(anyhow!("Error occurred: {}", response.status()).into())
+            }
+        }
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    async fn endpoint_post<T: Serialize + ?Sized + Send + Sync>(
+        &self,
+        url_suffix: &str,
+        payload: &T,
+    ) -> Result<Response> {
+        let url = self.get_config().get_full_url(url_suffix);
+
+        let response = self.get_http().post(url).json(payload).send().await?;
 
         match response.status() {
             StatusCode::OK => Ok(response),
@@ -94,6 +117,19 @@ pub trait BaseApi {
             ("promotionId", promotion_id),
         ]);
         let response = self.endpoint_get("/products", &query).await?;
+
+        Ok(response.json().await?)
+    }
+
+    /// Submit a basket for a particular promotion and receive the completion progress.
+    async fn promotion_completion(
+        &self,
+        promotion_id: &PromotionId,
+        basket: &PromotionCompletionRequest,
+    ) -> Result<PromotionCompletion> {
+        let response = self
+            .endpoint_post(&format!("/promotion-completion/{}", promotion_id), basket)
+            .await?;
 
         Ok(response.json().await?)
     }
