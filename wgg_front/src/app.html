@@ -13,6 +13,6 @@
     </head>
     <body data-sveltekit-prefetch>
         <!-- Needed due to: https://github.com/sveltejs/kit/issues/6244#issuecomment-1226600661 -->
-        %sveltekit.body%
+        <div class="flex h-full flex-auto flex-col">%sveltekit.body%</div>
     </body>
 </html>
