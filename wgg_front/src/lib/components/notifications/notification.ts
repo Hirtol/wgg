@@ -22,6 +22,11 @@ function createNotificationStore(): NotificationStore {
     const backing_store: Writable<Notification[]> = writable([]);
 
     const send = (notification: Notification) => {
+        // Log errors to the console.
+        if (notification.type == NotificationType.Warning || notification.type == NotificationType.Error) {
+            console.error(notification);
+        }
+
         backing_store.update((state) => {
             return [...state, notification];
         });

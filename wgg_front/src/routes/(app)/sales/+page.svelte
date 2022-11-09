@@ -8,7 +8,6 @@
     import { afterNavigate, goto } from '$app/navigation';
     import { page } from '$app/stores';
     import PageRoot from '$lib/components/PageRoot.svelte';
-    import ProductList from '$lib/components/products/ProductList.svelte';
     import { getProviders } from '$lib/state';
     import { capitaliseFirst, updateQueryParameter } from '$lib/utils';
     import type { PageData } from './$types';
@@ -56,5 +55,4 @@
             </label>
         </div>
     </div>
-    <!-- <ProductList cart={$cart} data={$result} cartStore={cart} /> -->
 </PageRoot>
