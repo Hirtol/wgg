@@ -160,7 +160,12 @@ fn api_router(static_dir: &Path, schema: crate::api::WggSchema) -> axum::Router 
     let spa_handler = ServeDir::new(static_dir).fallback(ServeFile::new(static_dir.join("index.html")));
     let assets_service: MethodRouter<Body> = get_service(spa_handler).handle_error(error_handler);
 
+    // For some reason manifest.json isn't picked up in ServeDir, so we have to special case it here.
     axum::Router::new()
+        .route(
+            "/manifest.json",
+            get_service(ServeFile::new(static_dir.join("manifest.json"))).handle_error(error_handler),
+        )
         .nest("/api", crate::api::config(schema))
         .fallback(assets_service)
 }
