@@ -31,7 +31,10 @@
         <a class="unstyled text-base font-bold line-clamp-2 md:text-xl" title={data.name} href={listUrl}>{data.name}</a>
     </div>
 
-    <div class="footer h-full flex flex-col justify-end pt-1">
-        <p class="line-clamp-2 mt-auto">{@html saleDescription?.text}</p>
+    <div class="footer flex h-full flex-col justify-end pt-1">
+        <!-- Redundant test to satisfy Typescript type error, this invariant is already assured in $saleDescription's declaration. -->
+        {#if saleDescription?.__typename == 'SaleDescription'}
+            <p class="mt-auto line-clamp-2">{@html saleDescription?.text}</p>
+        {/if}
     </div>
 </ProductCardSkeleton>

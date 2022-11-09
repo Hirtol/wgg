@@ -24,7 +24,21 @@ fragment SaleCategoryFragment on WggSaleCategory {
         __typename
         id
         ... on WggSaleGroupLimited {
-            ...SaleGroupFragment
+            # Note we'd like to use ...SaleGroupFragment here, but for some reason that breaks caching (when returning a cached result only `__typename` and `id`
+            # are then included). By directly embedding this that issue is prevented.
+            id
+            name
+            imageUrls
+            decorators {
+                ...ProductCardDecoratorFragment
+                ... on SaleDescription {
+                    text
+                }
+                ... on SaleValidity {
+                    validFrom
+                    validUntil
+                }
+            }
         }
         ... on WggSearchProduct {
             ...ProductCardFragment
@@ -33,7 +47,6 @@ fragment SaleCategoryFragment on WggSaleCategory {
 }
 
 fragment SaleGroupFragment on WggSaleGroupLimited {
-    __typename
     id
     name
     imageUrls
