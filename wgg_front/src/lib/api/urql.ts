@@ -35,7 +35,6 @@ export function createUrqlClient(opts?: ClientOptions): Client {
             dedupExchange,
             errorExchange({
                 onError: (error) => {
-                    console.log(`Generic API Error:`, error);
                     notifications.error(error.message, 'Failed to query API');
                 }
             }),
@@ -61,8 +60,8 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     SaleDescription: () => null,
                     WggSaleCategory: (x) => {
                         const data = x as WggSaleCategory;
-                        const id = data.providerInfo + data.name + data.id;
-
+                        const id = data.providerInfo.provider + data.name + data.id;
+                        
                         return id;
                     }
                 },

@@ -18,7 +18,6 @@
 <ProductListSkeleton {cartStore} {columns}>
     <svelte:fragment let:updateCartContent>
         {#each data.items as card (card.id)}
-
             {#if card.__typename == 'WggSearchProduct'}
                 <ProductCard
                     data={card}
@@ -28,7 +27,6 @@
             {:else if card.__typename == 'WggSaleGroupLimited'}
                 <SaleGroupCard data={card} provider={data.providerInfo.provider} />
             {/if}
-            
         {/each}
 
         <slot name="last-grid" />

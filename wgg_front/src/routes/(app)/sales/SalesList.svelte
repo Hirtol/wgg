@@ -26,7 +26,10 @@
                         {@const moreUrl = `sales/${sale.providerInfo.provider}/${sale.id}`}
 
                         <ProductCardSkeleton class="min-h-[14rem] md:min-h-[18rem]">
-                            <a class="btn flex h-full w-full flex-col items-center justify-center unstyled" href={moreUrl} title="More">
+                            <a
+                                class="btn unstyled flex h-full w-full flex-col items-center justify-center"
+                                href={moreUrl}
+                                title="More">
                                 <h4>More</h4>
                                 <span
                                     class="btn-icon inline-flex !w-9 items-center justify-center rounded-full bg-primary-400 !p-0 dark:bg-primary-800">

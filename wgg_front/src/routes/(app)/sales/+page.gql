@@ -11,6 +11,7 @@ query getFilteredPromotions($after: String, $first: Int, $filters: PromotionsFil
 }
 
 fragment SaleCategoryFragment on WggSaleCategory {
+    __typename
     id
     name
     imageUrls
@@ -20,6 +21,7 @@ fragment SaleCategoryFragment on WggSaleCategory {
         logoUrl
     }
     items {
+        __typename
         id
         ... on WggSaleGroupLimited {
             ...SaleGroupFragment
@@ -31,6 +33,7 @@ fragment SaleCategoryFragment on WggSaleCategory {
 }
 
 fragment SaleGroupFragment on WggSaleGroupLimited {
+    __typename
     id
     name
     imageUrls
