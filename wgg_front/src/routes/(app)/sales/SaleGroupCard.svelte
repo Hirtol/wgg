@@ -20,16 +20,18 @@
 <ProductCardSkeleton>
     <header class="relative mx-auto">
         <ProductImage data={{ name: data.name, imageUrl: data.imageUrls[0] }} />
+
+        <!-- Sale Label -->
+        {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
+            <SaleLabel class="absolute bottom-0 left-0 " text={saleLabel.text} />
+        {/if}
     </header>
 
     <div class="body">
         <a class="unstyled text-base font-bold line-clamp-2 md:text-xl" title={data.name} href={listUrl}>{data.name}</a>
-
-        <!-- Sale Label -->
-        {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-            <SaleLabel text={saleLabel.text} />
-        {/if}
     </div>
 
-    <p class="line-clamp-2">{saleDescription?.text}</p>
+    <div class="footer h-full flex flex-col justify-end pt-1">
+        <p class="line-clamp-2 mt-auto">{saleDescription?.text}</p>
+    </div>
 </ProductCardSkeleton>
