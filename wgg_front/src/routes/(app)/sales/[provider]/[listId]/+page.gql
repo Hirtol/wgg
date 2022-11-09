@@ -1,0 +1,22 @@
+query getSaleSublist($id: String!, $provider: Provider!) {
+    proPromotionsSublist(provider: $provider, sublistId: $id) {
+      ... SaleGroupCompleteFragment
+    }
+}
+
+fragment SaleGroupCompleteFragment on WggSaleGroupComplete {
+    id
+    name
+    imageUrls
+    items {
+        ... ProductCardFragment
+    }
+    decorators {
+        ... ProductCardDecoratorFragment
+    }
+    providerInfo {
+      provider
+      logoUrl
+    }
+}
+

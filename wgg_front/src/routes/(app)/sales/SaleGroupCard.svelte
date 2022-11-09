@@ -32,6 +32,6 @@
     </div>
 
     <div class="footer h-full flex flex-col justify-end pt-1">
-        <p class="line-clamp-2 mt-auto">{saleDescription?.text}</p>
+        <p class="line-clamp-2 mt-auto">{@html saleDescription?.text}</p>
     </div>
 </ProductCardSkeleton>

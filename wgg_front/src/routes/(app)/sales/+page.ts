@@ -14,7 +14,8 @@ export const load: PageLoad = async (event) => {
     const { store } = await asyncQueryStore({
         query: GetFilteredPromotionsDocument,
         client: client,
-        variables: { filters: { provider: initialProvider as Provider } }
+        variables: { filters: { provider: initialProvider as Provider } },
+        requestPolicy: 'network-only'
     });
 
     return {

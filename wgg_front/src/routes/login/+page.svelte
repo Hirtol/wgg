@@ -3,6 +3,7 @@
     import { page } from '$app/stores';
     import type { ViewerContextFragment } from '$lib/api/graphql_types';
     import { notifications } from '$lib/components/notifications/notification';
+    import PageRoot from '$lib/components/PageRoot.svelte';
     import { isUserAuthenticated } from '$lib/state';
     import LoginForm from './LoginForm.svelte';
 
@@ -18,7 +19,6 @@
     }
 </script>
 
-<main class="content m-auto">
-    <a href="/">awdadaw</a>
+<PageRoot class="flex flex-auto flex-col items-center justify-center">
     <LoginForm on:loginSuccess={loginSuccess} />
-</main>
+</PageRoot>

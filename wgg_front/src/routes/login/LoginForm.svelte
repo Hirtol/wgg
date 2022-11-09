@@ -3,14 +3,19 @@
     import { globalLoading } from '$lib/components/global_progress/global_loading';
     import { loginUser, UserData } from '$lib/state';
     import { Email, Password } from 'carbon-icons-svelte';
+    import classNames from 'classnames';
     import { Button, Card, Helper, Input, Label } from 'flowbite-svelte';
     import { createEventDispatcher } from 'svelte';
+
+    export { clasz as class };
 
     const client = getContextClient();
     const dispatch = createEventDispatcher<{
         loginSuccess: UserData;
         loginFailed: any;
     }>();
+
+    let clasz: string = '';
 
     let email: string;
     let password: string;
@@ -36,47 +41,45 @@
     }
 </script>
 
-<main class="h-full w-full">
-    <Card {...$$restProps} class="!bg-surface-900" size="lg">
-        <form on:submit|preventDefault={submitLogin} class="flex max-w-full flex-col space-y-6 md:w-[30vw] ">
-            <h2 class="p-0 text-xl font-medium text-gray-900 dark:text-white">Please sign in</h2>
-            <Label class="space-y-2">
-                <span>Email</span>
-                <Input
-                    type="email"
-                    name="email"
-                    placeholder="name@email.com"
-                    required
-                    bind:value={email}
-                    class={failedLogin ? 'bg-warning-400 dark:!bg-warning-700' : ''}>
-                    <Email slot="left" aria-hidden="true" />
-                </Input>
-                {#if failedLogin}
-                    <Helper class="mt-2" color="red">Either the email or password was incorrect</Helper>
-                {/if}
-            </Label>
-            <Label class="space-y-2">
-                <span>Your password</span>
-                <Input
-                    type="password"
-                    name="password"
-                    placeholder="•••••"
-                    required
-                    bind:value={password}
-                    class={failedLogin ? 'bg-warning-400 dark:!bg-warning-700' : ''}>
-                    <Password slot="left" aria-hidden="true" />
-                </Input>
-                {#if failedLogin}
-                    <Helper class="mt-2" color="red">Either the email or password was incorrect</Helper>
-                {/if}
-            </Label>
-            <Button
-                type="submit"
-                class="w-full"
-                disabled={buttonDisabled}
-                title={buttonDisabled ? 'Please fill in both fields above' : 'Log in'}>
-                Login
-            </Button>
-        </form>
-    </Card>
-</main>
+<Card class={classNames('w-full dark:!bg-surface-900', clasz)} size="md">
+    <form on:submit|preventDefault={submitLogin} class="flex max-w-full flex-col space-y-6">
+        <h2 class="p-0 text-xl font-medium text-gray-900 dark:text-white">Please sign in</h2>
+        <Label class="space-y-2">
+            <span>Email</span>
+            <Input
+                type="email"
+                name="email"
+                placeholder="name@email.com"
+                required
+                bind:value={email}
+                class={failedLogin ? 'bg-warning-400 dark:!bg-warning-700' : ''}>
+                <Email slot="left" aria-hidden="true" />
+            </Input>
+            {#if failedLogin}
+                <Helper class="mt-2" color="red">Either the email or password was incorrect</Helper>
+            {/if}
+        </Label>
+        <Label class="space-y-2">
+            <span>Your password</span>
+            <Input
+                type="password"
+                name="password"
+                placeholder="•••••"
+                required
+                bind:value={password}
+                class={failedLogin ? 'bg-warning-400 dark:!bg-warning-700' : ''}>
+                <Password slot="left" aria-hidden="true" />
+            </Input>
+            {#if failedLogin}
+                <Helper class="mt-2" color="red">Either the email or password was incorrect</Helper>
+            {/if}
+        </Label>
+        <Button
+            type="submit"
+            class="w-full"
+            disabled={buttonDisabled}
+            title={buttonDisabled ? 'Please fill in both fields above' : 'Log in'}>
+            Login
+        </Button>
+    </form>
+</Card>

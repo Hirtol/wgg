@@ -18,9 +18,12 @@
 /* Imports the full set of Tailwind Elements */
 @import '@brainandbones/skeleton/styles/elements.css';
 
-html,
+html {
+    @apply h-full;
+}
+
 body {
-    @apply bg-mesh flex h-full flex-col overflow-hidden bg-surface-300 dark:bg-surface-900;
+    @apply bg-mesh flex min-h-full flex-col overflow-x-hidden bg-surface-300 dark:bg-surface-900;
 }
 
 .bg-mesh {
