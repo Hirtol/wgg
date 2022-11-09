@@ -6,6 +6,8 @@ use anyhow::Context;
 use arc_swap::access::{DynAccess, DynGuard};
 use arc_swap::ArcSwap;
 use async_graphql::{EmptySubscription, Schema};
+use axum::body::Body;
+use axum::routing::{get_service, MethodRouter};
 use sea_orm::{DatabaseConnection, SqlxSqliteConnector};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::SqlitePool;
@@ -18,6 +20,7 @@ use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::compression::CompressionLayer;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
@@ -153,9 +156,13 @@ fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate:
 }
 
 fn api_router(static_dir: &Path, schema: crate::api::WggSchema) -> axum::Router {
-    let spa = axum_extra::routing::SpaRouter::new("/assets", static_dir);
+    let error_handler = |_| std::future::ready(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    let spa_handler = ServeDir::new(static_dir).fallback(ServeFile::new(static_dir.join("index.html")));
+    let assets_service: MethodRouter<Body> = get_service(spa_handler).handle_error(error_handler);
 
-    axum::Router::new().nest("/api", crate::api::config(schema)).merge(spa)
+    axum::Router::new()
+        .nest("/api", crate::api::config(schema))
+        .fallback(assets_service)
 }
 
 async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {

@@ -1,7 +1,9 @@
 import { createUrqlClient } from '$lib/api/urql';
 import { LayoutLoad } from './$types';
-import { readable } from 'svelte/store';
 import { createPreferenceStore } from '$lib/state';
+
+export const preprocess = false;
+export const ssr = false;
 
 /**
  * Create the `URQL` client used throughout the application.
