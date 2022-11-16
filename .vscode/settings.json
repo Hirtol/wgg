@@ -1,3 +1,4 @@
 {
-    "graphql-config.load.rootDir": "./wgg_front/"
+  "graphql-config.load.rootDir": "./wgg_front/",
+  "cSpell.enableFiletypes": ["!typescript"]
 }

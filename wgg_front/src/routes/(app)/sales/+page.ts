@@ -9,7 +9,7 @@ export const load: PageLoad = async (event) => {
 
     const r_prefs = get(preferences);
     // We want to preserve history when bouncing back and forth between pages. At the moment searchParams are the easiest way of doing that.
-    const initialProvider = verifyProviderOrError(event.url.searchParams.get('provider') ?? r_prefs.favoriteProvider);
+    const initialProvider = verifyProviderOrError(event.url.searchParams.get('provider') ?? r_prefs.favouriteProvider);
 
     const { store } = await asyncQueryStore({
         query: GetFilteredPromotionsDocument,

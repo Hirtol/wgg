@@ -7,14 +7,14 @@
     import ProductCardSkeleton from '$lib/components/products/ProductCardSkeleton.svelte';
     import ProductImage from '$lib/components/products/ProductImage.svelte';
     import SaleLabel from '$lib/components/products/SaleLabel.svelte';
+    import { salesPageItemUrl } from '$lib/routing';
 
     export let provider: Provider;
     export let data: SaleGroupFragment;
 
     $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
     $: saleDescription = data.decorators.find((l) => l.__typename == 'SaleDescription');
-    $: saleValidity = data.decorators.find((l) => l.__typename == 'SaleValidity');
-    $: listUrl = `/sales/${provider}/${data.id}`;
+    $: listUrl = salesPageItemUrl(provider, data.id);
 </script>
 
 <ProductCardSkeleton>
@@ -23,7 +23,7 @@
 
         <!-- Sale Label -->
         {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-            <SaleLabel class="absolute bottom-0 left-0 " text={saleLabel.text} />
+            <SaleLabel class="absolute bottom-0 left-0" text={saleLabel.text} />
         {/if}
     </header>
 

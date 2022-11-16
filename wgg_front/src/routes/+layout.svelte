@@ -7,12 +7,13 @@
     import { globalLoading } from '$lib/components/global_progress/global_loading';
     import Notifier from '$lib/components/notifications/Notifiers.svelte';
     import type { LayoutData } from './$types';
+    import { cartPageRootUrl } from '$lib/routing';
 
     export let data: LayoutData;
 
     setContextClient(data.client);
 
-    prefetchRoutes(['/cart']);
+    prefetchRoutes([cartPageRootUrl]);
 
     beforeNavigate((nav) => {
         globalLoading.start();

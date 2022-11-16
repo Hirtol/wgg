@@ -7,6 +7,7 @@
  -->
 <script lang="ts">
     import { ProductCardFragment, Provider } from '$lib/api/graphql_types';
+    import { productPageItemUrl } from '$lib/routing';
     import { centsToTextPrice, unitToText } from '$lib/utils';
     import { Information } from 'carbon-icons-svelte';
     import { createEventDispatcher } from 'svelte';
@@ -30,7 +31,7 @@
 
     $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
 
-    $: productUrl = `/products/${data.providerInfo.provider}/${data.id}`;
+    $: productUrl = productPageItemUrl(data.providerInfo.provider, data.id);
 
     $: unavailableReason = data.decorators.find((u) => u.__typename == 'UnavailableItem');
 

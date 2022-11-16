@@ -1,10 +1,11 @@
 <!--
     @component
-    List of (Hetero)CardLists enhanced with partial fill-in.
+    List of (Hetero)CardLists.
 -->
 <script lang="ts">
-    import { ProductCardFragment, SaleCategoryFragment } from '$lib/api/graphql_types';
+    import { SaleCategoryFragment } from '$lib/api/graphql_types';
     import ProductCardSkeleton from '$lib/components/products/ProductCardSkeleton.svelte';
+    import { salesPageItemUrl } from '$lib/routing';
     import { CartStore } from '$lib/state';
     import { ChevronRight } from 'carbon-icons-svelte';
     import HeteroCardList from './HeteroCardList.svelte';
@@ -22,8 +23,8 @@
             <HeteroCardList cartStore={cart} data={sale}>
                 <!-- More button to get full list. -->
                 <svelte:fragment slot="last-grid">
-                    {#if !sale.complete}
-                        {@const moreUrl = `sales/${sale.providerInfo.provider}/${sale.id}`}
+                    {#if !sale.complete && sale.id}
+                        {@const moreUrl = salesPageItemUrl(sale.providerInfo.provider, sale.id)}
 
                         <ProductCardSkeleton class="min-h-[14rem] md:min-h-[18rem]">
                             <a

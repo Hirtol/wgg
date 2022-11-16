@@ -17,7 +17,7 @@
 
     let currentProvider = data.initialProvider;
 
-    $: ({ result, cart, preferences } = data);
+    $: ({ result, cart } = data);
 
     // Navigate directly to the correct provider.
     updateQueryParameter($page.url, 'provider', data.initialProvider, { replaceState: true });
@@ -44,6 +44,7 @@
                 data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []}
                 totalCount={$result.data?.proPromotions.totalCount ?? 0} />
         </div>
+
         <div class="order-1 flex justify-center md:order-2">
             <label class="w-full">
                 <span>Current Provider Sales</span>
