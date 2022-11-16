@@ -30,9 +30,11 @@ const JITTER: Duration = Duration::from_millis(500);
 
 /// A separate bridge struct to allow for easier caching.
 pub(crate) struct PicnicBridge {
-    pub api: PicnicApi,
+    pub api: tokio::sync::RwLock<PicnicApi>,
     limiter: governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
     credentials: PicnicCredentials,
+    /// Lock used to ensure only *one* future tries to refresh the auth-token when it is expired.
+    refresh_lock: tokio::sync::Mutex<()>,
 }
 
 impl PicnicBridge {
@@ -54,9 +56,10 @@ impl PicnicBridge {
             governor::RateLimiter::direct(Quota::per_second(limit_rps.unwrap_or(PICNIC_RECOMMENDED_RPS.unwrap())));
 
         PicnicBridge {
-            api,
+            api: api.into(),
             limiter,
             credentials,
+            refresh_lock: Default::default(),
         }
     }
 
@@ -66,7 +69,7 @@ impl PicnicBridge {
 
     async fn wait_rate_limit(&self) {
         // Only use Jitter if we have to start delaying calls.
-        if let Err(_) = self.limiter.check() {
+        if self.limiter.check().is_err() {
             self.limiter.until_ready_with_jitter(Jitter::up_to(JITTER)).await
         }
     }
@@ -82,6 +85,8 @@ impl StaticProviderInfo for PicnicBridge {
     }
 }
 
+// These implementations contain a lot of duplicate code to handle the Auth token refresh (when needed).
+// Unfortunately, extracting these out to a common function taking a closure required higher-lifetime bounds I couldn't get to work (even with boxing :/)
 #[async_trait::async_trait]
 impl ProviderInfo for PicnicBridge {
     fn provider(&self) -> Provider {
@@ -95,7 +100,28 @@ impl ProviderInfo for PicnicBridge {
     #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
     async fn autocomplete(&self, query: &str) -> Result<Vec<WggAutocomplete>> {
         self.wait_rate_limit().await;
-        let result = self.api.suggestions(query).await?;
+        let api_result = self.api.read().await.suggestions(query).await;
+        let result = match api_result {
+            Ok(res) => res,
+            Err(wgg_picnic::ApiError::AuthError) => {
+                if self.refresh_lock.try_lock().is_ok() {
+                    tracing::info!("Refreshing Picnic authentication token due to failure");
+                    let mut api_guard = self.api.write().await;
+
+                    api_guard
+                        .login(self.credentials.email(), self.credentials.password().expose_secret())
+                        .await?;
+
+                    api_guard.suggestions(query).await?
+                } else {
+                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
+                    // If it fails again just error out.
+                    let _ = self.refresh_lock.lock().await;
+                    self.api.read().await.suggestions(query).await?
+                }
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Autocomplete: {:#?}", result);
@@ -109,7 +135,28 @@ impl ProviderInfo for PicnicBridge {
     #[tracing::instrument(name = "picnic_search", level = "debug", skip(self))]
     async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
         self.wait_rate_limit().await;
-        let result = self.api.search(query).await?;
+        let api_result = self.api.read().await.search(query).await;
+        let result = match api_result {
+            Ok(res) => res,
+            Err(wgg_picnic::ApiError::AuthError) => {
+                if self.refresh_lock.try_lock().is_ok() {
+                    tracing::info!("Refreshing Picnic authentication token due to failure");
+                    let mut api_guard = self.api.write().await;
+
+                    api_guard
+                        .login(self.credentials.email(), self.credentials.password().expose_secret())
+                        .await?;
+
+                    api_guard.search(query).await?
+                } else {
+                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
+                    // If it fails again just error out.
+                    let _ = self.refresh_lock.lock().await;
+                    self.api.read().await.search(query).await?
+                }
+            }
+            Err(e) => return Err(e.into()),
+        };
         let offset = offset.unwrap_or_default();
 
         #[cfg(feature = "trace-original-api")]
@@ -120,7 +167,7 @@ impl ProviderInfo for PicnicBridge {
             .flat_map(|res| {
                 res.items.into_iter().filter_map(|item| {
                     if let wgg_picnic::models::SearchItem::SingleArticle(article) = item {
-                        Some(parse_picnic_item_to_search_item(&self.api, article))
+                        Some(parse_picnic_item_to_search_item(article))
                     } else {
                         None
                     }
@@ -140,38 +187,98 @@ impl ProviderInfo for PicnicBridge {
 
     async fn product(&self, product_id: &str) -> Result<WggProduct> {
         self.wait_rate_limit().await;
-        let result = self.api.product(product_id).await?;
+        let api_result = self.api.read().await.product(product_id).await;
+        let result = match api_result {
+            Ok(res) => res,
+            Err(wgg_picnic::ApiError::AuthError) => {
+                if self.refresh_lock.try_lock().is_ok() {
+                    tracing::info!("Refreshing Picnic authentication token due to failure");
+                    let mut api_guard = self.api.write().await;
+
+                    api_guard
+                        .login(self.credentials.email(), self.credentials.password().expose_secret())
+                        .await?;
+
+                    api_guard.product(product_id).await?
+                } else {
+                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
+                    // If it fails again just error out.
+                    let _ = self.refresh_lock.lock().await;
+                    self.api.read().await.product(product_id).await?
+                }
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Product: {:#?}", result);
 
-        parse_picnic_full_product_to_product(&self.api, result)
+        parse_picnic_full_product_to_product(result)
     }
 
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
         self.wait_rate_limit().await;
-        let result = self.api.promotions(None, 1).await?;
+        let api_result = self.api.read().await.promotions(None, 1).await;
+        let result = match api_result {
+            Ok(res) => res,
+            Err(wgg_picnic::ApiError::AuthError) => {
+                if self.refresh_lock.try_lock().is_ok() {
+                    tracing::info!("Refreshing Picnic authentication token due to failure");
+                    let mut api_guard = self.api.write().await;
+
+                    api_guard
+                        .login(self.credentials.email(), self.credentials.password().expose_secret())
+                        .await?;
+
+                    api_guard.promotions(None, 1).await?
+                } else {
+                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
+                    // If it fails again just error out.
+                    let _ = self.refresh_lock.lock().await;
+                    self.api.read().await.promotions(None, 1).await?
+                }
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions: {:#?}", result);
 
-        Ok(result
-            .into_iter()
-            .flat_map(|item| parse_picnic_promotion(&self.api, item))
-            .collect())
+        Ok(result.into_iter().flat_map(parse_picnic_promotion).collect())
     }
 
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete> {
         self.wait_rate_limit().await;
         // When querying for a sublist with `depth > 1` we just get a raw array of SingleArticles
-        let result = self.api.promotions(Some(sublist_id), 0).await?;
+        let api_result = self.api.read().await.promotions(Some(sublist_id), 0).await;
+        let result = match api_result {
+            Ok(res) => res,
+            Err(wgg_picnic::ApiError::AuthError) => {
+                if self.refresh_lock.try_lock().is_ok() {
+                    tracing::info!("Refreshing Picnic authentication token due to failure");
+                    let mut api_guard = self.api.write().await;
+
+                    api_guard
+                        .login(self.credentials.email(), self.credentials.password().expose_secret())
+                        .await?;
+
+                    api_guard.promotions(Some(sublist_id), 0).await?
+                } else {
+                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
+                    // If it fails again just error out.
+                    let _ = self.refresh_lock.lock().await;
+                    self.api.read().await.promotions(Some(sublist_id), 0).await?
+                }
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
 
         let sale_cat = result
             .into_iter()
-            .flat_map(|res| parse_picnic_promotion(&self.api, res))
+            .flat_map(parse_picnic_promotion)
             .next()
             .ok_or(ProviderError::NothingFound)?;
 
@@ -198,7 +305,7 @@ impl ProviderInfo for PicnicBridge {
     }
 }
 
-fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Option<WggSaleCategory> {
+fn parse_picnic_promotion(promotion: SubCategory) -> Option<WggSaleCategory> {
     let SubCategory::Category(category) = promotion else {
         tracing::warn!(?promotion, "Expected category for promotion parsing, but found other");
         return None;
@@ -218,7 +325,7 @@ fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Opt
         if let Decorator::MoreButton { images, .. } = &dec {
             result.image_urls = images
                 .iter()
-                .map(|id| picnic_api.image_url(id, ImageSize::Medium))
+                .map(|id| wgg_picnic::images::image_url(id, ImageSize::Medium))
                 .collect();
 
             result.complete = false;
@@ -240,7 +347,7 @@ fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Opt
                 None
             }
         })
-        .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
+        .map(parse_picnic_item_to_search_item)
         .map(WggSaleItem::Product)
         .collect();
 
@@ -248,10 +355,7 @@ fn parse_picnic_promotion(picnic_api: &PicnicApi, promotion: SubCategory) -> Opt
 }
 
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
-fn parse_picnic_full_product_to_product(
-    picnic_api: &PicnicApi,
-    product: wgg_picnic::models::ProductArticle,
-) -> Result<WggProduct> {
+fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArticle) -> Result<WggProduct> {
     let mut result = WggProduct {
         id: product.id,
         name: product.name,
@@ -282,7 +386,7 @@ fn parse_picnic_full_product_to_product(
         image_urls: product
             .images
             .into_iter()
-            .map(|url| picnic_api.image_url(url.image_id, ImageSize::Medium))
+            .map(|url| wgg_picnic::images::image_url(url.image_id, ImageSize::Medium))
             .collect(),
         // Will be parsed
         ingredients: Vec::new(),
@@ -408,7 +512,6 @@ fn parse_picnic_full_product_to_product(
     // Parse remaining decorators
     for dec in product.decorators {
         parse_decorator(
-            picnic_api,
             dec,
             &mut result.decorators,
             Some(&mut result.price_info.display_price),
@@ -473,10 +576,7 @@ fn parse_picnic_full_product_to_product(
 }
 
 /// Parse a full picnic [wgg_picnic::models::SingleArticle] to our normalised [SearchItem]
-fn parse_picnic_item_to_search_item(
-    picnic_api: &PicnicApi,
-    article: wgg_picnic::models::SingleArticle,
-) -> WggSearchProduct {
+fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) -> WggSearchProduct {
     // Note that Picnic's 'display_price' is equivalent to our 'full_price'.
     let mut result = WggSearchProduct {
         id: article.id,
@@ -486,7 +586,7 @@ fn parse_picnic_item_to_search_item(
         unit_quantity: Default::default(),
         unit_price: None,
         available: true,
-        image_url: Some(picnic_api.image_url(article.image_id, wgg_picnic::models::ImageSize::Medium)),
+        image_url: Some(wgg_picnic::images::image_url(article.image_id, ImageSize::Medium)),
         decorators: Vec::new(),
         provider: Provider::Picnic,
     };
@@ -494,7 +594,6 @@ fn parse_picnic_item_to_search_item(
     // Parse remaining decorators
     for dec in article.decorators {
         parse_decorator(
-            picnic_api,
             dec,
             &mut result.decorators,
             Some(&mut result.display_price),
@@ -529,7 +628,6 @@ fn parse_picnic_item_to_search_item(
 // Encourage inlining to get rid of the Option costs.
 #[inline(always)]
 pub fn parse_decorator(
-    picnic_api: &PicnicApi,
     decorator: Decorator,
     result: &mut Vec<crate::models::WggDecorator>,
     set_display_price: Option<&mut u32>,
@@ -594,10 +692,7 @@ pub fn parse_decorator(
                 },
                 explanation_short: explanation.short_explanation.into(),
                 explanation_long: explanation.long_explanation.into(),
-                replacements: replacements
-                    .into_iter()
-                    .map(|item| parse_picnic_item_to_search_item(picnic_api, item))
-                    .collect(),
+                replacements: replacements.into_iter().map(parse_picnic_item_to_search_item).collect(),
             };
 
             if let Some(available) = set_available {
@@ -609,7 +704,7 @@ pub fn parse_decorator(
             let more_button = MoreButton {
                 images: images
                     .into_iter()
-                    .map(|id| picnic_api.image_url(id, ImageSize::Medium))
+                    .map(|id| wgg_picnic::images::image_url(id, ImageSize::Medium))
                     .collect(),
             };
 

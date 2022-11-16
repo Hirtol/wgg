@@ -57,8 +57,8 @@ pub(crate) fn parse_quantity(quantity: &str) -> Option<UnitQuantity> {
 /// Preferably one would first use [parse_unit_price], but this function is available as a fallback.
 pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: CentPrice) -> Option<UnitPrice> {
     let (normalised_quantity, normalised_unit) = match unit_quantity.unit {
-        Unit::Gram => ((unit_quantity.amount as f64 / 1000.), Unit::KiloGram),
-        Unit::MilliLiter => ((unit_quantity.amount as f64 / 1000.), Unit::Liter),
+        Unit::Gram => ((unit_quantity.amount / 1000.), Unit::KiloGram),
+        Unit::MilliLiter => ((unit_quantity.amount / 1000.), Unit::Liter),
         _ => (unit_quantity.amount, unit_quantity.unit),
     };
 

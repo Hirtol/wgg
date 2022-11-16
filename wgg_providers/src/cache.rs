@@ -63,7 +63,7 @@ impl WggProviderCache {
 
     /// Turns this cache into a new Serializable/Deserializable struct
     #[allow(dead_code)]
-    pub fn to_serde_cache(self) -> SerdeWggCache {
+    pub fn into_serde_cache(self) -> SerdeWggCache {
         SerdeWggCache {
             full_products: self.full_products,
             search_products: self.search_products,
