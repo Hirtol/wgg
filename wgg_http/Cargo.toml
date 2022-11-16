@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 thiserror = {workspace = true}
 tracing = {workspace = true}
 itertools = {workspace = true}
+secrecy = { workspace = true }
 tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
 
 # Async
@@ -52,7 +53,7 @@ figment = { version = "0.10.6", features = ["toml", "env"] }
 dotenv = "0.15.0"
 platform-dirs = "0.3.0"
 toml = "0.5.9"
-arc-swap = "1.5"
+arc-swap = { workspace = true }
 
 # Providers
 wgg_providers = { path = "../wgg_providers", features = ["trace-original-api"] }

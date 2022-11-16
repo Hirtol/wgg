@@ -7,7 +7,7 @@ mod picnic_bridge;
 
 use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 pub(crate) use jumbo_bridge::*;
-pub(crate) use picnic_bridge::*;
+pub use picnic_bridge::*;
 
 pub trait StaticProviderInfo {
     /// The associated [Provider] for this bridge implementation

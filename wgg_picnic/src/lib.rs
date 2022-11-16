@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context};
 use md5::Digest;
 use reqwest::{Response, StatusCode};
 use serde::Serialize;
+use std::fmt::Debug;
 
 use reqwest::header::HeaderMap;
 use std::time::Duration;
@@ -14,6 +15,7 @@ pub use crate::{config::Config, error::ApiError};
 
 mod config;
 mod error;
+pub mod images;
 pub mod models;
 
 pub type Result<T> = std::result::Result<T, error::ApiError>;
@@ -53,54 +55,8 @@ impl PicnicApi {
     ///
     /// It is recommended to save the [Credentials] in a secure place to avoid having to log in with username/password
     /// every time. One could in the future then call [PicnicApi::new].
-    pub async fn from_login(username: impl Into<String>, password: impl AsRef<str>, config: Config) -> Result<Self> {
-        let mut hasher = md5::Md5::new();
-
-        hasher.update(password.as_ref());
-
-        let result = hasher.finalize();
-        let hex = hex::encode(result);
-
-        let client = get_reqwest_client(&config.user_agent)?;
-        let login = LoginRequest {
-            key: username.into(),
-            secret: hex,
-            client_id: config
-                .picnic_details
-                .as_ref()
-                .map(|i| i.client_id.clone())
-                .unwrap_or_else(|| "1".to_string()),
-            client_version: config.picnic_details.as_ref().map(|i| i.client_version.clone()),
-            device_id: None,
-        };
-
-        let response = client
-            .post(config.get_full_url("/user/login"))
-            .json(&login)
-            .send()
-            .await?;
-
-        if response.status().is_client_error() {
-            return Err(ApiError::LoginFailed(format!(
-                "Status: {} - Body: {}",
-                response.status(),
-                response.text().await?
-            )));
-        }
-
-        let auth_token = response
-            .headers()
-            .get("x-picnic-auth")
-            .ok_or_else(|| anyhow!("No picnic auth token available in response: {:#?}", response))?
-            .to_str()
-            .map_err(|e| anyhow!(e))?
-            .to_string();
-        let login_response: LoginResponse = response.json().await?;
-
-        let credentials = Credentials {
-            auth_token,
-            user_id: login_response.user_id,
-        };
+    pub async fn from_login(email: impl Into<String>, password: impl AsRef<str>, config: Config) -> Result<Self> {
+        let credentials = Self::login_impl(&config, email.into(), password.as_ref()).await?;
 
         Ok(Self::new(credentials, config))
     }
@@ -117,6 +73,14 @@ impl PicnicApi {
         let response = self.get("/user", &[]).await?;
 
         Ok(response.json().await?)
+    }
+
+    /// Log-in again, refreshing the internal [Credentials] in the process.
+    pub async fn login(&mut self, email: impl Into<String>, password: impl AsRef<str>) -> Result<&Credentials> {
+        let credentials = Self::login_impl(&self.config, email.into(), password.as_ref()).await?;
+        self.credentials = credentials;
+
+        Ok(&self.credentials)
     }
 
     /// Search for the provided query.
@@ -370,6 +334,57 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
+    /// Private login function for deduplication purposes.
+    async fn login_impl(config: &Config, email: String, password: &str) -> Result<Credentials> {
+        let mut hasher = md5::Md5::new();
+
+        hasher.update(password);
+
+        let result = hasher.finalize();
+        let hex = hex::encode(result);
+
+        let client = get_reqwest_client(&config.user_agent)?;
+        let login = LoginRequest {
+            key: email,
+            secret: hex,
+            client_id: config
+                .picnic_details
+                .as_ref()
+                .map(|i| i.client_id.clone())
+                .unwrap_or_else(|| "1".to_string()),
+            client_version: config.picnic_details.as_ref().map(|i| i.client_version.clone()),
+            device_id: None,
+        };
+
+        let response = client
+            .post(config.get_full_url("/user/login"))
+            .json(&login)
+            .send()
+            .await?;
+
+        if response.status().is_client_error() {
+            return Err(ApiError::LoginFailed(format!(
+                "Status: {} - Body: {}",
+                response.status(),
+                response.text().await?
+            )));
+        }
+
+        let auth_token = response
+            .headers()
+            .get("x-picnic-auth")
+            .ok_or_else(|| anyhow!("No picnic auth token available in response: {:#?}", response))?
+            .to_str()
+            .context("Failed to convert to str")?
+            .to_string();
+        let login_response: LoginResponse = response.json().await?;
+
+        Ok(Credentials {
+            auth_token,
+            user_id: login_response.user_id,
+        })
+    }
+
     async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -396,6 +411,10 @@ impl PicnicApi {
             StatusCode::NOT_FOUND => {
                 tracing::debug!(response=?response, "Failed to resolve get request");
                 Err(ApiError::NotFound)
+            }
+            StatusCode::UNAUTHORIZED => {
+                tracing::debug!(status = %response.status(), ?response, "Picnic API Error");
+                Err(ApiError::AuthError)
             }
             _ => {
                 tracing::warn!(status = %response.status(), ?response, "Picnic API Error");
@@ -428,7 +447,8 @@ impl PicnicApi {
         Ok(response)
     }
 }
-#[derive(Clone)]
+
+#[derive(Clone, Debug)]
 pub struct Credentials {
     pub auth_token: String,
     pub user_id: String,

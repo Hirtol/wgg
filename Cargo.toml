@@ -32,6 +32,7 @@ anyhow = "1"
 thiserror = "1"
 tracing = "0.1"
 itertools = "0.10"
+arc-swap = "1.5"
 
 # Async
 tokio = { version = "1", features = ["macros", "net", "test-util"] }
@@ -41,3 +42,4 @@ async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+secrecy = { version = "0.8.0", features = ["serde"] }

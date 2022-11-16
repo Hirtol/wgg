@@ -50,17 +50,12 @@ impl Application {
         let cache = caching::setup_cache(&config).await;
         let mut providers = WggProvider::new(cache);
 
-        if let Some(auth_token) = config.auth.picnic_auth_token.clone() {
-            providers = providers.with_picnic(wgg_providers::PicnicCredentials::new(auth_token, "1".to_string()))
-        } else if let Some((username, password)) = config
-            .auth
-            .picnic_username
-            .clone()
-            .zip(config.auth.picnic_password.clone())
-        {
-            providers = providers.with_picnic_login(&username, &password).await?;
-
-            tracing::info!(auth_token=?providers.picnic_credentials().unwrap().auth_token, "Picnic Login Complete")
+        // Try initialise the Picnic provider.
+        match config.auth.clone().try_into() {
+            Ok(picnic_creds) => {
+                providers = providers.with_picnic(picnic_creds).await?;
+            }
+            Err(e) => tracing::debug!(error=?e, "Not using Picnic Provider"),
         }
 
         let db_providers = crate::db::providers::all_db_providers(&sea_db).await?;

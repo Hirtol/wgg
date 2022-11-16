@@ -5,15 +5,14 @@ use std::fmt::Debug;
 use std::num::NonZeroUsize;
 use std::time::Duration;
 use wgg_jumbo::BaseJumboApi;
-use wgg_picnic::PicnicApi;
 
 use crate::cache::WggProviderCache;
 use crate::pagination::OffsetPagination;
-pub use error::ProviderError;
 use providers::{JumboBridge, PicnicBridge, ProviderInfo};
 
 pub use crate::cache::SerdeWggCache;
-pub use wgg_picnic::Credentials as PicnicCredentials;
+pub use crate::providers::PicnicCredentials;
+pub use error::ProviderError;
 
 mod cache;
 mod error;
@@ -32,7 +31,7 @@ pub struct WggProvider {
 impl WggProvider {
     /// Create a new collection of providers.
     ///
-    /// By default only the `JumboApi` is enabled, see [Self::with_picnic] or [Self::with_picnic_login] to enable `Picnic`.
+    /// By default only the `JumboApi` is enabled, see [Self::with_picnic] to enable `Picnic`.
     pub fn new(cache: Option<SerdeWggCache>) -> Self {
         WggProvider {
             picnic: None,
@@ -46,22 +45,13 @@ impl WggProvider {
         }
     }
 
-    /// Create a new provider from pre-existing *valid* [wgg_picnic::Credentials].
-    pub fn with_picnic(mut self, picnic_credentials: PicnicCredentials) -> Self {
-        let rps = providers::PICNIC_RECOMMENDED_RPS;
-        self.picnic = PicnicBridge::new(PicnicApi::new(picnic_credentials, Default::default()), rps).into();
-
-        self
-    }
-
     /// Initialise the Picnic API provider.
     ///
-    /// Ideally one would persist the acquired credentials to disk, and in the future use [Self::with_picnic].
-    pub async fn with_picnic_login(mut self, username: &str, password: &str) -> Result<Self> {
-        let picnic = PicnicApi::from_login(username, password, Default::default()).await?;
-
+    /// Should one provide `auth_token` to the [PicnicCredentials] then the initial login attempt is skipped and this
+    /// future resolves immediately.
+    pub async fn with_picnic(mut self, picnic_credentials: PicnicCredentials) -> Result<Self> {
         let rps = providers::PICNIC_RECOMMENDED_RPS;
-        self.picnic = Some(PicnicBridge::new(picnic, rps));
+        self.picnic = PicnicBridge::new(picnic_credentials, rps).await?.into();
 
         Ok(self)
     }
@@ -70,13 +60,6 @@ impl WggProvider {
     ///
     pub fn serialized_cache(&self) -> SerdeWggCache {
         self.cache.as_serde_cache()
-    }
-
-    /// Return the currently used [PicnicCredentials], if the Picnic provider has been created.
-    ///
-    /// If not, [None] is returned.
-    pub fn picnic_credentials(&self) -> Option<&PicnicCredentials> {
-        Some(self.picnic.as_ref()?.api.credentials())
     }
 
     /// Provide autocomplete results from the requested [Provider].

@@ -8,6 +8,8 @@ pub enum ApiError {
     NotFound,
     #[error("Can't request an empty search query")]
     EmptySearch,
+    #[error("Either the current auth token is incorrect or has expired")]
+    AuthError,
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]

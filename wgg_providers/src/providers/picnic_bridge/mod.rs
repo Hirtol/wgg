@@ -12,6 +12,7 @@ use governor::state::{InMemoryState, NotKeyed};
 use governor::{Jitter, Quota};
 use itertools::Itertools;
 use regex::Regex;
+use secrecy::ExposeSecret;
 use std::borrow::Cow;
 use std::num::NonZeroU32;
 use std::time::Duration;
@@ -20,6 +21,10 @@ use wgg_picnic::PicnicApi;
 
 use crate::Result;
 
+mod authentication;
+
+pub use authentication::PicnicCredentials;
+
 pub const PICNIC_RECOMMENDED_RPS: Option<NonZeroU32> = NonZeroU32::new(5);
 const JITTER: Duration = Duration::from_millis(500);
 
@@ -27,13 +32,36 @@ const JITTER: Duration = Duration::from_millis(500);
 pub(crate) struct PicnicBridge {
     pub api: PicnicApi,
     limiter: governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
+    credentials: PicnicCredentials,
 }
 
 impl PicnicBridge {
-    pub fn new(api: PicnicApi, limit_rps: Option<NonZeroU32>) -> Self {
+    pub(crate) async fn new(credentials: PicnicCredentials, limit_rps: Option<NonZeroU32>) -> Result<Self> {
+        let config = Default::default();
+        let api = if let Some(auth_token) = credentials.to_credentials() {
+            PicnicApi::new(auth_token, config)
+        } else {
+            PicnicApi::from_login(credentials.email(), credentials.password().expose_secret(), config).await?
+        };
+
+        tracing::trace!(auth_token=?api.credentials().auth_token, "Picnic Login Complete");
+
+        Ok(Self::from_api(api, credentials, limit_rps))
+    }
+
+    pub(crate) fn from_api(api: PicnicApi, credentials: PicnicCredentials, limit_rps: Option<NonZeroU32>) -> Self {
         let limiter =
             governor::RateLimiter::direct(Quota::per_second(limit_rps.unwrap_or(PICNIC_RECOMMENDED_RPS.unwrap())));
-        PicnicBridge { api, limiter }
+
+        PicnicBridge {
+            api,
+            limiter,
+            credentials,
+        }
+    }
+
+    pub(crate) fn credentials(&self) -> &PicnicCredentials {
+        &self.credentials
     }
 
     async fn wait_rate_limit(&self) {

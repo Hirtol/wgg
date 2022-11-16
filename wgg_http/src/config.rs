@@ -3,6 +3,7 @@ use arc_swap::ArcSwap;
 use figment::providers::{Env, Format, Serialized, Toml};
 use figment::Figment;
 use rand::Rng;
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::Write;
@@ -53,7 +54,7 @@ pub fn save_config(app_settings: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Serialize, Deserialize, Clone, Hash, PartialOrd, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Config {
     /// Contains all settings related to app hosting/config values.
@@ -95,11 +96,11 @@ pub struct DbConfig {
     pub in_memory: bool,
 }
 
-#[derive(Deserialize, Clone, Hash, PartialOrd, PartialEq, Eq, Default)]
+#[derive(Deserialize, Clone, Default)]
 pub struct AuthConfig {
-    pub picnic_auth_token: Option<String>,
-    pub picnic_username: Option<String>,
-    pub picnic_password: Option<String>,
+    pub picnic_auth_token: Option<SecretString>,
+    pub picnic_email: Option<String>,
+    pub picnic_password: Option<SecretString>,
 }
 
 impl Default for AppConfig {
@@ -149,6 +150,18 @@ impl DbConfig {
                     .expect("Invalid database path specified in config or ENV")
             )
         }
+    }
+}
+
+impl TryFrom<AuthConfig> for wgg_providers::PicnicCredentials {
+    type Error = anyhow::Error;
+
+    fn try_from(value: AuthConfig) -> Result<Self, Self::Error> {
+        let (Some(email), Some(password)) = (value.picnic_email, value.picnic_password) else {
+            anyhow::bail!("Either the email or password was missing for Picnic Credentials initialisation");
+        };
+
+        Ok(Self::new(email, password, value.picnic_auth_token))
     }
 }
 

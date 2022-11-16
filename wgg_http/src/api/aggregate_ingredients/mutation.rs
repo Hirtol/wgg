@@ -66,9 +66,7 @@ impl AggregateMutation {
             .map(|item| db::agg_ingredients_links::ActiveModel {
                 id: Default::default(),
                 aggregate_id: model.id.into_active_value(),
-                provider_id: state
-                    .provider_id_from_provider(&item.provider)
-                    .into_active_value(),
+                provider_id: state.provider_id_from_provider(&item.provider).into_active_value(),
                 provider_ingr_id: item.id.into_active_value(),
             });
         let _ = db::agg_ingredients_links::Entity::insert_many(new_ingredients)
