@@ -9,3 +9,13 @@ mutation submitLogin($email: String!, $password: String!) {
         }
     }
 }
+
+fragment ViewerContext on AuthContext {
+    id
+    email
+    username
+    isAdmin
+    currentCart {
+        ...CartFragment
+    }
+}

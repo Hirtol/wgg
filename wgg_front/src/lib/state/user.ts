@@ -8,7 +8,8 @@ import {
 import { asyncMutationStore, asyncQueryStore, Client } from '$lib/api/urql';
 
 type isAuthenticated = boolean;
-export type UserData = ViewerContextFragment;
+// Current cart is an implementation detail for the GraphQL fetching in one round-trip, not relevant on actual user.
+export type UserData = Omit<ViewerContextFragment, 'currentCart'>;
 export type UserStore = Writable<UserData | undefined>;
 
 /**
@@ -24,7 +25,7 @@ export const isUserAuthenticated: Readable<isAuthenticated> = derived(authSessio
  */
 export async function authenticateUser(
     client: Client
-): Promise<{ user: UserData | undefined; isAuthenticated: boolean }> {
+): Promise<{ user: ViewerContextFragment | undefined; isAuthenticated: boolean }> {
     try {
         const { item } = await asyncQueryStore({ query: ViewerInfoQueryDocument, client });
         authSession.set(item.data?.viewer);

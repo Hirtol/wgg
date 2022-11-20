@@ -40,10 +40,11 @@ export interface CartData {
     data: CartFragment | undefined;
 }
 
-export async function initialiseRealCart(client: Client): Promise<CartStore> {
-    const item = await client.query(CartCurrentQueryDocument, {}).toPromise();
+export async function initialiseRealCart(client: Client, cartData?: CartFragment): Promise<CartStore> {
+    const cartInfo = cartData
+        ? cartData
+        : (await client.query(CartCurrentQueryDocument, {}).toPromise()).data?.cartCurrent;
 
-    const cartInfo = item.data?.cartCurrent;
     const { subscribe, set } = writable(createCartData(cartInfo));
 
     return {
@@ -52,14 +53,16 @@ export async function initialiseRealCart(client: Client): Promise<CartStore> {
             const data = await setCartContent(productInput, client);
 
             if (data) {
-                set(createCartData(data))
+                set(createCartData(data));
             }
         },
         refreshContent: async () => {
-            const item = await client.query(CartCurrentQueryDocument, {}, {requestPolicy: 'cache-and-network'}).toPromise();
+            const item = await client
+                .query(CartCurrentQueryDocument, {}, { requestPolicy: 'cache-and-network' })
+                .toPromise();
 
             if (item.data) {
-                set(createCartData(item.data.cartCurrent))
+                set(createCartData(item.data.cartCurrent));
             }
         }
     };
@@ -67,9 +70,10 @@ export async function initialiseRealCart(client: Client): Promise<CartStore> {
 
 function createCartData(cart: CartFragment | undefined): CartData {
     return {
-        getProductQuantity: (provider: Provider, productId: string) => cart ? getProductQuantityImpl(cart, provider, productId) : [],
+        getProductQuantity: (provider: Provider, productId: string) =>
+            cart ? getProductQuantityImpl(cart, provider, productId) : [],
         data: cart
-    }
+    };
 }
 
 /**

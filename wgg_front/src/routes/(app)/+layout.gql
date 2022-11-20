@@ -3,10 +3,3 @@ query ViewerInfoQuery {
         ...ViewerContext
     }
 }
-
-fragment ViewerContext on AuthContext {
-    id
-    email
-    username
-    isAdmin
-}
