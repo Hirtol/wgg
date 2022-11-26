@@ -25,7 +25,7 @@ pub trait BaseApi {
 
         match response.status() {
             StatusCode::OK => Ok(response),
-            StatusCode::NOT_FOUND => Err(ApiError::NotFound),
+            StatusCode::NOT_FOUND => Err(ApiError::NotFound(url_suffix.to_string())),
             _ => {
                 tracing::warn!(status = %response.status(), ?response, "Jumbo API Error occurred");
                 Err(anyhow!("Error occurred: {}", response.status()).into())
@@ -46,7 +46,7 @@ pub trait BaseApi {
 
         match response.status() {
             StatusCode::OK => Ok(response),
-            StatusCode::NOT_FOUND => Err(ApiError::NotFound),
+            StatusCode::NOT_FOUND => Err(ApiError::NotFound(url_suffix.to_string())),
             _ => {
                 tracing::warn!(status = %response.status(), ?response, "Jumbo API Error occurred");
                 Err(anyhow!("Error occurred: {}", response.status()).into())

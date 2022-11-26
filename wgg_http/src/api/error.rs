@@ -171,10 +171,11 @@ impl From<wgg_providers::ProviderError> for GraphqlError {
             ProviderError::ProviderUninitialised(provider) => {
                 GraphqlError::InternalError(format!("Provider uninitialised: {:?}", provider))
             }
-            ProviderError::PicnicError(_) => GraphqlError::Other(anyhow!(e)),
-            ProviderError::JumboError(_) => GraphqlError::Other(anyhow!(e)),
             ProviderError::Other(e) => GraphqlError::Other(e),
             ProviderError::Reqwest(e) => GraphqlError::Other(anyhow!(e)),
+            ProviderError::SubProviderError(provider, e) => {
+                GraphqlError::Other(anyhow!("{:?} - Failure: {:#}", provider, e))
+            }
         }
     }
 }

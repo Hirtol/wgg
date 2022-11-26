@@ -1,7 +1,7 @@
 use crate::api::{GraphqlResult, State};
 use crate::db;
 use crate::db::Id;
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::HashMap;
 use std::ops::{Add, AddAssign};
 use wgg_providers::models::{CentPrice, Provider};
