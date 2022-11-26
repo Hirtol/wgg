@@ -1,16 +1,17 @@
 <script lang="ts">
-    import { Carousel } from 'flowbite-svelte';
+    import { AccordionItem, Carousel } from 'flowbite-svelte';
     import type { PageData } from './$types';
     import { marked } from 'marked';
     import { Provider, TextType } from '$lib/api/graphql_types';
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
     import { centsToTextPrice, unitToText } from '$lib/utils';
-    import { Divider, tooltip } from '@brainandbones/skeleton';
+    import { AccordionGroup, Divider, tooltip } from '@brainandbones/skeleton';
     import ImageCarousal from '$lib/components/ImageCarousal.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
     import ShortDecorator from './ShortDecorator.svelte';
     import PriceQuantityComponent from '$lib/components/products/PriceQuantityComponent.svelte';
+    import ExtendedDescription from './ExtendedDescription.svelte';
 
     export let data: PageData;
 
@@ -28,6 +29,7 @@
     $: descrPlainText = product?.description.textType != TextType.Markdown ?? true;
     $: quantity = product ? $cart.getProductQuantity(product.providerInfo.provider, product.id)[0]?.quantity ?? 0 : 0;
     $: unavailable = product?.decorators.find((x) => x.__typename == 'UnavailableItem');
+
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         await cart.setCartContent({ productId, provider, quantity: newQuantity, __typename: 'RawProduct' }, client);
     }
@@ -72,16 +74,10 @@
                 </div>
             </header>
 
-            <Divider class="col-span-2 mt-4 mb-2" />
+            <Divider class="mt-4 mb-2" />
 
-            <div class="px-4">
-                <div id="description" class="max-w-prose" class:whitespace-pre-line={descrPlainText}>
-                    {#if !descrPlainText}
-                        {@html marked(product.description.text ?? '')}
-                    {:else}
-                        {product?.description.text ?? ''}
-                    {/if}
-                </div>
+            <div class="mx-auto px-4">
+                <ExtendedDescription {product} />
             </div>
         </section>
     </main>
