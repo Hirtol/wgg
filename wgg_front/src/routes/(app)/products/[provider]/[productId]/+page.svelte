@@ -37,36 +37,35 @@
 
 {#if product}
     <main class="container mx-auto">
-        <section class="card grid grid-cols-1 md:grid-cols-2">
-            <ImageCarousal class="card-body" {images} showThumbs={false} />
+        <section class="card">
+            <header class="grid grid-cols-1 px-4 md:grid-cols-2">
+                <ImageCarousal class="card-body" {images} showThumbs={false} />
 
-            <header class="col-span-2 px-4">
-                <h2>{product.name}</h2>
+                <div class="flex flex-col justify-center gap-1">
+                    <h2>{product.name}</h2>
 
-                <ShortDecorator
-                    class="text-base text-gray-500 line-clamp-1 dark:text-gray-400"
-                    data={product.decorators} />
-
-                <PriceQuantityComponent class="!font-normal !text-base" data={product} />
-
-                <PriceComponent
-                    data={{
-                        displayPrice: product.priceInfo.displayPrice,
-                        fullPrice: product.priceInfo.originalPrice
-                    }} />
-
-                <AddComponent
-                    class="pt-2"
-                    normalButton
-                    {quantity}
-                    on:setQuantity={(e) =>
-                        product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
+                    <ShortDecorator
+                        class="text-base text-gray-500 line-clamp-1 dark:text-gray-400"
+                        data={product.decorators} />
+                    <PriceQuantityComponent class="!text-base !font-normal" data={product} />
+                    <PriceComponent
+                        data={{
+                            displayPrice: product.priceInfo.displayPrice,
+                            fullPrice: product.priceInfo.originalPrice
+                        }} />
+                    <AddComponent
+                        class="min-h-[2.5rem] max-w-[8rem] pt-2"
+                        normalButton
+                        {quantity}
+                        on:setQuantity={(e) =>
+                            product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
+                </div>
             </header>
 
             <Divider class="col-span-2 mt-4 mb-2" />
 
-            <div class="grid grid-cols-1 px-4 md:grid-cols-2">
-                <div id="description" class:whitespace-pre-line={descrPlainText}>
+            <div class="px-4">
+                <div id="description" class="max-w-prose" class:whitespace-pre-line={descrPlainText}>
                     {#if !descrPlainText}
                         {@html marked(product.description.text ?? '')}
                     {:else}

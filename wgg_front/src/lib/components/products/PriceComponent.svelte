@@ -16,7 +16,7 @@
 </script>
 
 <div class={classLocal}>
-    <h4 class:line-through={dashed}>
+    <h3 class:line-through={dashed}>
         {#if !hasSale}
             <span class="inline-block text-gray-500 line-through dark:text-gray-400">{fullPrice}</span>
         {/if}
@@ -28,5 +28,5 @@
             class:line-through={dashed}>
             {displayPrice}
         </span>
-    </h4>
+    </h3>
 </div>
