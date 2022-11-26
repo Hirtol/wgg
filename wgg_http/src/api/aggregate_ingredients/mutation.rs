@@ -41,7 +41,7 @@ impl AggregateMutation {
         let product_image = if let Some(ingredient) = input.ingredients.first() {
             state
                 .providers
-                .search_product_by_id(ingredient.provider, &ingredient.id)
+                .search_product(ingredient.provider, &ingredient.id)
                 .await?
                 .image_url
         } else {

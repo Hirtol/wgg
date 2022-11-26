@@ -25,7 +25,7 @@ pub async fn calculate_aggregate_total_price(
 
     let products = futures::future::try_join_all(aggregate.into_iter().map(|ingr| {
         let provider = state.provider_from_id(ingr.provider_id);
-        state.providers.search_product_by_id(provider, ingr.provider_ingr_id)
+        state.providers.search_product(provider, ingr.provider_ingr_id)
     }))
     .await?;
 

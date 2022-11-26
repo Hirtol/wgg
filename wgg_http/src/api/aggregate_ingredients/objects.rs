@@ -30,7 +30,7 @@ impl AggregateIngredient {
 
         let product_futures = products.into_iter().map(|model| {
             let provider = state.provider_from_id(model.provider_id);
-            state.providers.search_product_by_id(provider, model.provider_ingr_id)
+            state.providers.search_product(provider, model.provider_ingr_id)
         });
 
         let results = futures::future::try_join_all(product_futures).await?;

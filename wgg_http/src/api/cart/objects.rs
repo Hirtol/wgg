@@ -183,7 +183,7 @@ impl CartProviderProduct {
 
         Ok(state
             .providers
-            .search_product_by_id(provider, &self.provider_product_id)
+            .search_product(provider, &self.provider_product_id)
             .await?)
     }
 }

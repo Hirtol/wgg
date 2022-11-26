@@ -250,11 +250,7 @@ impl WggProvider {
     /// This is highly recommended for the majority of cases to reduce latency and external network calls as several
     /// cache layers can be used at once.
     #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
-    pub async fn search_product_by_id(
-        &self,
-        provider: Provider,
-        product_id: impl AsRef<str>,
-    ) -> Result<WggSearchProduct> {
+    pub async fn search_product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<WggSearchProduct> {
         let id = product_id.as_ref().to_string();
 
         if let Some(item) = self.cache.get_search_product(provider, &id) {
@@ -266,30 +262,30 @@ impl WggProvider {
 
     /// Retrieve the search product representation of the requested product.
     ///
-    /// This is highly recommended for the majority of cases to reduce latency and external network calls as several
-    /// cache layers can be used at once.
-    ///
-    /// Calling this is more efficient than individual [Self::search_product_by_id] calls for multiple ids as it allows
-    /// keeping the Mutex guard.
+    /// Calling this allows for easy concurrency of requests as opposed to individual [search_product](Self::search_product) calls.
     #[tracing::instrument(level = "debug", skip_all, fields(provider))]
-    pub async fn search_products_by_id(
+    pub async fn search_products(
         &self,
         provider: Provider,
         product_ids: impl IntoIterator<Item = impl AsRef<str> + Debug>,
     ) -> Result<Vec<WggSearchProduct>> {
-        let mut result = Vec::with_capacity(2);
+        use futures::stream::{StreamExt, TryStreamExt};
 
-        for id in product_ids {
-            let id = id.as_ref();
+        let result: Result<Vec<_>> = futures::stream::iter(product_ids)
+            .map(|id| async move {
+                let id = id.as_ref();
 
-            if let Some(item) = self.cache.get_search_product(provider, id) {
-                result.push(item);
-            } else {
-                result.push(self.product_network(provider, id).await?.into());
-            }
-        }
+                if let Some(item) = self.cache.get_search_product(provider, id) {
+                    Ok(item)
+                } else {
+                    self.product_network(provider, id).await.map(|i| i.into())
+                }
+            })
+            .buffer_unordered(10)
+            .try_collect()
+            .await;
 
-        Ok(result)
+        Ok(result?)
     }
 
     /// Perform a network request for the requested product.
