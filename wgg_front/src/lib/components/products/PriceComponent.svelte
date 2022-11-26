@@ -2,17 +2,20 @@
     import { centsToTextPrice } from '$lib/utils';
     import classNames from 'classnames';
 
+    export { classes as class };
     export let data: { displayPrice: number; fullPrice: number };
 
     export let dashed: boolean = false;
 
-    $: classes = classNames($$restProps.class, 'block');
+    let classes = '';
+
+    $: classLocal = classNames(classes, 'block');
     $: hasSale = data.displayPrice == data.fullPrice;
     $: displayPrice = centsToTextPrice(data.displayPrice);
     $: fullPrice = centsToTextPrice(data.fullPrice);
 </script>
 
-<div class={classes}>
+<div class={classLocal}>
     <h4 class:line-through={dashed}>
         {#if !hasSale}
             <span class="inline-block text-gray-500 line-through dark:text-gray-400">{fullPrice}</span>

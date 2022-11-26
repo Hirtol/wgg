@@ -26,7 +26,7 @@ export function centsToPrice(input: number): number {
 }
 
 /**
- * Convert a particular {@link Unit} to a human-readable string, where the first letter is capatilised.
+ * Convert a particular {@link Unit} to a human-readable string, where the first letter is capitilised.
  */
 export function unitToText(unit: Unit, short: boolean = false, plural: boolean = true): string {
     // const output = unit.toString();

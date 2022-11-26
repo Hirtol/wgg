@@ -13,6 +13,7 @@
     import { createEventDispatcher } from 'svelte';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
+    import PriceQuantityComponent from './PriceQuantityComponent.svelte';
     import ProductCardSkeleton from './ProductCardSkeleton.svelte';
     import ProductImage from './ProductImage.svelte';
     import SaleLabel from './SaleLabel.svelte';
@@ -63,14 +64,8 @@
 
         <!-- Quantity and Add/Remove -->
         <div class="text-s flex text-gray-500 dark:text-gray-400">
-            <h6 class="text-s flex text-gray-500 line-clamp-1 dark:text-gray-400">
-                {data.unitQuantity.amount}
-                {unitToText(data.unitQuantity.unit, true, false)}
-
-                {#if data.unitPrice}
-                    €{centsToTextPrice(data.unitPrice.price)}/{unitToText(data.unitPrice.unit, true, false)}
-                {/if}
-            </h6>
+            <PriceQuantityComponent
+                data={{ unitQuantity: data.unitQuantity, priceInfo: { unitPrice: data.unitPrice } }} />
 
             <AddComponent
                 class="ml-auto inline-block !h-6"
