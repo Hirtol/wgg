@@ -410,7 +410,7 @@ impl PicnicApi {
             StatusCode::OK => Ok(response),
             StatusCode::NOT_FOUND => {
                 tracing::debug!(response=?response, "Failed to resolve get request");
-                Err(ApiError::NotFound)
+                Err(ApiError::NotFound(url_suffix.to_string()))
             }
             StatusCode::UNAUTHORIZED => {
                 tracing::debug!(status = %response.status(), ?response, "Picnic API Error");

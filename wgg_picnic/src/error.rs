@@ -4,8 +4,8 @@ use thiserror::Error;
 pub enum ApiError {
     #[error("Could not log in due to {0}")]
     LoginFailed(String),
-    #[error("The requested resource did not exist")]
-    NotFound,
+    #[error("Picnic does not/no longer has the requested (`{0}`) resource")]
+    NotFound(String),
     #[error("Can't request an empty search query")]
     EmptySearch,
     #[error("Either the current auth token is incorrect or has expired")]

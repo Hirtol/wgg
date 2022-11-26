@@ -77,14 +77,9 @@ impl WggProviderCache {
     /// Taking `&String` as argument is intentional due to the internal cache API being a little stupid.
     pub fn get_search_product(&self, provider: Provider, product_id: &str) -> Option<WggSearchProduct> {
         let search_cache = self.search_products.get(&provider)?;
-        if let Some(entry) = search_cache.get(product_id) {
-            if let Some(item) = entry.get_if_valid(self.ttl) {
-                Some(item)
-            } else {
-                // Past the time to live
-                search_cache.invalidate(product_id);
-                None
-            }
+
+        if search_cache.contains_key(product_id) {
+            self.get_or_invalidate(product_id, &search_cache)
         } else {
             self.get_product(provider, product_id).map(|item| item.into())
         }
@@ -92,15 +87,8 @@ impl WggProviderCache {
 
     pub fn get_product(&self, provider: Provider, product_id: &str) -> Option<WggProduct> {
         let full_cache = self.full_products.get(&provider)?;
-        let entry = full_cache.get(product_id)?;
 
-        if let Some(item) = entry.get_if_valid(self.ttl) {
-            Some(item)
-        } else {
-            // Past the time to live
-            full_cache.invalidate(product_id);
-            None
-        }
+        self.get_or_invalidate(product_id, full_cache)
     }
 
     pub fn insert_search_product(&self, provider: Provider, product: Cow<'_, WggSearchProduct>) -> Option<()> {
@@ -123,6 +111,26 @@ impl WggProviderCache {
 
         search_cache.insert(to_insert.entry.id.clone(), to_insert);
         Some(())
+    }
+
+    /// Retrieves the associated item with the given key from the given cache.
+    ///
+    /// If the TTL defined by our application has been exceeded the item will be invalidated and `None` will be returned.
+    fn get_or_invalidate<I: Clone + Send + Sync + 'static>(
+        &self,
+        key: &str,
+        cache: &moka::sync::Cache<ProductId, CacheEntry<I>>,
+    ) -> Option<I> {
+        let entry = cache.get(key)?;
+
+        if let Some(item) = entry.get_if_valid(self.ttl) {
+            Some(item)
+        } else {
+            // Past the time to live
+            tracing::trace!(key, "Expiring cache-entry for product with given key");
+            cache.invalidate(key);
+            None
+        }
     }
 }
 
