@@ -6,7 +6,7 @@
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
     import { centsToTextPrice, unitToText } from '$lib/utils';
-    import { Divider } from '@brainandbones/skeleton';
+    import { Divider, tooltip } from '@brainandbones/skeleton';
     import ImageCarousal from '$lib/components/ImageCarousal.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
     import ShortDecorator from './ShortDecorator.svelte';
@@ -27,9 +27,7 @@
 
     $: descrPlainText = product?.description.textType != TextType.Markdown ?? true;
     $: quantity = product ? $cart.getProductQuantity(product.providerInfo.provider, product.id)[0]?.quantity ?? 0 : 0;
-    $: daysFresh = product?.decorators.find((x) => x.__typename == 'FreshLabel');
-    $: prepTime = product?.decorators.find((x) => x.__typename == 'PrepTime');
-
+    $: unavailable = product?.decorators.find((x) => x.__typename == 'UnavailableItem');
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         await cart.setCartContent({ productId, provider, quantity: newQuantity, __typename: 'RawProduct' }, client);
     }
@@ -59,6 +57,18 @@
                         {quantity}
                         on:setQuantity={(e) =>
                             product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
+
+                    {#if unavailable && unavailable.__typename == 'UnavailableItem'}
+                        <span
+                            use:tooltip={{
+                                content: unavailable.explanationLong ?? unavailable.explanationShort ?? '',
+                                background: '!bg-accent-500',
+                                regionContainer: 'max-w-fit'
+                            }}
+                            class="badge bg-warning-400 !text-lg dark:bg-warning-700">
+                            Unavailable: {unavailable.explanationShort}
+                        </span>
+                    {/if}
                 </div>
             </header>
 
