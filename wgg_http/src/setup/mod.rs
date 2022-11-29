@@ -25,7 +25,10 @@ use tower_http::trace::TraceLayer;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 
+pub use first_time::DEFAULT_USER;
+
 mod caching;
+mod first_time;
 
 pub struct Application {
     pub tcp: TcpListener,
@@ -44,7 +47,7 @@ impl Application {
         setup_db_schema(&db).await?;
 
         let sea_db = SqlxSqliteConnector::from_sqlx_sqlite_pool(db);
-        crate::utils::first_time_setup(&sea_db).await?;
+        first_time::first_time_setup(&sea_db).await?;
 
         tracing::debug!("Creating Providers...");
         let cache = caching::setup_cache(&config).await;
@@ -55,7 +58,7 @@ impl Application {
             Ok(picnic_creds) => {
                 providers = providers.with_picnic(picnic_creds).await?;
             }
-            Err(e) => tracing::debug!(error=?e, "Not using Picnic Provider"),
+            Err(e) => tracing::debug!(error = ?e, "Not using Picnic Provider"),
         }
 
         let db_providers = crate::db::providers::all_db_providers(&sea_db).await?;
@@ -96,13 +99,17 @@ impl Application {
         };
 
         // Persist data cache
-        caching::teardown_cache(self.providers.serialized_cache(), &self.config.load()).await;
+        caching::teardown_cache(self.providers.serialized_cache(), &self.config.load_full()).await;
 
         result
     }
 
     pub fn pool(&self) -> DatabaseConnection {
         self.db.clone()
+    }
+
+    pub fn port(&self) -> &TcpListener {
+        &self.tcp
     }
 }
 

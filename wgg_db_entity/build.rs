@@ -68,6 +68,7 @@ async fn initialise_database(db_path: &Path) -> anyhow::Result<()> {
         .parse::<SqliteConnectOptions>()
         .unwrap()
         .journal_mode(SqliteJournalMode::Memory)
+        .foreign_keys(true)
         .synchronous(SqliteSynchronous::Normal) // Since we're in WAL mode
         .busy_timeout(Duration::from_secs(10));
 

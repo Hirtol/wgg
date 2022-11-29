@@ -18,6 +18,7 @@ thiserror = {workspace = true}
 tracing = {workspace = true}
 itertools = {workspace = true}
 secrecy = { workspace = true }
+once_cell = {workspace = true}
 tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
 
 # Async
@@ -64,5 +65,6 @@ static_init = "1"
 pretty_assertions = "1.2"
 tempfile = "3"
 const_format = "0.2.13"
+reqwest = { version = "0.11.11", features = ["json", "cookies", "rustls-tls", "gzip"] }
 
 

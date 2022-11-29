@@ -24,7 +24,7 @@ debug = 0
 
 [workspace]
 resolver = "2"
-members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity", "wgg_schema_gen"]
+members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity", "wgg_schema_gen", "wgg_scheduler"]
 default-members = ["wgg_http"]
 
 [workspace.dependencies]
@@ -33,6 +33,7 @@ thiserror = "1"
 tracing = "0.1"
 itertools = "0.10"
 arc-swap = "1.5"
+once_cell = "1.14.0"
 
 # Async
 tokio = { version = "1", features = ["macros", "net", "test-util"] }

@@ -4146,9 +4146,11 @@ dependencies = [
  "futures",
  "httpdate",
  "itertools",
+ "once_cell",
  "platform-dirs",
  "pretty_assertions",
  "rand",
+ "reqwest",
  "sea-orm",
  "secrecy",
  "serde",
@@ -4250,6 +4252,19 @@ dependencies = [
  "tracing-subscriber",
  "wgg_jumbo",
  "wgg_picnic",
+]
+
+[[package]]
+name = "wgg_scheduler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures",
+ "itertools",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

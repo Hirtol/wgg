@@ -94,8 +94,7 @@ CREATE TABLE IF NOT EXISTS cart_contents_aggregate
 
     UNIQUE(cart_id, aggregate_id),
     FOREIGN KEY (cart_id) REFERENCES cart (id) ON DELETE CASCADE,
-    FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients (id) ON DELETE CASCADE,
-    FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients_links (aggregate_id) ON DELETE CASCADE
+    FOREIGN KEY (aggregate_id) REFERENCES agg_ingredients (id) ON DELETE CASCADE
 );
 
 -- Final tally of completed carts.

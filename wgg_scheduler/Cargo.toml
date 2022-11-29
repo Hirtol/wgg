@@ -1,0 +1,15 @@
+[package]
+name = "wgg_scheduler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = {workspace = true}
+tracing = {workspace = true}
+itertools = {workspace = true}
+
+# Async
+tokio = { workspace = true }
+futures = {workspace = true}
+async-trait = {workspace = true }
