@@ -34,8 +34,6 @@ impl TestApp {
     }
 
     pub async fn spawn_app_with_settings(mut test_settings: TestSettings) -> Self {
-        dotenv::dotenv().unwrap();
-
         // Setup Tracing
         let subscriber = telemetry::create_subscriber("DEBUG,wgg_http=TRACE,wgg_providers=TRACE,sqlx=WARN,hyper=WARN");
         subscriber.init();
