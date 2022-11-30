@@ -3,10 +3,13 @@ name = "wgg_scheduler"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["tracing"]
+
 [dependencies]
 anyhow = { workspace = true }
 thiserror = {workspace = true}
-tracing = {workspace = true}
+tracing = {workspace = true, optional = true}
 itertools = {workspace = true}
 
 # Async

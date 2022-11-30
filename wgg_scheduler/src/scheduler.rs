@@ -4,7 +4,7 @@ use crate::runner::{Messages, RunnerState};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
-use uuid::{uuid, Uuid};
+use uuid::Uuid;
 
 #[derive(Clone, Default)]
 pub struct JobScheduler {
@@ -50,22 +50,24 @@ impl JobScheduler {
     /// // Start executing the above job
     /// scheduler.start();
     /// ```
-    pub fn add(&self, job: Job) -> Option<JobId> {
+    pub fn add(&self, job: Job) -> JobId {
         let uuid = Uuid::new_v4();
 
         let lock = self.inner.running.lock().unwrap();
 
         if let Some(runner) = lock.as_ref() {
-            runner.snd.send(Messages::AddJob(uuid, job)).ok()?;
+            // The unwrap will never be hit as we'd have no runner!
+            runner.snd.send(Messages::AddJob(uuid, job)).ok().unwrap();
         } else {
             // Queue up jobs for when we start the scheduler.
             let mut queue = self.inner.job_backlog.lock().unwrap();
             queue.insert(uuid, job);
         }
 
-        Some(uuid)
+        uuid
     }
 
+    /// Remove a job with the given `job_id`.
     pub fn remove(&self, job_id: JobId) -> Option<()> {
         let lock = self.inner.running.lock().unwrap();
 
@@ -93,12 +95,7 @@ impl JobScheduler {
         let (snd, recv) = tokio::sync::mpsc::unbounded_channel();
 
         let backlog = std::mem::take(&mut *self.inner.job_backlog.lock().unwrap());
-        let runner = RunnerState {
-            jobs: backlog,
-            main_ref: (*self).clone(),
-            recv,
-            quit_notify: notify.clone(),
-        };
+        let runner = RunnerState::new(backlog, (*self).clone(), recv, notify.clone());
         // Since we're spawning a future here best ensure we're running in a run-time!
         // This is why the function is marked as `async`.
         let handle = tokio::task::spawn(runner.run());
@@ -134,6 +131,42 @@ impl JobScheduler {
     pub fn stop(&self) -> Option<impl Future<Output = std::result::Result<Result<()>, tokio::task::JoinError>>> {
         // As we want to have this stop on the inner data's drop we'll have to defer implementation to that type.
         self.inner.stop()
+    }
+
+    /// Pause the entire scheduler, needs to be manually [unpaused](Self::unpause).
+    pub fn pause(&self) {
+        let lock = self.inner.running.lock().unwrap();
+
+        if let Some(runner) = lock.as_ref() {
+            let _ = runner.snd.send(Messages::PauseScheduler).ok();
+        }
+    }
+
+    /// Resume the scheduler after it was [paused](Self::pause).
+    pub fn resume(&self) {
+        let lock = self.inner.running.lock().unwrap();
+
+        if let Some(runner) = lock.as_ref() {
+            let _ = runner.snd.send(Messages::ResumeScheduler).ok();
+        }
+    }
+
+    /// Pause a single job on the scheduler, needs to be manually [unpaused](Self::resume_job).
+    pub fn pause_job(&self, job_id: JobId) {
+        let lock = self.inner.running.lock().unwrap();
+
+        if let Some(runner) = lock.as_ref() {
+            let _ = runner.snd.send(Messages::PauseJob(job_id)).ok();
+        }
+    }
+
+    /// Resume the given job if it had been paused.
+    pub fn resume_job(&self, job_id: JobId) {
+        let lock = self.inner.running.lock().unwrap();
+
+        if let Some(runner) = lock.as_ref() {
+            let _ = runner.snd.send(Messages::ResumeJob(job_id)).ok();
+        }
     }
 }
 
