@@ -31,6 +31,7 @@ wgg_picnic = { path = "../wgg_picnic" }
 wgg_jumbo = { path = "../wgg_jumbo" }
 async-graphql = { version = "4.0.6", default-features=false, features = ["chrono"] }
 regex = "1.6.0"
+wgg_scheduler = {workspace = true}
 
 # Caching
 moka = { version = "0.9.4", features = ["future"] }

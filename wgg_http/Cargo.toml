@@ -59,6 +59,8 @@ arc-swap = { workspace = true }
 # Providers
 wgg_providers = { path = "../wgg_providers", features = ["trace-original-api"] }
 wgg_db_entity = { path = "../wgg_db_entity" }
+wgg_scheduler = {workspace = true}
+
 
 [dev-dependencies]
 static_init = "1"

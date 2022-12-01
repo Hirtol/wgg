@@ -1,9 +1,10 @@
 pub mod error;
-pub mod job;
+mod job;
 mod runner;
 pub mod schedule;
 mod scheduler;
 
+pub use job::*;
 pub use scheduler::JobScheduler;
 
 #[cfg(test)]

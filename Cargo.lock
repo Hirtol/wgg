@@ -4180,6 +4180,7 @@ dependencies = [
  "tracing-subscriber",
  "wgg_db_entity",
  "wgg_providers",
+ "wgg_scheduler",
 ]
 
 [[package]]
@@ -4264,6 +4265,7 @@ dependencies = [
  "tracing-subscriber",
  "wgg_jumbo",
  "wgg_picnic",
+ "wgg_scheduler",
 ]
 
 [[package]]

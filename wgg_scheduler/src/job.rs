@@ -10,6 +10,7 @@ use uuid::Uuid;
 pub type JobId = Uuid;
 
 pub struct Job {
+    pub(crate) id: JobId,
     pub(crate) function: Box<dyn Send + Sync + FnMut(JobId, JobScheduler) -> BoxFuture<'static, anyhow::Result<()>>>,
     pub(crate) schedule: Schedule,
     pub(crate) next_run_at: DateTime<Utc>,
@@ -29,6 +30,7 @@ impl Job {
     {
         let schedule = schedule.try_into()?;
         Ok(Job {
+            id: Uuid::new_v4(),
             function: Box::new(func),
             next_run_at: schedule.next(Utc::now()).ok_or(ScheduleError::OutOfRange)?,
             schedule,
@@ -67,6 +69,7 @@ impl Job {
 impl Debug for Job {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         core::fmt::Formatter::debug_struct(f, "Job")
+            .field("id", &self.id)
             .field("next_run_at", &self.next_run_at)
             .field("schedule", &self.schedule)
             .field("is_paused", &self.is_paused)

@@ -4,9 +4,8 @@ use crate::runner::{Messages, RunnerState};
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use uuid::Uuid;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct JobScheduler {
     inner: Arc<SchedulerInner>,
 }
@@ -64,16 +63,15 @@ impl JobScheduler {
     /// scheduler.start();
     /// ```
     pub fn push(&self, job: Job) -> JobId {
-        let uuid = Uuid::new_v4();
-
         let lock = self.inner.running.lock().unwrap();
+        let id = job.id;
 
         if let Some(runner) = lock.as_ref() {
             // The unwrap will never be hit as we'd have no runner!
-            runner.snd.send(Messages::AddJob(uuid, job)).ok().unwrap();
+            runner.snd.send(Messages::AddJob(job.id, job)).ok().unwrap();
         }
 
-        uuid
+        id
     }
 
     /// Remove a job with the given `job_id`.
