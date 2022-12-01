@@ -1,9 +1,10 @@
-use crate::error::Result;
+use crate::error::{Result, ScheduleError};
 use crate::job::{Job, JobId};
 use crate::runner::{Messages, RunnerState};
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use uuid::Uuid;
 
 #[derive(Clone, Default)]
@@ -23,10 +24,24 @@ struct RunningDetails {
 }
 
 impl JobScheduler {
-    pub fn new() -> JobScheduler {
-        JobScheduler {
+    /// Create a new Job Scheduler and associated runner.
+    ///
+    /// # Runner
+    ///
+    /// This will launch a separate [task](tokio::task::JoinHandle) which will poll every `checking_frequency` for new tasks to execute.
+    /// It will start paused, see [start](Self::start) to start it.
+    ///
+    /// # Arguments
+    ///
+    /// * `checking_frequency` - How often the scheduler checks for tasks which need to execute. A decent default is `500ms`
+    pub async fn new(checking_frequency: Duration) -> JobScheduler {
+        let scheduler = JobScheduler {
             inner: Arc::new(SchedulerInner::default()),
-        }
+        };
+
+        scheduler.spawn_runner(checking_frequency).await;
+
+        scheduler
     }
 
     /// Add a new [Job] to the scheduler.
@@ -81,56 +96,27 @@ impl JobScheduler {
     }
 
     /// Start the JobScheduler, and start executing on a new runner
-    ///
-    /// # Runner
-    ///
-    /// This will launch a separate [task](tokio::task::JoinHandle) which will poll every `500ms` for a new task to execute.
-    ///
-    /// # Returns
-    ///
-    /// Should this `start` function be called again whilst this existing runner exists it will return immediately with `false`.
-    /// `true` if a new runner has been successfully started.
-    pub async fn start(&self) -> bool {
-        let notify = Arc::new(tokio::sync::Notify::new());
-        let (snd, recv) = tokio::sync::mpsc::unbounded_channel();
-
-        let backlog = std::mem::take(&mut *self.inner.job_backlog.lock().unwrap());
-        let runner = RunnerState::new(backlog, (*self).clone(), recv, notify.clone());
-        // Since we're spawning a future here best ensure we're running in a run-time!
-        // This is why the function is marked as `async`.
-        let handle = tokio::task::spawn(runner.run());
-
-        let mut inner_lock = self.inner.running.lock().unwrap();
-
-        // First ensure we've stopped the current runner if it's present
-        if inner_lock.is_some() {
-            return false;
-        }
-
-        *inner_lock = Some(RunningDetails {
-            handle,
-            quit_notify: notify,
-            snd,
-        });
-
-        true
+    pub async fn start(&self) {
+        self.resume();
     }
 
     /// Will force the current scheduler to a stop.
     ///
     /// Is automatically called in the [JobScheduler]'s `drop` implementation.
-    /// Can be called several times without consequence.
-    ///
-    /// All current jobs are dropped when this is called. If one wants to re-start the scheduler later on one will need
-    /// to re-add them all.
     ///
     /// # Returns
     ///
-    /// An (optional) future which one can await in order to ensure the scheduler has completely shut down.
-    /// If the scheduler has already been stopped this will return `None` instead.
-    pub fn stop(&self) -> Option<impl Future<Output = std::result::Result<Result<()>, tokio::task::JoinError>>> {
+    /// A future containing the runner's `Result` which one can await in order to ensure the scheduler has completely shut down.
+    /// Even if this future is ignored the scheduler will still be stopped properly.
+    pub async fn stop(self) -> Result<()> {
         // As we want to have this stop on the inner data's drop we'll have to defer implementation to that type.
-        self.inner.stop()
+        // We can safely unwrap as the internal `stop` can only return `None` if the internal runner was already stopped
+        // by something else. Only `drop` can do that.
+        self.inner
+            .stop()
+            .unwrap()
+            .await
+            .map_err(|_| ScheduleError::StopFailure)?
     }
 
     /// Pause the entire scheduler, needs to be manually [unpaused](Self::unpause).
@@ -166,6 +152,31 @@ impl JobScheduler {
 
         if let Some(runner) = lock.as_ref() {
             let _ = runner.snd.send(Messages::ResumeJob(job_id)).ok();
+        }
+    }
+
+    async fn spawn_runner(&self, checking_frequency: Duration) {
+        let notify = Arc::new(tokio::sync::Notify::new());
+        let (snd, recv) = tokio::sync::mpsc::unbounded_channel();
+        let runner = RunnerState::new(
+            Default::default(),
+            self.clone(),
+            recv,
+            notify.clone(),
+            checking_frequency,
+            true,
+        );
+        // Since we're spawning a future here best ensure we're running in a run-time!
+        // This is why the function is marked as `async`.
+        let handle = tokio::task::spawn(runner.run());
+        {
+            let mut inner = self.inner.running.lock().unwrap();
+
+            *inner = Some(RunningDetails {
+                handle,
+                quit_notify: notify,
+                snd,
+            });
         }
     }
 }

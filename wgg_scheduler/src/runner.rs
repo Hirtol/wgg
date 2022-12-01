@@ -33,14 +33,16 @@ impl RunnerState {
         main_ref: JobScheduler,
         recv: UnboundedReceiver<Messages>,
         quitter: Arc<tokio::sync::Notify>,
+        checking_frequency: Duration,
+        is_paused: bool,
     ) -> Self {
         Self {
             jobs,
             main_ref,
             recv,
             quit_notify: quitter,
-            is_paused: false,
-            check_rate: Duration::from_millis(500),
+            is_paused,
+            check_rate: checking_frequency,
         }
     }
 

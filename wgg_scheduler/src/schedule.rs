@@ -5,7 +5,7 @@ use chrono::{DateTime, TimeZone};
 pub enum Schedule {
     /// A periodic execution
     Periodic(cron::Schedule),
-    /// Set to execute at exactly this point in the future, once.
+    /// Set to execute at exactly this point in the future.
     Interval(chrono::Duration),
 }
 

@@ -10,4 +10,6 @@ pub enum ScheduleError {
     MiscError(#[from] anyhow::Error),
     #[error("Provided STD time was outside of a valid range")]
     OutOfRange,
+    #[error("Failed to properly stop runner, it seems that it was already stopped?")]
+    StopFailure,
 }
