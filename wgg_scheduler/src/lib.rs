@@ -20,7 +20,7 @@ mod tests {
     pub async fn test_basic() {
         let scheduler = JobScheduler::new(basic_checking()).await;
         let (job, mut recv) = get_basic_job(basic_schedule());
-        let _ = scheduler.add(job);
+        let _ = scheduler.push(job);
         scheduler.start().await;
 
         // Sleep enough time for the scheduler to be called
@@ -33,7 +33,7 @@ mod tests {
     pub async fn test_stop() {
         let scheduler = JobScheduler::new(basic_checking()).await;
         let (job, mut recv) = get_basic_job(basic_schedule());
-        let _ = scheduler.add(job);
+        let _ = scheduler.push(job);
         scheduler.start().await;
 
         let _ = scheduler.stop().await;
@@ -48,7 +48,7 @@ mod tests {
     pub async fn test_pause() {
         let scheduler = JobScheduler::new(basic_checking()).await;
         let (job, mut recv) = get_basic_job(basic_schedule());
-        let _ = scheduler.add(job);
+        let _ = scheduler.push(job);
         scheduler.start().await;
 
         scheduler.pause();
@@ -70,8 +70,8 @@ mod tests {
         let scheduler = JobScheduler::new(basic_checking()).await;
         let (job, mut recv) = get_basic_job(basic_schedule());
         let (job2, mut recv2) = get_basic_job(basic_schedule());
-        let id = scheduler.add(job);
-        let _ = scheduler.add(job2);
+        let id = scheduler.push(job);
+        let _ = scheduler.push(job2);
         scheduler.start().await;
 
         scheduler.pause_job(id);

@@ -10,7 +10,7 @@ use tokio::time::Instant;
 #[derive(Debug)]
 pub enum Messages {
     AddJob(JobId, Job),
-    RemoveJob(JobId),
+    RemoveJob(JobId, tokio::sync::oneshot::Sender<Option<Job>>),
     PauseScheduler,
     ResumeScheduler,
     PauseJob(JobId),
@@ -20,7 +20,7 @@ pub enum Messages {
 pub struct RunnerState {
     pub jobs: HashMap<JobId, Job>,
     pub main_ref: JobScheduler,
-    pub recv: tokio::sync::mpsc::UnboundedReceiver<Messages>,
+    pub recv: UnboundedReceiver<Messages>,
     pub quit_notify: Arc<tokio::sync::Notify>,
     is_paused: bool,
     /// How often we should check
@@ -33,7 +33,7 @@ impl RunnerState {
         main_ref: JobScheduler,
         recv: UnboundedReceiver<Messages>,
         quitter: Arc<tokio::sync::Notify>,
-        checking_frequency: Duration,
+        check_rate: Duration,
         is_paused: bool,
     ) -> Self {
         Self {
@@ -42,7 +42,7 @@ impl RunnerState {
             recv,
             quit_notify: quitter,
             is_paused,
-            check_rate: checking_frequency,
+            check_rate,
         }
     }
 
@@ -77,8 +77,9 @@ impl RunnerState {
             Messages::AddJob(id, job) => {
                 self.jobs.insert(id, job);
             }
-            Messages::RemoveJob(id) => {
-                self.jobs.remove(&id);
+            Messages::RemoveJob(id, response) => {
+                let job = self.jobs.remove(&id);
+                let _ = response.send(job);
             }
             Messages::PauseScheduler => self.is_paused = true,
             Messages::ResumeScheduler => self.is_paused = false,

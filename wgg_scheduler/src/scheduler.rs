@@ -1,7 +1,6 @@
 use crate::error::{Result, ScheduleError};
 use crate::job::{Job, JobId};
 use crate::runner::{Messages, RunnerState};
-use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -14,7 +13,6 @@ pub struct JobScheduler {
 
 struct SchedulerInner {
     pub running: Mutex<Option<RunningDetails>>,
-    pub job_backlog: Mutex<HashMap<JobId, Job>>,
 }
 
 struct RunningDetails {
@@ -61,11 +59,11 @@ impl JobScheduler {
     ///     Ok(())
     /// }))?;
     ///
-    /// let job_id = scheduler.add(job);
+    /// let job_id = scheduler.push(job);
     /// // Start executing the above job
     /// scheduler.start();
     /// ```
-    pub fn add(&self, job: Job) -> JobId {
+    pub fn push(&self, job: Job) -> JobId {
         let uuid = Uuid::new_v4();
 
         let lock = self.inner.running.lock().unwrap();
@@ -73,25 +71,21 @@ impl JobScheduler {
         if let Some(runner) = lock.as_ref() {
             // The unwrap will never be hit as we'd have no runner!
             runner.snd.send(Messages::AddJob(uuid, job)).ok().unwrap();
-        } else {
-            // Queue up jobs for when we start the scheduler.
-            let mut queue = self.inner.job_backlog.lock().unwrap();
-            queue.insert(uuid, job);
         }
 
         uuid
     }
 
     /// Remove a job with the given `job_id`.
-    pub fn remove(&self, job_id: JobId) -> Option<()> {
+    pub fn remove(&self, job_id: JobId) -> Option<Job> {
         let lock = self.inner.running.lock().unwrap();
 
         if let Some(runner) = lock.as_ref() {
-            runner.snd.send(Messages::RemoveJob(job_id)).ok()
+            let (snd, recv) = tokio::sync::oneshot::channel();
+            let _ = runner.snd.send(Messages::RemoveJob(job_id, snd));
+            recv.blocking_recv().ok().flatten()
         } else {
-            // Queue up jobs for when we start the scheduler.
-            let mut queue = self.inner.job_backlog.lock().unwrap();
-            queue.remove(&job_id).map(|_| ())
+            None
         }
     }
 
@@ -158,6 +152,7 @@ impl JobScheduler {
     async fn spawn_runner(&self, checking_frequency: Duration) {
         let notify = Arc::new(tokio::sync::Notify::new());
         let (snd, recv) = tokio::sync::mpsc::unbounded_channel();
+
         let runner = RunnerState::new(
             Default::default(),
             self.clone(),
@@ -207,7 +202,6 @@ impl Default for SchedulerInner {
     fn default() -> Self {
         SchedulerInner {
             running: Mutex::new(None),
-            job_backlog: Mutex::new(Default::default()),
         }
     }
 }
