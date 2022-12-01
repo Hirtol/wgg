@@ -1,5 +1,6 @@
 use crate::api::aggregate_ingredients::{AggregateMutation, AggregateQuery};
 use crate::api::auth::{AuthMutation, AuthQuery};
+use crate::api::cart::{CartMutation, CartQuery};
 use crate::api::error::GraphqlError;
 use crate::api::providers::ProviderQuery;
 use crate::config::SharedConfig;
@@ -11,6 +12,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
+use wgg_scheduler::JobScheduler;
 
 mod aggregate_ingredients;
 mod auth;
@@ -23,8 +25,8 @@ mod macros;
 mod pagination;
 mod providers;
 mod routes;
+pub mod scheduled_jobs;
 
-use crate::api::cart::{CartMutation, CartQuery};
 pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
@@ -43,6 +45,7 @@ pub struct State {
     pub(crate) db: DatabaseConnection,
     pub(crate) config: SharedConfig,
     pub(crate) providers: Arc<WggProvider>,
+    pub(crate) scheduler: JobScheduler,
     /// Lists all providers available in the database and their associated Ids.
     ///
     /// This assumes no external modification of the database *whilst* the application is running!
@@ -61,7 +64,10 @@ impl State {
 
     /// Quickly find the `Id` for the given `provider`.
     pub fn provider_id_from_provider(&self, provider: &Provider) -> Id {
-        self.db_providers.get(provider).copied().expect("Expected a new provider to exist in the database when it doesn't!")
+        self.db_providers
+            .get(provider)
+            .copied()
+            .expect("Expected a new provider to exist in the database when it doesn't!")
     }
 }
 

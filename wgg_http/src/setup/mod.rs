@@ -26,6 +26,7 @@ use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 
 pub use first_time::DEFAULT_USER;
+use wgg_scheduler::JobScheduler;
 
 mod caching;
 mod first_time;
@@ -36,6 +37,7 @@ pub struct Application {
     pub db: DatabaseConnection,
     pub providers: Arc<WggProvider>,
     pub db_providers: BTreeMap<Provider, Id>,
+    pub scheduler: JobScheduler,
 }
 
 impl Application {
@@ -61,6 +63,8 @@ impl Application {
             Err(e) => tracing::debug!(error = ?e, "Not using Picnic Provider"),
         }
 
+        let scheduler = JobScheduler::new(Duration::from_millis(500)).await;
+
         let db_providers = crate::db::providers::all_db_providers(&sea_db).await?;
 
         let result = Application {
@@ -69,6 +73,7 @@ impl Application {
             db: sea_db,
             providers: providers.into(),
             db_providers,
+            scheduler,
         };
 
         Ok(result)
@@ -83,7 +88,18 @@ impl Application {
     /// where we won't provide a signal for shutdown.
     pub async fn run(self, quitter: Arc<tokio::sync::Notify>) -> anyhow::Result<()> {
         tracing::info!("Setup complete, starting server...");
-        let app = construct_server(self.db, self.config.clone(), self.providers.clone(), self.db_providers).await?;
+
+        self.scheduler.start().await;
+
+        let app = construct_server(
+            self.db,
+            self.config.clone(),
+            self.providers.clone(),
+            self.db_providers,
+            self.scheduler.clone(),
+        )
+        .await?;
+
         tracing::info!("Listening on {:?}", self.tcp);
         let server = axum::Server::from_tcp(self.tcp)?.serve(app.into_make_service());
 
@@ -100,6 +116,7 @@ impl Application {
 
         // Persist data cache
         caching::teardown_cache(self.providers.serialized_cache(), &self.config.load_full()).await;
+        self.scheduler.stop().await?;
 
         result
     }
@@ -118,6 +135,7 @@ async fn construct_server(
     config: SharedConfig,
     providers: Arc<WggProvider>,
     db_providers: BTreeMap<Provider, Id>,
+    scheduler: JobScheduler,
 ) -> anyhow::Result<axum::Router> {
     let cfg: DynGuard<Config> = config.load();
     let secret_key = tower_cookies::Key::from(cfg.app.cookie_secret_key.as_bytes());
@@ -126,9 +144,13 @@ async fn construct_server(
         db,
         config,
         providers,
+        scheduler,
         db_providers,
     };
     let schema = create_graphql_schema(state.clone(), secret_key.clone());
+
+    // Schedule all API jobs
+    crate::api::scheduled_jobs::schedule_all_jobs(&state.scheduler, state.clone());
 
     let app = api_router(&cfg.app.static_dir, schema.clone()).layer(
         ServiceBuilder::new()

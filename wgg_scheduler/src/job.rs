@@ -24,9 +24,11 @@ impl Job {
     /// # Returns
     ///
     /// The created job so long as the schedule (CRON string) is valid.
-    pub fn new<Fn>(schedule: impl TryInto<Schedule, Error = ScheduleError>, func: Fn) -> Result<Job>
+    pub fn new<Fn, T>(schedule: T, func: Fn) -> Result<Job>
     where
         Fn: Send + Sync + FnMut(JobId, JobScheduler) -> BoxFuture<'static, anyhow::Result<()>> + 'static,
+        T: TryInto<Schedule>,
+        ScheduleError: From<T::Error>,
     {
         let schedule = schedule.try_into()?;
         Ok(Job {

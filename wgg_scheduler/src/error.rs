@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, ScheduleError>;
@@ -12,4 +13,10 @@ pub enum ScheduleError {
     OutOfRange,
     #[error("Failed to properly stop runner, it seems that it was already stopped?")]
     StopFailure,
+}
+
+impl From<Infallible> for ScheduleError {
+    fn from(_: Infallible) -> Self {
+        panic!("Infallible can't be constructed")
+    }
 }
