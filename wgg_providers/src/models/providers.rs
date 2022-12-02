@@ -1,5 +1,5 @@
 use crate::providers::StaticProviderInfo;
-use crate::{JumboBridge, PicnicBridge};
+use crate::providers::{JumboBridge, PicnicBridge};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::str::FromStr;

@@ -1,5 +1,5 @@
 use crate::models::WggSaleGroupComplete;
-use crate::{Provider, WggProduct, WggSearchProduct};
+use crate::models::{Provider, WggProduct, WggSearchProduct};
 use chrono::{DateTime, Utc};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

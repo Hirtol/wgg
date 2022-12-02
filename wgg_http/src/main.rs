@@ -16,7 +16,10 @@ async fn main() -> anyhow::Result<()> {
 
     let notifier = get_quit_notifier();
 
-    app.run(notifier).await?;
+    let final_config = app.run(notifier).await?;
+
+    // Save config when we're done
+    let _ = config::save_config(&final_config);
 
     Ok(())
 }

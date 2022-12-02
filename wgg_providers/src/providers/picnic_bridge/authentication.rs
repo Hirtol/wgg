@@ -28,10 +28,15 @@ impl PicnicCredentials {
         &self.password
     }
 
+    pub fn auth_token(&self) -> Option<&SecretString> {
+        self.auth_token.as_ref()
+    }
+
     pub(crate) fn to_credentials(&self) -> Option<wgg_picnic::Credentials> {
         Some(wgg_picnic::Credentials::new(
             self.auth_token.as_ref()?.expose_secret().clone(),
             "1".to_string(),
         ))
     }
+    
 }

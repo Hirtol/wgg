@@ -227,14 +227,6 @@ pub async fn get_sales(
     Ok(result)
 }
 
-pub fn invert_sales_tree(sales: impl Iterator<Item = (SublistId, SaleInfo)>, out: &DashMap<ProductId, SublistId>) {
-    for (sublist, items) in sales {
-        for item in &items.item_ids {
-            out.insert(item.clone(), sublist.clone());
-        }
-    }
-}
-
 fn get_sale_validity(decorators: impl IntoIterator<Item = WggDecorator>) -> SaleValidity {
     decorators
         .into_iter()

@@ -1,11 +1,13 @@
+use crate::error::ProviderError;
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
-    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, SaleLabel, SaleValidity, SubNutritionalItem, TextType,
-    UnavailableItem, UnitPrice, WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
+    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, SaleLabel, SaleValidity, SubNutritionalItem,
+    TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct, WggSaleCategory,
+    WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
 };
+use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use crate::{OffsetPagination, Provider, ProviderError, WggAutocomplete, WggSearchProduct};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
@@ -63,8 +65,8 @@ impl PicnicBridge {
         }
     }
 
-    pub(crate) fn credentials(&self) -> &PicnicCredentials {
-        &self.credentials
+    pub(crate) async fn credentials(&self) -> wgg_picnic::Credentials {
+        self.api.read().await.credentials().clone()
     }
 
     async fn wait_rate_limit(&self) {

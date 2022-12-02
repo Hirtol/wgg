@@ -1,12 +1,12 @@
 use crate::models::{
     AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, SaleDescription, SaleLabel, SaleValidity,
-    SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct,
-    WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
+    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, Provider, SaleDescription, SaleLabel, SaleValidity,
+    SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggAutocomplete, WggDecorator,
+    WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem, WggSearchProduct,
 };
+use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use crate::{OffsetPagination, Provider, WggAutocomplete, WggSearchProduct};
 use crate::{ProviderError, Result};
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;

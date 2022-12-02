@@ -1,11 +1,13 @@
-use crate::{OffsetPagination, Provider, Result, WggAutocomplete, WggSearchProduct};
+use crate::models::{Provider, WggAutocomplete, WggSearchProduct};
+use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
+use crate::pagination::OffsetPagination;
+use crate::Result;
 use std::borrow::Cow;
 
 mod common_bridge;
 mod jumbo_bridge;
 mod picnic_bridge;
 
-use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 pub(crate) use jumbo_bridge::*;
 pub use picnic_bridge::*;
 

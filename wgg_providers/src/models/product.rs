@@ -1,8 +1,7 @@
 use crate::models::{
-    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, ProviderInfo, TextType, UnitQuantity,
+    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, Provider, ProviderInfo, TextType, UnitQuantity,
     WggDecorator,
 };
-use crate::Provider;
 use serde::{Deserialize, Serialize};
 
 // ** Full Product **

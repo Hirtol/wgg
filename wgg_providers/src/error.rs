@@ -1,5 +1,5 @@
 use crate::error::SubProviderError::{JumboMiscError, PicnicMiscError};
-use crate::Provider;
+use crate::models::Provider;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

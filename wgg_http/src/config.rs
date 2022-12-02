@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::net::ToSocketAddrs;
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -61,18 +62,8 @@ pub struct Config {
     pub app: AppConfig,
     /// Contains all settings relevant for DB initialisation.
     pub db: DbConfig,
-    /// Contains all settings relevant for authentication with external services.
-    #[serde(skip_serializing)]
-    pub auth: AuthConfig,
-}
-
-impl Debug for Config {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Config")
-            .field("app", &self.app)
-            .field("db", &self.db)
-            .finish()
-    }
+    /// Contains all settings relevant for the various providers.
+    pub pd: ProviderConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -96,10 +87,32 @@ pub struct DbConfig {
     pub in_memory: bool,
 }
 
-#[derive(Deserialize, Clone, Default)]
-pub struct AuthConfig {
-    pub picnic_auth_token: Option<SecretString>,
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct ProviderConfig {
+    pub picnic: PicnicConfig
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct PicnicConfig {
+    /// The maximum requests per second to allow towards Picnic servers.
+    /// More is better, but comes with a greater risk of API bans.
+    pub requests_per_second: Option<NonZeroU32>,
+    /// The stored/original auth token for Picnic. 
+    /// 
+    /// Note that this is automatically refreshed by the application when it is needed, assuming [the credentials](AuthConfig)
+    /// are provided.
+    /// 
+    /// # Security
+    /// 
+    /// This stores a potentially sensitive token in this config file, it is therefore highly advised to keep this in a
+    /// secure place with limited permissions for other processes.
+    pub auth_token: Option<String>,
+    /// The email associated with the Picnic account.
+    /// 
+    /// Both the email and password should be provided through environment variables
+    #[serde(skip_serializing)]
     pub picnic_email: Option<String>,
+    #[serde(skip_serializing)]
     pub picnic_password: Option<SecretString>,
 }
 
@@ -118,6 +131,15 @@ impl Default for AppConfig {
                 .join("static"),
             cache_dir: crate::utils::get_app_dirs().config_dir.join("cache"),
         }
+    }
+}
+
+impl Debug for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("app", &self.app)
+            .field("db", &self.db)
+            .finish()
     }
 }
 
@@ -153,15 +175,26 @@ impl DbConfig {
     }
 }
 
-impl TryFrom<AuthConfig> for wgg_providers::PicnicCredentials {
+impl Default for PicnicConfig {
+    fn default() -> Self {
+        Self {
+            requests_per_second: wgg_providers::PICNIC_RECOMMENDED_RPS,
+            auth_token: None,
+            picnic_email: None,
+            picnic_password: None,
+        }
+    }
+}
+
+impl TryFrom<PicnicConfig> for wgg_providers::PicnicCredentials {
     type Error = anyhow::Error;
 
-    fn try_from(value: AuthConfig) -> Result<Self, Self::Error> {
+    fn try_from(value: PicnicConfig) -> Result<Self, Self::Error> {
         let (Some(email), Some(password)) = (value.picnic_email, value.picnic_password) else {
             anyhow::bail!("Either the email or password was missing for Picnic Credentials initialisation");
         };
 
-        Ok(Self::new(email, password, value.picnic_auth_token))
+        Ok(Self::new(email, password, value.auth_token.map(|i| i.into())))
     }
 }
 

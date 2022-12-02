@@ -53,15 +53,20 @@ impl Application {
 
         tracing::debug!("Creating Providers...");
         let cache = caching::setup_cache(&config).await;
-        let mut providers = WggProvider::new(cache);
+        let mut providers_builder = WggProvider::builder()
+            .with_cache(cache)
+            .with_jumbo(Default::default())
+            .with_picnic_rps(config.pd.picnic.requests_per_second);
 
         // Try initialise the Picnic provider.
-        match config.auth.clone().try_into() {
+        match config.pd.picnic.clone().try_into() {
             Ok(picnic_creds) => {
-                providers = providers.with_picnic(picnic_creds).await?;
+                providers_builder = providers_builder.with_picnic(picnic_creds);
             }
-            Err(e) => tracing::debug!(error = ?e, "Not using Picnic Provider"),
+            Err(e) => tracing::debug!(error = %e, "Not using Picnic Provider"),
         }
+
+        let providers = providers_builder.build().await?;
 
         let scheduler = JobScheduler::new(Duration::from_millis(500)).await;
 
@@ -86,7 +91,7 @@ impl Application {
     ///
     /// * `quitter` - A way to inform the spawned runtime to shut down. Especially useful for tests
     /// where we won't provide a signal for shutdown.
-    pub async fn run(self, quitter: Arc<tokio::sync::Notify>) -> anyhow::Result<()> {
+    pub async fn run(self, quitter: Arc<tokio::sync::Notify>) -> anyhow::Result<Arc<Config>> {
         tracing::info!("Setup complete, starting server...");
 
         self.scheduler.start().await;
@@ -115,10 +120,14 @@ impl Application {
         };
 
         // Persist data cache
-        caching::teardown_cache(self.providers.serialized_cache(), &self.config.load_full()).await;
+        let mut cfg = self.config.load_full();
+        let final_config = Arc::<Config>::make_mut(&mut cfg);
+
+        final_config.pd.picnic.auth_token = self.providers.picnic_auth_token().await;
+        caching::teardown_cache(self.providers.serialized_cache(), final_config).await;
         self.scheduler.stop().await?;
 
-        result
+        result.map(|_| cfg)
     }
 
     pub fn pool(&self) -> DatabaseConnection {
