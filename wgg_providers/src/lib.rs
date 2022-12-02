@@ -7,22 +7,21 @@ use std::sync::Arc;
 use std::time::Duration;
 use wgg_jumbo::BaseJumboApi;
 
-use crate::cache::WggProviderCache;
+use crate::caching::SaleResolver;
 use crate::pagination::OffsetPagination;
+use caching::WggProviderCache;
 use providers::{JumboBridge, PicnicBridge, ProviderInfo};
-
-pub use crate::cache::SerdeWggCache;
-pub use crate::providers::PicnicCredentials;
-use crate::sale_resolution::{SaleInfo, SaleResolver};
-pub use error::ProviderError;
 use wgg_scheduler::JobScheduler;
 
-mod cache;
+pub use crate::providers::PicnicCredentials;
+pub use caching::{SaleInfo, SerdeCache};
+pub use error::ProviderError;
+
+mod caching;
 mod error;
 pub mod models;
 pub mod pagination;
 mod providers;
-mod sale_resolution;
 mod scheduled_jobs;
 
 type Result<T> = std::result::Result<T, ProviderError>;
@@ -38,19 +37,24 @@ impl WggProvider {
     /// Create a new collection of providers.
     ///
     /// By default only the `JumboApi` is enabled, see [Self::with_picnic] to enable `Picnic`.
-    pub fn new(cache: Option<SerdeWggCache>) -> Self {
+    pub fn new(cache: Option<SerdeCache>) -> Self {
         let providers = Provider::items().iter().map(|i| i.value);
+        let (sales, product_cache) = if let Some(cache) = cache {
+            (cache.promotions_cache, Some(cache.product_cache))
+        } else {
+            (SaleResolver::new(providers.clone()), None)
+        };
 
         WggProvider {
             picnic: None,
             jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
             cache: WggProviderCache::new(
-                cache,
+                product_cache,
                 Duration::from_secs(86400),
-                providers.clone(),
+                providers,
                 NonZeroUsize::new(1000).unwrap(),
             ),
-            sales: SaleResolver::new(providers),
+            sales,
         }
     }
 
@@ -66,9 +70,11 @@ impl WggProvider {
     }
 
     /// Return a serializable form of the in-memory product cache used for quick responses within the `WggProvider` instance.
-    ///
-    pub fn serialized_cache(&self) -> SerdeWggCache {
-        self.cache.as_serde_cache()
+    pub fn serialized_cache(&self) -> SerdeCache {
+        SerdeCache {
+            product_cache: self.cache.as_serde_cache(),
+            promotions_cache: self.sales.clone(),
+        }
     }
 
     /// Provide autocomplete results from the requested [Provider].

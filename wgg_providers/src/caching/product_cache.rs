@@ -12,7 +12,7 @@ use std::time::Duration;
 
 type ProductId = String;
 
-pub(crate) struct WggProviderCache {
+pub struct WggProviderCache {
     full_products: WggCacheMap<WggProduct>,
     search_products: WggCacheMap<WggSearchProduct>,
     promotions: WggCacheMap<WggSaleGroupComplete, String>,

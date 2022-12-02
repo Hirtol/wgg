@@ -77,7 +77,7 @@ impl SaleResolver {
 }
 
 pub mod scheduled {
-    use crate::sale_resolution::refresh_promotions;
+    use super::refresh_promotions;
     use crate::WggProvider;
     use std::sync::Arc;
     use wgg_scheduler::schedule::Schedule;
