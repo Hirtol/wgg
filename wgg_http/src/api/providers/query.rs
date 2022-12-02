@@ -133,7 +133,7 @@ impl ProviderQuery {
 
         state
             .providers
-            .iter()
+            .active_providers()
             .map(|prov| ProviderInfo {
                 provider: prov.provider(),
                 logo_url: prov.logo_url(),

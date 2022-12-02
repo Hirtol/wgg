@@ -150,6 +150,7 @@ async fn construct_server(
     let schema = create_graphql_schema(state.clone(), secret_key.clone());
 
     // Schedule all API jobs
+    state.providers.clone().schedule_all_jobs(&state.scheduler);
     crate::api::scheduled_jobs::schedule_all_jobs(&state.scheduler, state.clone());
 
     let app = api_router(&cfg.app.static_dir, schema.clone()).layer(

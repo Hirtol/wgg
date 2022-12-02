@@ -1,4 +1,4 @@
-use crate::models::{Provider, ProviderInfo, WggDecorator, WggSearchProduct};
+use crate::models::{Provider, ProviderInfo, SublistId, WggDecorator, WggSearchProduct};
 use serde::{Deserialize, Serialize};
 
 // ** Promotions **
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[graphql(complex)]
 pub struct WggSaleCategory {
     /// If this category has an ID then it usually means more items can be requested for display in the `sublist` function.
-    pub id: Option<String>,
+    pub id: Option<SublistId>,
     /// The title of this category, which can contain multiple sale groups.
     /// Category names like 'Aardappel, rijst, pasta', or 'Groente, Fruit' are common.
     pub name: String,
@@ -41,12 +41,12 @@ pub enum WggSaleItem {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 #[graphql(complex)]
 pub struct WggSaleGroupLimited {
-    pub id: String,
+    pub id: SublistId,
     pub name: String,
     /// May contain a image for a 'More' button
     pub image_urls: Vec<String>,
     /// A list of only product Ids.
-    pub items: Vec<ProductId>,
+    pub items: Vec<ProductIdT>,
     pub decorators: Vec<WggDecorator>,
     #[graphql(skip)]
     pub provider: Provider,
@@ -63,7 +63,7 @@ impl WggSaleGroupLimited {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 #[graphql(complex)]
 pub struct WggSaleGroupComplete {
-    pub id: String,
+    pub id: SublistId,
     pub name: String,
     pub image_urls: Vec<String>,
     /// All items that are part of this promotion.
@@ -82,6 +82,6 @@ impl WggSaleGroupComplete {
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
-pub struct ProductId {
+pub struct ProductIdT {
     pub id: String,
 }

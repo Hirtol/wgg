@@ -1,9 +1,11 @@
+use crate::models::WggSaleGroupComplete;
 use crate::{Provider, WggProduct, WggSearchProduct};
 use chrono::{DateTime, Utc};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::num::{NonZeroU64, NonZeroUsize};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
@@ -13,6 +15,7 @@ type ProductId = String;
 pub(crate) struct WggProviderCache {
     full_products: WggCacheMap<WggProduct>,
     search_products: WggCacheMap<WggSearchProduct>,
+    promotions: WggCacheMap<WggSaleGroupComplete, String>,
     ttl: chrono::Duration,
 }
 
@@ -34,6 +37,7 @@ impl WggProviderCache {
         let mut result = Self {
             full_products: cache.full_products,
             search_products: cache.search_products,
+            promotions: cache.promotions,
             ttl: chrono::Duration::from_std(cache_lifetime).unwrap(),
         };
 
@@ -58,6 +62,7 @@ impl WggProviderCache {
         SerdeWggCache {
             full_products: self.full_products.clone(),
             search_products: self.search_products.clone(),
+            promotions: self.promotions.clone(),
         }
     }
 
@@ -67,6 +72,7 @@ impl WggProviderCache {
         SerdeWggCache {
             full_products: self.full_products,
             search_products: self.search_products,
+            promotions: self.promotions,
         }
     }
 
@@ -135,15 +141,21 @@ impl WggProviderCache {
 }
 
 #[derive(Clone)]
-struct WggCacheMap<I>(HashMap<Provider, moka::sync::Cache<ProductId, CacheEntry<I>>>);
+pub struct WggCacheMap<I, K = ProductId>(HashMap<Provider, moka::sync::Cache<K, CacheEntry<I>>>)
+where
+    K: Hash + Eq;
 
-impl<I> WggCacheMap<I> {
+impl<I, K: Hash + Eq> WggCacheMap<I, K> {
     pub fn new() -> Self {
         WggCacheMap(Default::default())
     }
 }
 
-impl<I: Serialize + Clone + Send + Sync + 'static> Serialize for WggCacheMap<I> {
+impl<I, K> Serialize for WggCacheMap<I, K>
+where
+    I: Serialize + Clone + Send + Sync + 'static,
+    K: Serialize + Clone + Send + Sync + Hash + Eq + 'static,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -160,7 +172,13 @@ impl<I: Serialize + Clone + Send + Sync + 'static> Serialize for WggCacheMap<I> 
     }
 }
 
-impl<'de, I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static> WggCacheMap<I> {
+impl<'de, I, K> WggCacheMap<I, K>
+where
+    I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static,
+    K: Serialize + Deserialize<'de> + Clone + Send + Sync + Hash + Eq + 'static,
+    HashMap<Provider, moka::sync::Cache<K, CacheEntry<I>>>:
+        FromIterator<(Provider, moka::sync::Cache<String, CacheEntry<I>>)>,
+{
     pub fn deserialize_from<D>(deserializer: D, size: NonZeroU64, ttl: Duration) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -185,7 +203,13 @@ impl<'de, I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static> WggCa
     }
 }
 
-impl<'de, I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static> Deserialize<'de> for WggCacheMap<I> {
+impl<'de, I, K> Deserialize<'de> for WggCacheMap<I, K>
+where
+    I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static,
+    K: Serialize + Deserialize<'de> + Clone + Send + Sync + Hash + Eq + 'static,
+    HashMap<Provider, moka::sync::Cache<K, CacheEntry<I>>>:
+        FromIterator<(Provider, moka::sync::Cache<String, CacheEntry<I>>)>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -194,15 +218,15 @@ impl<'de, I: Serialize + Deserialize<'de> + Clone + Send + Sync + 'static> Deser
     }
 }
 
-impl<I> Deref for WggCacheMap<I> {
-    type Target = HashMap<Provider, moka::sync::Cache<ProductId, CacheEntry<I>>>;
+impl<I, K: Hash + Eq> Deref for WggCacheMap<I, K> {
+    type Target = HashMap<Provider, moka::sync::Cache<K, CacheEntry<I>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<I> DerefMut for WggCacheMap<I> {
+impl<I, K: Hash + Eq> DerefMut for WggCacheMap<I, K> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -211,7 +235,7 @@ impl<I> DerefMut for WggCacheMap<I> {
 /// We keep track of the `inserted_at` time separately from `moka` as there is no way for us to know the TTL.
 /// This duplicates the timestamp and conversely increase the memory footprint by 12 bytes. :(
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-struct CacheEntry<I> {
+pub struct CacheEntry<I> {
     entry: I,
     inserted_at: DateTime<Utc>,
 }
@@ -233,6 +257,7 @@ impl<I> CacheEntry<I> {
 pub struct SerdeWggCache {
     full_products: WggCacheMap<WggProduct>,
     search_products: WggCacheMap<WggSearchProduct>,
+    promotions: WggCacheMap<WggSaleGroupComplete, String>,
 }
 
 impl Default for SerdeWggCache {
@@ -240,6 +265,7 @@ impl Default for SerdeWggCache {
         Self {
             full_products: WggCacheMap::new(),
             search_products: WggCacheMap::new(),
+            promotions: WggCacheMap::new(),
         }
     }
 }

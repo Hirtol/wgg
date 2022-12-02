@@ -1,6 +1,6 @@
 use crate::models::{
     AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, PriceInfo, ProductId, SaleDescription, SaleLabel, SaleValidity,
+    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, SaleDescription, SaleLabel, SaleValidity,
     SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggDecorator, WggProduct,
     WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
 };
@@ -152,7 +152,7 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleGrou
         items: promotion
             .products
             .into_iter()
-            .map(|product| ProductId { id: product.into() })
+            .map(|product| ProductIdT { id: product.into() })
             .collect(),
         decorators: vec![],
         provider: Provider::Jumbo,

@@ -3,6 +3,7 @@ use async_graphql::EnumType;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 use std::time::Duration;
 use wgg_jumbo::BaseJumboApi;
 
@@ -12,13 +13,17 @@ use providers::{JumboBridge, PicnicBridge, ProviderInfo};
 
 pub use crate::cache::SerdeWggCache;
 pub use crate::providers::PicnicCredentials;
+use crate::sale_resolution::{SaleInfo, SaleResolver};
 pub use error::ProviderError;
+use wgg_scheduler::JobScheduler;
 
 mod cache;
 mod error;
 pub mod models;
 pub mod pagination;
 mod providers;
+mod sale_resolution;
+mod scheduled_jobs;
 
 type Result<T> = std::result::Result<T, ProviderError>;
 
@@ -26,6 +31,7 @@ pub struct WggProvider {
     pub(crate) picnic: Option<PicnicBridge>,
     pub(crate) jumbo: JumboBridge,
     cache: WggProviderCache,
+    sales: SaleResolver,
 }
 
 impl WggProvider {
@@ -33,15 +39,18 @@ impl WggProvider {
     ///
     /// By default only the `JumboApi` is enabled, see [Self::with_picnic] to enable `Picnic`.
     pub fn new(cache: Option<SerdeWggCache>) -> Self {
+        let providers = Provider::items().iter().map(|i| i.value);
+
         WggProvider {
             picnic: None,
             jumbo: JumboBridge::new(BaseJumboApi::new(Default::default())),
             cache: WggProviderCache::new(
                 cache,
                 Duration::from_secs(86400),
-                Provider::items().iter().map(|i| i.value),
+                providers.clone(),
                 NonZeroUsize::new(1000).unwrap(),
             ),
+            sales: SaleResolver::new(providers),
         }
     }
 
@@ -143,7 +152,7 @@ impl WggProvider {
             prov.search(query, None).await
         }
 
-        let queries = self.iter().map(|i| inner(i, query.as_ref(), i.provider()));
+        let queries = self.active_providers().map(|i| inner(i, query.as_ref(), i.provider()));
 
         let results = futures::future::join_all(queries)
             .await
@@ -180,13 +189,17 @@ impl WggProvider {
 
         let prov = self.find_provider(provider)?;
 
-        inner(prov, provider).await
+        if let Some(promos) = self.sales.get_promotions(provider) {
+            Ok(promos)
+        } else {
+            inner(prov, provider).await
+        }
     }
 
     /// Retrieve all valid promotions for the current week.
     #[tracing::instrument(level = "debug", skip_all)]
     pub async fn promotions_all(&self) -> Result<Vec<WggSaleCategory>> {
-        let provider = self.iter().map(|i| self.promotions(i.provider()));
+        let provider = self.active_providers().map(|i| self.promotions(i.provider()));
 
         futures::future::join_all(provider)
             .await
@@ -271,7 +284,7 @@ impl WggProvider {
     ) -> Result<Vec<WggSearchProduct>> {
         use futures::stream::{StreamExt, TryStreamExt};
 
-        let result: Result<Vec<_>> = futures::stream::iter(product_ids)
+        futures::stream::iter(product_ids)
             .map(|id| async move {
                 let id = id.as_ref();
 
@@ -283,9 +296,21 @@ impl WggProvider {
             })
             .buffer_unordered(10)
             .try_collect()
-            .await;
+            .await
+    }
 
-        Ok(result?)
+    /// Retrieve the associated sale for this item
+    pub async fn product_sale_association(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<SaleInfo> {
+        self.sales
+            .get_sale_info(provider, product_id.as_ref())
+            .ok_or(ProviderError::NothingFound)
+    }
+
+    /// Push all jobs relevant for optimal service of [WggProvider]s onto the given scheduler
+    ///
+    /// These services are *not* mandatory for this to work, but they *are* mandatory for things to stay up-to-date.
+    pub fn schedule_all_jobs(self: Arc<Self>, scheduler: &JobScheduler) {
+        crate::scheduled_jobs::schedule_all_jobs(scheduler, self)
     }
 
     /// Perform a network request for the requested product.
@@ -311,7 +336,7 @@ impl WggProvider {
     }
 
     /// Iterate over all providers allowing an action to be performed on all of them
-    pub fn iter(&self) -> ProvidersIter<'_> {
+    pub fn active_providers(&self) -> ProvidersIter<'_> {
         ProvidersIter { providers: self, i: 0 }
     }
 }
