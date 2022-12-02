@@ -1,0 +1,179 @@
+use crate::caching::{get_default_provider_map, ProviderMap};
+use crate::models::{ProductId, Provider, SublistId, WggSaleCategory, WggSaleGroupComplete};
+use crate::{sale_resolver, SaleInfo};
+use chrono::{DateTime, Utc};
+use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::ops::{Deref, DerefMut};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct PromotionsCache {
+    promotions_cache: DashMap<Provider, PromoCacheEntry<Vec<WggSaleCategory>>>,
+    sublist_cache: ProviderMap<DashMap<SublistId, PromoCacheEntry<WggSaleGroupComplete>>>,
+    normal_cache: ProviderMap<DashMap<SublistId, SaleInfo>>,
+    inverted_cache: ProviderMap<DashMap<ProductId, SublistId>>,
+}
+
+pub struct DerivedCaches<'a> {
+    pub(crate) normal_cache: &'a DashMap<SublistId, SaleInfo>,
+    pub(crate) inverted_cache: &'a DashMap<ProductId, SublistId>,
+}
+
+impl PromotionsCache {
+    pub fn new(providers: impl Iterator<Item = Provider> + Clone) -> Self {
+        Self {
+            promotions_cache: get_default_provider_map(providers.clone()),
+            sublist_cache: get_default_provider_map(providers.clone()),
+            normal_cache: get_default_provider_map(providers.clone()),
+            inverted_cache: get_default_provider_map(providers),
+        }
+    }
+
+    /// To be called after restoring the cache from disk.
+    ///
+    /// The server might have switched off/on a new provider in that time, and we need to make space for it while we still
+    /// can!
+    pub(crate) fn restore_from_cached_state(&mut self, active_providers: impl Iterator<Item = Provider> + Clone) {
+        let promotions_cache = self.promotions_cache.iter().map(|k| *k.key()).collect::<HashSet<_>>();
+        let other = active_providers.collect::<HashSet<_>>();
+        let mut diff = promotions_cache.symmetric_difference(&other);
+
+        for difference in diff {
+            // We no longer have the given provider in our active list.
+            if promotions_cache.contains(difference) {
+                self.promotions_cache.remove(difference);
+                self.sublist_cache.remove(difference);
+                self.normal_cache.remove(difference);
+                self.inverted_cache.remove(difference);
+            } else {
+                // This provider is new! We had better make space for it.
+                self.promotions_cache.insert(*difference, Default::default());
+                self.sublist_cache.insert(*difference, Default::default());
+                self.normal_cache.insert(*difference, Default::default());
+                self.inverted_cache.insert(*difference, Default::default());
+            }
+        }
+    }
+
+    pub(crate) fn derived_caches(&self, provider: Provider) -> Option<DerivedCaches<'_>> {
+        Some(DerivedCaches {
+            normal_cache: self.normal_cache.get(&provider)?,
+            inverted_cache: self.inverted_cache.get(&provider)?,
+        })
+    }
+
+    pub(crate) fn promotions(&self, provider: Provider) -> Option<Vec<WggSaleCategory>> {
+        let item = self.promotions_cache.get(&provider)?;
+
+        if item.is_expired() {
+            drop(item);
+            let _ = self.promotions_cache.remove(&provider);
+            self.expire_all_derived(provider)?;
+            None
+        } else {
+            Some(item.item.clone())
+        }
+    }
+
+    pub(crate) fn promotion_sublist(&self, provider: Provider, sublist_id: &str) -> Option<WggSaleGroupComplete> {
+        let sublist_cache = self.sublist_cache.get(&provider)?;
+        let item = sublist_cache.get(sublist_id)?;
+
+        if item.is_expired() {
+            drop(item);
+            let _ = sublist_cache.remove(sublist_id);
+            self.expire_derived_sublist(provider, sublist_id);
+            None
+        } else {
+            Some(item.item.clone())
+        }
+    }
+
+    pub(crate) fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) {
+        let cache = PromoCacheEntry {
+            item: promos,
+            inserted_at: Utc::now(),
+            expires: sale_resolver::get_guessed_sale_validity().valid_until,
+        };
+
+        let _ = self.promotions_cache.insert(provider, cache);
+    }
+
+    pub(crate) fn insert_promotion_sublist(&self, provider: Provider, promo: WggSaleGroupComplete) -> Option<()> {
+        let promo_id = promo.id.clone();
+        let cache = PromoCacheEntry {
+            inserted_at: Utc::now(),
+            expires: sale_resolver::get_sale_validity(promo.decorators.iter()).valid_until,
+            item: promo,
+        };
+
+        let provider = self.sublist_cache.get(&provider)?;
+        let _ = provider.insert(promo_id, cache);
+
+        Some(())
+    }
+
+    /// Pre-emptively clear all currently expired entries.
+    pub(crate) fn clear_expired(&self) {
+        self.promotions_cache.retain(|provider, value| {
+            if value.is_expired() {
+                let _ = self.expire_all_derived(*provider);
+            }
+
+            !value.is_expired()
+        });
+
+        for (_, dash) in self.sublist_cache.iter() {
+            dash.retain(|sublist_id, value| {
+                if value.is_expired() {
+                    self.expire_derived_sublist(value.provider, sublist_id);
+                }
+
+                !value.is_expired()
+            });
+        }
+    }
+
+    fn expire_all_derived(&self, provider: Provider) -> Option<()> {
+        let derived = self.derived_caches(provider)?;
+        derived.normal_cache.clear();
+        derived.inverted_cache.clear();
+        Some(())
+    }
+
+    fn expire_derived_sublist(&self, provider: Provider, sublist_id: &str) -> Option<()> {
+        let derived = self.derived_caches(provider)?;
+        derived.normal_cache.remove(sublist_id);
+        derived.inverted_cache.retain(|_, value| sublist_id != value);
+
+        Some(())
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+struct PromoCacheEntry<T> {
+    item: T,
+    inserted_at: DateTime<Utc>,
+    expires: DateTime<Utc>,
+}
+
+impl<T> PromoCacheEntry<T> {
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.expires
+    }
+}
+
+impl<T> Deref for PromoCacheEntry<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.item
+    }
+}
+
+impl<T> DerefMut for PromoCacheEntry<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.item
+    }
+}

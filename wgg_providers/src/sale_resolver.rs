@@ -1,28 +1,28 @@
+use crate::caching::{get_default_provider_map, PromotionsCache};
 use crate::models::{ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleItem};
 use crate::providers::ProviderInfo;
-use crate::Result;
 use crate::WggProvider;
 use anyhow::Context;
 use chrono::{DateTime, Datelike, Utc, Weekday};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashMap;
-
-type ProviderMap<T> = HashMap<Provider, T>;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SaleResolver {
-    pub(crate) promotions_cache: DashMap<Provider, Vec<WggSaleCategory>>,
-    // pub(crate) sublist_cache: ProviderMap<DashMap<SublistId, WggSaleGroupComplete>>,
-    pub(crate) normal_cache: ProviderMap<DashMap<SublistId, SaleInfo>>,
-    pub(crate) inverted_cache: ProviderMap<DashMap<ProductId, SublistId>>,
+    pub(crate) cache: PromotionsCache,
     pub(crate) meta_info: DashMap<Provider, ProviderMetaInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ProviderMetaInfo {
+    /// This is relevant for cache behaviour.
+    /// Whenever we have to perform an unscheduled full-invalidate we lose a lot of information with regard to
+    /// valid sales etc.
+    ///
+    /// This bit can be flipped by the scheduled task to indicate that all the state is valid again.
     pub is_complete: bool,
-    pub is_fetching: bool,
     pub expiry: DateTime<Utc>,
 }
 
@@ -34,50 +34,34 @@ pub struct SaleInfo {
 }
 
 impl SaleResolver {
-    pub fn new(providers: impl Iterator<Item = Provider> + Clone) -> Self {
-        fn get_default_provider_map<T: Default, B: FromIterator<(Provider, T)>>(
-            providers: impl Iterator<Item = Provider>,
-        ) -> B {
-            providers.map(|i| (i, T::default())).collect()
-        }
+    pub fn new(providers: impl Iterator<Item = Provider> + Clone, previous_cache: Option<PromotionsCache>) -> Self {
+        let cache = if let Some(mut cache) = previous_cache {
+            cache.restore_from_cached_state(providers.clone());
+            cache.clear_expired();
+            cache
+        } else {
+            PromotionsCache::new(providers.clone())
+        };
 
         SaleResolver {
-            promotions_cache: get_default_provider_map(providers.clone()),
-            // sublist_cache: get_default_provider_map(providers.clone()),
-            normal_cache: get_default_provider_map(providers.clone()),
-            inverted_cache: get_default_provider_map(providers.clone()),
+            cache,
             meta_info: get_default_provider_map(providers),
         }
     }
 
     pub fn get_sale_info(&self, provider: Provider, product_id: &str) -> Option<SaleInfo> {
-        let sale_list = self.inverted_cache.get(&provider)?.get(product_id)?;
-        Some(self.normal_cache.get(&provider)?.get(&*sale_list)?.clone())
+        let derived = self.cache.derived_caches(provider)?;
+        let sale_list = derived.inverted_cache.get(product_id)?;
+        Some(derived.normal_cache.get(&*sale_list)?.clone())
     }
 
-    pub fn get_promotions(&self, provider: Provider) -> Option<Vec<WggSaleCategory>> {
-        let now = Utc::now();
-        let metadata = self.meta_info.get(&provider)?;
-
-        if now >= metadata.expiry {
-            None
-        } else {
-            Some(self.promotions_cache.get(&provider)?.clone())
-        }
-    }
-
-    pub fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) {
-        // Would have to refresh the other caches as well?
-        todo!()
-    }
-
-    pub async fn refresh_promotions(&self, provider: Provider, wgg_providers: &WggProvider) -> Result<()> {
+    pub async fn refresh_promotions(&self, provider: Provider, wgg_providers: &WggProvider) -> crate::Result<()> {
         refresh_promotions(wgg_providers, provider).await
     }
 }
 
 pub mod scheduled {
-    use super::refresh_promotions;
+    use crate::sale_resolver::refresh_promotions;
     use crate::WggProvider;
     use std::sync::Arc;
     use wgg_scheduler::schedule::Schedule;
@@ -102,17 +86,14 @@ pub mod scheduled {
     }
 }
 
-pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> Result<()> {
+pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> crate::Result<()> {
     let WggProvider { sales, .. } = providers;
     // We want to force network requests so skip directly to the underlying provider.
     let external_prov = providers.find_provider(provider)?;
 
     let (promos, (added, removed)) = {
         let promos = external_prov.promotions().await?;
-        let current_promos = sales
-            .promotions_cache
-            .get(&provider)
-            .context("Expected provider didn't exist")?;
+        let current_promos = sales.cache.promotions(provider).unwrap_or_default();
 
         // Check if we have to do anything new.
         let diff = get_difference(&promos, current_promos.as_slice());
@@ -125,18 +106,18 @@ pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> 
     }
 
     // First remove the removed or modified items
-    let normal_cache = sales
-        .normal_cache
-        .get(&provider)
-        .context("Expected provider didn't exist")?;
+    let derived_caches = sales
+        .cache
+        .derived_caches(provider)
+        .context("Expected provider to exist which didn't")?;
     for diff in removed {
         if let Some(id) = diff.id {
-            let _ = normal_cache.remove(&id);
+            let _ = derived_caches.normal_cache.remove(&id);
         }
 
         for item in diff.items {
             if let WggSaleItem::Group(limited_group) = item {
-                let _ = normal_cache.remove(&limited_group.id);
+                let _ = derived_caches.normal_cache.remove(&limited_group.id);
             }
         }
     }
@@ -144,23 +125,18 @@ pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> 
     // Then add the newly added sub-lists
     let results = get_sales(added, external_prov).await?;
     for (id, info) in results {
-        normal_cache.insert(id, info);
+        derived_caches.normal_cache.insert(id, info);
     }
 
     // Update the full inverted cache (TODO: Replace this with an ArcSwap)
-    let inverted_cache = sales
-        .inverted_cache
-        .get(&provider)
-        .context("Expected provider didn't exist")?;
-
-    inverted_cache.clear();
-    for c_item in normal_cache.iter() {
+    derived_caches.inverted_cache.clear();
+    for c_item in derived_caches.normal_cache.iter() {
         for item in &c_item.item_ids {
-            inverted_cache.insert(item.clone(), c_item.key().clone());
+            derived_caches.inverted_cache.insert(item.clone(), c_item.key().clone());
         }
     }
 
-    sales.promotions_cache.insert(provider, promos);
+    sales.cache.insert_promotions(provider, promos);
 
     if let Some(mut re) = sales.meta_info.get_mut(&provider) {
         re.is_complete = true;
@@ -191,13 +167,13 @@ fn get_difference(vec1: &[WggSaleCategory], vec2: &[WggSaleCategory]) -> (Vec<Wg
 pub async fn get_sales(
     promotions: impl IntoIterator<Item = WggSaleCategory>,
     provider: &(dyn ProviderInfo + Send + Sync),
-) -> Result<HashMap<SublistId, SaleInfo>> {
+) -> crate::Result<HashMap<SublistId, SaleInfo>> {
     let mut result: HashMap<SublistId, SaleInfo> = HashMap::new();
 
     for promo in promotions {
         if let Some(id) = promo.id {
             let sub_list = provider.promotions_sublist(&id).await?;
-            let sale_validity = get_sale_validity(sub_list.decorators);
+            let sale_validity = get_sale_validity(&sub_list.decorators);
 
             let to_insert = SaleInfo {
                 valid_from: sale_validity.valid_from,
@@ -211,7 +187,7 @@ pub async fn get_sales(
         for item in promo.items {
             if let WggSaleItem::Group(limited_group) = item {
                 let id = limited_group.id;
-                let sale_validity = get_sale_validity(limited_group.decorators);
+                let sale_validity = get_sale_validity(&limited_group.decorators);
 
                 let to_insert = SaleInfo {
                     valid_from: sale_validity.valid_from,
@@ -227,18 +203,18 @@ pub async fn get_sales(
     Ok(result)
 }
 
-fn get_sale_validity(decorators: impl IntoIterator<Item = WggDecorator>) -> SaleValidity {
+pub fn get_sale_validity<'a>(decorators: impl IntoIterator<Item = &'a WggDecorator>) -> Cow<'a, SaleValidity> {
     decorators
         .into_iter()
         .flat_map(|i| match i {
-            WggDecorator::SaleValidity(valid) => Some(valid),
+            WggDecorator::SaleValidity(valid) => Some(Cow::Borrowed(valid)),
             _ => None,
         })
         .next()
-        .unwrap_or_else(get_guessed_sale_validity)
+        .unwrap_or_else(|| Cow::Owned(get_guessed_sale_validity()))
 }
 
-fn get_guessed_sale_validity() -> SaleValidity {
+pub fn get_guessed_sale_validity() -> SaleValidity {
     let now = Utc::now();
 
     // We assume a sale is valid until the very end of this week

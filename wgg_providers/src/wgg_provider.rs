@@ -1,19 +1,20 @@
-use crate::models::{Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSearchProduct};
+use crate::models::{
+    Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+};
 use async_graphql::EnumType;
-use std::borrow::Cow;
 use std::fmt::Debug;
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::sync::Arc;
 use std::time::Duration;
 use wgg_jumbo::BaseJumboApi;
 
-use crate::caching::SaleResolver;
+use crate::caching::SerdeCache;
 use crate::caching::WggProviderCache;
-use crate::caching::{SaleInfo, SerdeCache};
 use crate::error::ProviderError;
 use crate::pagination::OffsetPagination;
 use crate::providers::PicnicCredentials;
 use crate::providers::{JumboBridge, PicnicBridge, ProviderInfo};
+use crate::sale_resolver::{SaleInfo, SaleResolver};
 use crate::Result;
 use wgg_scheduler::JobScheduler;
 
@@ -34,7 +35,7 @@ impl WggProvider {
     pub fn serialized_cache(&self) -> SerdeCache {
         SerdeCache {
             product_cache: self.cache.as_serde_cache(),
-            promotions_cache: self.sales.clone(),
+            promotions_cache: self.sales.cache.clone(),
         }
     }
 
@@ -100,7 +101,7 @@ impl WggProvider {
         // We persist any and all products for the sake of easing custom list searches.
 
         for item in &result.items {
-            self.cache.insert_search_product(provider, Cow::Borrowed(item));
+            self.cache.insert_search_product(provider, item.clone());
         }
 
         Ok(result)
@@ -141,7 +142,7 @@ impl WggProvider {
 
         // We persist any and all products for the sake of easing custom list searches.
         for item in &results.items {
-            self.cache.insert_search_product(item.provider, Cow::Borrowed(item));
+            self.cache.insert_search_product(item.provider, item.clone());
         }
 
         Ok(results)
@@ -150,23 +151,25 @@ impl WggProvider {
     /// Retrieve all valid promotions for the current week for the given provider.
     #[tracing::instrument(level = "debug", skip_all, fields(provider))]
     pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
-        #[cached::proc_macro::cached(
-            size = 100,
-            time = 86400,
-            result = true,
-            key = "Provider",
-            convert = r#"{_provider}"#
-        )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), _provider: Provider) -> Result<Vec<WggSaleCategory>> {
-            prov.promotions().await
-        }
-
         let prov = self.find_provider(provider)?;
 
-        if let Some(promos) = self.sales.get_promotions(provider) {
+        if let Some(promos) = self.sales.cache.promotions(provider) {
             Ok(promos)
         } else {
-            inner(prov, provider).await
+            let result = prov.promotions().await?;
+
+            self.sales.cache.insert_promotions(provider, result.clone());
+
+            // Persist any extra search products as we find them
+            for category in &result {
+                for item in &category.items {
+                    if let WggSaleItem::Product(product) = item {
+                        self.cache.insert_search_product(provider, product.clone());
+                    }
+                }
+            }
+
+            Ok(result)
         }
     }
 
@@ -193,31 +196,21 @@ impl WggProvider {
         provider: Provider,
         sublist_id: impl AsRef<str>,
     ) -> Result<WggSaleGroupComplete> {
-        #[cached::proc_macro::cached(
-            size = 100,
-            time = 86400,
-            result = true,
-            key = "(String, Provider)",
-            convert = r#"{(sublist_id.to_string(), _provider)}"#
-        )]
-        async fn inner(
-            prov: &(dyn ProviderInfo + Send + Sync),
-            sublist_id: &str,
-            _provider: Provider,
-        ) -> Result<WggSaleGroupComplete> {
-            prov.promotions_sublist(sublist_id).await
+        if let Some(result) = self.sales.cache.promotion_sublist(provider, sublist_id.as_ref()) {
+            Ok(result)
+        } else {
+            let prov = self.find_provider(provider)?;
+            let result = prov.promotions_sublist(sublist_id.as_ref()).await?;
+
+            let _ = self.sales.cache.insert_promotion_sublist(provider, result.clone());
+
+            // We persist any and all products for the sake of easing custom list searches.
+            for item in &result.items {
+                self.cache.insert_search_product(item.provider, item.clone());
+            }
+
+            Ok(result)
         }
-
-        let provider = self.find_provider(provider)?;
-
-        let results = inner(provider, sublist_id.as_ref(), provider.provider()).await?;
-
-        // We persist any and all products for the sake of easing custom list searches.
-        for item in &results.items {
-            self.cache.insert_search_product(item.provider, Cow::Borrowed(item));
-        }
-
-        Ok(results)
     }
 
     /// Retrieve the provided `product_id` from the `provider`.
@@ -292,7 +285,7 @@ impl WggProvider {
         let provider_concrete = self.find_provider(provider)?;
         let result = provider_concrete.product(product_id).await?;
 
-        self.cache.insert_product(provider, Cow::Borrowed(&result));
+        self.cache.insert_product(provider, result.clone());
 
         Ok(result)
     }
@@ -395,18 +388,19 @@ impl WggProviderBuilder {
     /// By default only the `JumboApi` is enabled, see [Self::with_picnic] to enable `Picnic`.
     pub async fn build(self) -> Result<WggProvider> {
         let providers = Provider::items().iter().map(|i| i.value);
-        let (sales, product_cache) = if let Some(cache) = self.cache {
-            (cache.promotions_cache, Some(cache.product_cache))
+        let (sales_cache, product_cache) = if let Some(cache) = self.cache {
+            (Some(cache.promotions_cache), Some(cache.product_cache))
         } else {
-            (SaleResolver::new(providers.clone()), None)
+            (None, None)
         };
 
         let product_cache = WggProviderCache::new(
             product_cache,
             Duration::from_secs(86400),
-            providers,
+            providers.clone(),
             NonZeroUsize::new(1000).unwrap(),
         );
+        let sales = SaleResolver::new(providers, sales_cache);
 
         let jumbo = self.jumbo.unwrap_or_else(|| BaseJumboApi::new(Default::default()));
         let picnic = if let Some(credentials) = self.picnic_creds {

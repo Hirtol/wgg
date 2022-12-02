@@ -3,7 +3,6 @@ use crate::models::{Provider, WggProduct, WggSearchProduct};
 use chrono::{DateTime, Utc};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::{NonZeroU64, NonZeroUsize};
@@ -97,10 +96,10 @@ impl WggProviderCache {
         self.get_or_invalidate(product_id, full_cache)
     }
 
-    pub fn insert_search_product(&self, provider: Provider, product: Cow<'_, WggSearchProduct>) -> Option<()> {
+    pub fn insert_search_product(&self, provider: Provider, product: WggSearchProduct) -> Option<()> {
         let search_cache = self.search_products.get(&provider)?;
         let to_insert = CacheEntry {
-            entry: product.into_owned(),
+            entry: product,
             inserted_at: Utc::now(),
         };
 
@@ -108,10 +107,10 @@ impl WggProviderCache {
         Some(())
     }
 
-    pub fn insert_product(&self, provider: Provider, product: Cow<'_, WggProduct>) -> Option<()> {
+    pub fn insert_product(&self, provider: Provider, product: WggProduct) -> Option<()> {
         let search_cache = self.full_products.get(&provider)?;
         let to_insert = CacheEntry {
-            entry: product.into_owned(),
+            entry: product,
             inserted_at: Utc::now(),
         };
 
