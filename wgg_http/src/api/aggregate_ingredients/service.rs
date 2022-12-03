@@ -31,5 +31,8 @@ pub async fn calculate_aggregate_total_price(
 
     let total_length = products.len();
     let price_sum = products.into_iter().map(|i| i.display_price).sum();
+
+    tx.commit().await?;
+
     Ok((price_sum, total_length))
 }

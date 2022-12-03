@@ -99,6 +99,8 @@ impl UserCart {
             .sorted_by(|item1, item2| item1.get_created_at().cmp(item2.get_created_at()).reverse())
             .collect();
 
+        tx.commit().await?;
+
         Ok(result)
     }
 
