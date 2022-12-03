@@ -9,6 +9,7 @@ use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
+use futures::future::FutureExt;
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
 use governor::{Jitter, Quota};
@@ -16,7 +17,9 @@ use itertools::Itertools;
 use regex::Regex;
 use secrecy::ExposeSecret;
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use std::num::NonZeroU32;
+use std::ops::Deref;
 use std::time::Duration;
 use wgg_picnic::models::{Body, Decorator, ImageSize, PmlComponent, SubCategory, UnavailableReason};
 use wgg_picnic::PicnicApi;
@@ -45,10 +48,13 @@ impl PicnicBridge {
         let api = if let Some(auth_token) = credentials.to_credentials() {
             PicnicApi::new(auth_token, config)
         } else {
-            PicnicApi::from_login(credentials.email(), credentials.password().expose_secret(), config).await?
-        };
+            let result =
+                PicnicApi::from_login(credentials.email(), credentials.password().expose_secret(), config).await?;
 
-        tracing::trace!(auth_token=?api.credentials().auth_token, "Picnic Login Complete");
+            tracing::info!("Picnic remote login complete");
+
+            result
+        };
 
         Ok(Self::from_api(api, credentials, limit_rps))
     }
@@ -75,6 +81,44 @@ impl PicnicBridge {
             self.limiter.until_ready_with_jitter(Jitter::up_to(JITTER)).await
         }
     }
+
+    async fn picnic_request<'a, F, O>(&self, api_request: F) -> Result<O>
+    where
+        for<'b> F: Fn(&'b TemporaryApi<'b, 'a>) -> futures::future::BoxFuture<'b, wgg_picnic::Result<O>>,
+    {
+        self.wait_rate_limit().await;
+
+        let api_result = {
+            let read_lock = self.api.read().await;
+            api_request(&TemporaryApi::new(&read_lock)).await
+        };
+
+        let result = match api_result {
+            Ok(res) => res,
+            Err(wgg_picnic::ApiError::AuthError) => {
+                if let Ok(_lock) = self.refresh_lock.try_lock() {
+                    tracing::info!("Refreshing Picnic authentication token due to failure");
+                    let mut api_guard = self.api.write().await;
+
+                    api_guard
+                        .login(self.credentials.email(), self.credentials.password().expose_secret())
+                        .await?;
+
+                    api_request(&TemporaryApi::new(&api_guard)).await?
+                } else {
+                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
+                    // If it fails again just error out.
+                    let _ = self.refresh_lock.lock().await;
+
+                    let read_lock = self.api.read().await;
+                    api_request(&TemporaryApi::new(&read_lock)).await?
+                }
+            }
+            Err(e) => return Err(e.into()),
+        };
+
+        Ok(result)
+    }
 }
 
 impl StaticProviderInfo for PicnicBridge {
@@ -99,31 +143,9 @@ impl ProviderInfo for PicnicBridge {
         <Self as StaticProviderInfo>::logo_url()
     }
 
-    #[tracing::instrument(name = "picnic_autocomplete", level = "debug", skip(self))]
+    #[tracing::instrument(name = "picnic_autocomplete", level = "trace", skip(self))]
     async fn autocomplete(&self, query: &str) -> Result<Vec<WggAutocomplete>> {
-        self.wait_rate_limit().await;
-        let api_result = self.api.read().await.suggestions(query).await;
-        let result = match api_result {
-            Ok(res) => res,
-            Err(wgg_picnic::ApiError::AuthError) => {
-                if self.refresh_lock.try_lock().is_ok() {
-                    tracing::info!("Refreshing Picnic authentication token due to failure");
-                    let mut api_guard = self.api.write().await;
-
-                    api_guard
-                        .login(self.credentials.email(), self.credentials.password().expose_secret())
-                        .await?;
-
-                    api_guard.suggestions(query).await?
-                } else {
-                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
-                    // If it fails again just error out.
-                    let _ = self.refresh_lock.lock().await;
-                    self.api.read().await.suggestions(query).await?
-                }
-            }
-            Err(e) => return Err(e.into()),
-        };
+        let result = self.picnic_request(|api| api.suggestions(query).boxed()).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Autocomplete: {:#?}", result);
@@ -134,31 +156,9 @@ impl ProviderInfo for PicnicBridge {
             .collect())
     }
 
-    #[tracing::instrument(name = "picnic_search", level = "debug", skip(self))]
+    #[tracing::instrument(name = "picnic_search", level = "trace", skip(self))]
     async fn search(&self, query: &str, offset: Option<u32>) -> Result<OffsetPagination<WggSearchProduct>> {
-        self.wait_rate_limit().await;
-        let api_result = self.api.read().await.search(query).await;
-        let result = match api_result {
-            Ok(res) => res,
-            Err(wgg_picnic::ApiError::AuthError) => {
-                if self.refresh_lock.try_lock().is_ok() {
-                    tracing::info!("Refreshing Picnic authentication token due to failure");
-                    let mut api_guard = self.api.write().await;
-
-                    api_guard
-                        .login(self.credentials.email(), self.credentials.password().expose_secret())
-                        .await?;
-
-                    api_guard.search(query).await?
-                } else {
-                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
-                    // If it fails again just error out.
-                    let _ = self.refresh_lock.lock().await;
-                    self.api.read().await.search(query).await?
-                }
-            }
-            Err(e) => return Err(e.into()),
-        };
+        let result = self.picnic_request(|api| api.search(query).boxed()).await?;
         let offset = offset.unwrap_or_default();
 
         #[cfg(feature = "trace-original-api")]
@@ -187,30 +187,9 @@ impl ProviderInfo for PicnicBridge {
         Ok(offset)
     }
 
+    #[tracing::instrument(name = "picnic_product", level = "trace", skip(self))]
     async fn product(&self, product_id: &str) -> Result<WggProduct> {
-        self.wait_rate_limit().await;
-        let api_result = self.api.read().await.product(product_id).await;
-        let result = match api_result {
-            Ok(res) => res,
-            Err(wgg_picnic::ApiError::AuthError) => {
-                if self.refresh_lock.try_lock().is_ok() {
-                    tracing::info!("Refreshing Picnic authentication token due to failure");
-                    let mut api_guard = self.api.write().await;
-
-                    api_guard
-                        .login(self.credentials.email(), self.credentials.password().expose_secret())
-                        .await?;
-
-                    api_guard.product(product_id).await?
-                } else {
-                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
-                    // If it fails again just error out.
-                    let _ = self.refresh_lock.lock().await;
-                    self.api.read().await.product(product_id).await?
-                }
-            }
-            Err(e) => return Err(e.into()),
-        };
+        let result = self.picnic_request(|api| api.product(product_id).boxed()).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Product: {:#?}", result);
@@ -218,30 +197,9 @@ impl ProviderInfo for PicnicBridge {
         parse_picnic_full_product_to_product(result)
     }
 
+    #[tracing::instrument(name = "picnic_promotions", level = "trace", skip(self))]
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
-        self.wait_rate_limit().await;
-        let api_result = self.api.read().await.promotions(None, 1).await;
-        let result = match api_result {
-            Ok(res) => res,
-            Err(wgg_picnic::ApiError::AuthError) => {
-                if self.refresh_lock.try_lock().is_ok() {
-                    tracing::info!("Refreshing Picnic authentication token due to failure");
-                    let mut api_guard = self.api.write().await;
-
-                    api_guard
-                        .login(self.credentials.email(), self.credentials.password().expose_secret())
-                        .await?;
-
-                    api_guard.promotions(None, 1).await?
-                } else {
-                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
-                    // If it fails again just error out.
-                    let _ = self.refresh_lock.lock().await;
-                    self.api.read().await.promotions(None, 1).await?
-                }
-            }
-            Err(e) => return Err(e.into()),
-        };
+        let result = self.picnic_request(|api| api.promotions(None, 1).boxed()).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions: {:#?}", result);
@@ -249,31 +207,12 @@ impl ProviderInfo for PicnicBridge {
         Ok(result.into_iter().flat_map(parse_picnic_promotion).collect())
     }
 
+    #[tracing::instrument(name = "picnic_promotions_sublist", level = "trace", skip(self))]
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete> {
-        self.wait_rate_limit().await;
         // When querying for a sublist with `depth > 1` we just get a raw array of SingleArticles
-        let api_result = self.api.read().await.promotions(Some(sublist_id), 0).await;
-        let result = match api_result {
-            Ok(res) => res,
-            Err(wgg_picnic::ApiError::AuthError) => {
-                if self.refresh_lock.try_lock().is_ok() {
-                    tracing::info!("Refreshing Picnic authentication token due to failure");
-                    let mut api_guard = self.api.write().await;
-
-                    api_guard
-                        .login(self.credentials.email(), self.credentials.password().expose_secret())
-                        .await?;
-
-                    api_guard.promotions(Some(sublist_id), 0).await?
-                } else {
-                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
-                    // If it fails again just error out.
-                    let _ = self.refresh_lock.lock().await;
-                    self.api.read().await.promotions(Some(sublist_id), 0).await?
-                }
-            }
-            Err(e) => return Err(e.into()),
-        };
+        let result = self
+            .picnic_request(|api| api.promotions(Some(sublist_id), 0).boxed())
+            .await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
@@ -304,6 +243,30 @@ impl ProviderInfo for PicnicBridge {
             decorators: Vec::new(),
             provider: sale_cat.provider,
         })
+    }
+}
+
+// This is here to hack around the lack of bounding for higher-ranked lifetimes
+// With thanks to: https://users.rust-lang.org/t/argument-requires-that-is-borrowed-for-static/66503/2
+struct TemporaryApi<'lower, 'upper: 'lower> {
+    api: &'lower PicnicApi,
+    _upper: PhantomData<&'upper ()>,
+}
+
+impl<'lower, 'upper> Deref for TemporaryApi<'lower, 'upper> {
+    type Target = PicnicApi;
+
+    fn deref(&self) -> &Self::Target {
+        self.api
+    }
+}
+
+impl<'lower, 'upper> TemporaryApi<'lower, 'upper> {
+    pub fn new(api: &'lower PicnicApi) -> Self {
+        Self {
+            api,
+            _upper: Default::default(),
+        }
     }
 }
 
