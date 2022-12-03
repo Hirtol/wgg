@@ -100,7 +100,7 @@ pub struct ProviderConfig {
 pub struct PicnicConfig {
     /// The maximum requests per second to allow towards Picnic servers.
     /// More is better, but comes with a greater risk of API bans.
-    pub requests_per_second: Option<NonZeroU32>,
+    pub requests_per_second: NonZeroU32,
     /// The stored/original auth token for Picnic.
     ///
     /// Note that this is automatically refreshed by the application when it is needed, assuming [the credentials](AuthConfig)
@@ -184,7 +184,7 @@ impl DbConfig {
 impl Default for PicnicConfig {
     fn default() -> Self {
         Self {
-            requests_per_second: wgg_providers::PICNIC_RECOMMENDED_RPS,
+            requests_per_second: wgg_providers::PICNIC_RECOMMENDED_RPS.unwrap(),
             auth_token: None,
             picnic_email: None,
             picnic_password: None,

@@ -11,7 +11,7 @@ mod picnic_bridge;
 pub(crate) use jumbo_bridge::*;
 pub use picnic_bridge::*;
 
-pub trait StaticProviderInfo {
+pub trait StaticProviderInfo: ProviderToAny {
     /// The associated [Provider] for this bridge implementation
     fn provider() -> Provider
     where
@@ -48,4 +48,15 @@ pub trait ProviderInfo: StaticProviderInfo {
 
     /// Retrieve a specific promotion
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete>;
+}
+
+pub trait ProviderToAny: 'static {
+    /// Cast self to an [Any](std::any::Any) reference for downcasting.
+    fn as_any(&self) -> &dyn std::any::Any;
+}
+
+impl<T: 'static> ProviderToAny for T {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

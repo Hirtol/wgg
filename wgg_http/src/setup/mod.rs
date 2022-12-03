@@ -57,7 +57,7 @@ impl Application {
             .with_cache(cache)
             .with_startup_sale_validation(config.app.startup_sale_validation)
             .with_jumbo(Default::default())
-            .with_picnic_rps(config.pd.picnic.requests_per_second);
+            .with_picnic_rps(Some(config.pd.picnic.requests_per_second));
 
         // Try initialise the Picnic provider.
         match config.pd.picnic.clone().try_into() {

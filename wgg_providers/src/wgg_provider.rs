@@ -4,12 +4,13 @@ use crate::models::{
 use async_graphql::EnumType;
 use std::fmt::Debug;
 use std::num::{NonZeroU32, NonZeroUsize};
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use wgg_jumbo::BaseJumboApi;
 
-use crate::caching::SerdeCache;
 use crate::caching::WggProviderCache;
+use crate::caching::{ProviderMap, SerdeCache};
 use crate::error::ProviderError;
 use crate::pagination::OffsetPagination;
 use crate::providers::PicnicCredentials;
@@ -18,9 +19,10 @@ use crate::sale_resolver::{SaleInfo, SaleResolver};
 use crate::Result;
 use wgg_scheduler::JobScheduler;
 
+type DynProvider = dyn ProviderInfo + Send + Sync;
+
 pub struct WggProvider {
-    pub(crate) picnic: Option<PicnicBridge>,
-    pub(crate) jumbo: JumboBridge,
+    pub(crate) dyn_providers: Arc<ProviderMap<Arc<DynProvider>>>,
     pub(crate) cache: WggProviderCache,
     pub(crate) sales: SaleResolver,
 }
@@ -42,7 +44,9 @@ impl WggProvider {
     /// Returns the latest Picnic auth token in use, if the provider has been initialised with [with_picnic](WggProviderBuilder::with_picnic)
     /// in the builder.
     pub async fn picnic_auth_token(&self) -> Option<String> {
-        let picnic = self.picnic.as_ref()?;
+        let real_ref = self.find_provider(Provider::Picnic).ok()?;
+        let picnic = real_ref.as_any().downcast_ref::<PicnicBridge>()?;
+
         Some(picnic.credentials().await.auth_token)
     }
 
@@ -58,7 +62,7 @@ impl WggProvider {
             key = "String",
             convert = r#"{query.to_string()}"#
         )]
-        async fn inner(prov: &(dyn ProviderInfo + Send + Sync), query: &str) -> Result<Vec<WggAutocomplete>> {
+        async fn inner(prov: &DynProvider, query: &str) -> Result<Vec<WggAutocomplete>> {
             prov.autocomplete(query).await
         }
 
@@ -86,7 +90,7 @@ impl WggProvider {
             convert = r#"{(query.to_string(), offset, _provider)}"#
         )]
         async fn inner(
-            prov: &(dyn ProviderInfo + Send + Sync),
+            prov: &DynProvider,
             query: &str,
             offset: Option<u32>,
             _provider: Provider,
@@ -99,7 +103,6 @@ impl WggProvider {
         let result = inner(provider_concrete, query.as_ref(), offset, provider_concrete.provider()).await?;
 
         // We persist any and all products for the sake of easing custom list searches.
-
         for item in &result.items {
             self.cache.insert_search_product(provider, item.clone());
         }
@@ -120,7 +123,7 @@ impl WggProvider {
             convert = r#"{(query.to_string(), _provider)}"#
         )]
         async fn inner(
-            prov: &(dyn ProviderInfo + Send + Sync),
+            prov: &DynProvider,
             query: &str,
             _provider: Provider,
         ) -> Result<OffsetPagination<WggSearchProduct>> {
@@ -294,50 +297,30 @@ impl WggProvider {
     }
 
     /// Return a reference to the requested provider.
-    pub(crate) fn find_provider(&self, provider: Provider) -> Result<&(dyn ProviderInfo + Send + Sync)> {
-        match provider {
-            Provider::Picnic => self
-                .picnic
-                .as_ref()
-                .map(|p| p as &(dyn ProviderInfo + Send + Sync))
-                .ok_or(ProviderError::ProviderUninitialised(Provider::Picnic)),
-            Provider::Jumbo => Ok(&self.jumbo),
-        }
+    pub(crate) fn find_provider(&self, provider: Provider) -> Result<&DynProvider> {
+        self.dyn_providers
+            .get(&provider)
+            .ok_or(ProviderError::ProviderUninitialised(provider))
+            .map(|i| i.deref())
     }
 
-    /// Iterate over all providers allowing an action to be performed on all of them
+    /// Iterate over all providers in arbitrary order, allowing an action to be performed on all of them
     pub fn active_providers(&self) -> ProvidersIter<'_> {
-        ProvidersIter { providers: self, i: 0 }
+        ProvidersIter {
+            providers_iter: self.dyn_providers.values(),
+        }
     }
 }
 
 pub struct ProvidersIter<'a> {
-    providers: &'a WggProvider,
-    i: usize,
+    providers_iter: std::collections::hash_map::Values<'a, Provider, Arc<DynProvider>>,
 }
 
 impl<'a> Iterator for ProvidersIter<'a> {
-    type Item = &'a (dyn ProviderInfo + Send + Sync);
+    type Item = &'a DynProvider;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let result: Option<&(dyn ProviderInfo + Send + Sync)> = match self.i {
-            0 => {
-                let provider = self.providers.find_provider(Provider::Picnic);
-
-                if provider.is_err() {
-                    self.i += 1;
-                    self.next()
-                } else {
-                    provider.ok()
-                }
-            }
-            1 => Some(&self.providers.jumbo),
-            _ => None,
-        };
-
-        self.i += 1;
-
-        result
+        self.providers_iter.next().map(|i| i.deref())
     }
 }
 
@@ -413,23 +396,29 @@ impl WggProviderBuilder {
         );
         let sales = SaleResolver::new(providers, sales_cache);
 
-        let jumbo = self.jumbo.unwrap_or_else(|| BaseJumboApi::new(Default::default()));
-        let picnic = if let Some(credentials) = self.picnic_creds {
+        // Create the providers
+        let mut dyn_providers: ProviderMap<Arc<DynProvider>> = ProviderMap::new();
+
+        // Picnic
+        if let Some(credentials) = self.picnic_creds {
             let rps = self.picnic_rps.or(crate::providers::PICNIC_RECOMMENDED_RPS);
-            Some(PicnicBridge::new(credentials, rps).await?)
-        } else {
-            None
-        };
+            let picnic = Arc::new(PicnicBridge::new(credentials, rps).await?);
+            dyn_providers.insert(Provider::Picnic, picnic);
+        }
+
+        // Jumbo
+        let base_api = self.jumbo.unwrap_or_else(|| BaseJumboApi::new(Default::default()));
+        let jumbo = Arc::new(JumboBridge::new(base_api));
+        dyn_providers.insert(Provider::Jumbo, jumbo);
 
         let result = WggProvider {
-            picnic,
-            jumbo: JumboBridge::new(jumbo),
+            dyn_providers: dyn_providers.into(),
             cache: product_cache,
             sales,
         };
 
         if self.startup_validation {
-            tracing::debug!("Starting start-up sale validation");
+            tracing::info!("Starting start-up sale validation");
             let futures = result
                 .active_providers()
                 .map(|provider| result.sales.refresh_promotions(provider.provider(), &result));
