@@ -35,7 +35,7 @@ impl WggProvider {
     pub fn serialized_cache(&self) -> SerdeCache {
         SerdeCache {
             product_cache: self.cache.as_serde_cache(),
-            promotions_cache: self.sales.cache.clone(),
+            promotions_cache: self.sales.cache().clone(),
         }
     }
 
@@ -153,12 +153,12 @@ impl WggProvider {
     pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
         let prov = self.find_provider(provider)?;
 
-        if let Some(promos) = self.sales.cache.promotions(provider) {
+        if let Some(promos) = self.sales.promotions(provider, &self).await {
             Ok(promos)
         } else {
             let result = prov.promotions().await?;
 
-            self.sales.cache.insert_promotions(provider, result.clone());
+            self.sales.insert_promotions(provider, result.clone(), self).await;
 
             // Persist any extra search products as we find them
             for category in &result {
@@ -196,13 +196,16 @@ impl WggProvider {
         provider: Provider,
         sublist_id: impl AsRef<str>,
     ) -> Result<WggSaleGroupComplete> {
-        if let Some(result) = self.sales.cache.promotion_sublist(provider, sublist_id.as_ref()) {
+        if let Some(result) = self.sales.promotion_sublist(provider, sublist_id.as_ref(), &self).await {
             Ok(result)
         } else {
             let prov = self.find_provider(provider)?;
             let result = prov.promotions_sublist(sublist_id.as_ref()).await?;
 
-            let _ = self.sales.cache.insert_promotion_sublist(provider, result.clone());
+            let _ = self
+                .sales
+                .insert_promotion_sublist(provider, result.clone(), self)
+                .await;
 
             // We persist any and all products for the sake of easing custom list searches.
             for item in &result.items {

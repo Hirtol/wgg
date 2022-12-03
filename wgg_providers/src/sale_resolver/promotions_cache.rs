@@ -51,41 +51,45 @@ impl PromotionsCache {
         }
     }
 
-    pub(crate) fn derived_caches(&self, provider: Provider) -> Option<DerivedCaches<'_>> {
+    pub(super) fn derived_caches(&self, provider: Provider) -> Option<DerivedCaches<'_>> {
         Some(DerivedCaches {
             normal_cache: self.normal_cache.get(&provider)?,
             inverted_cache: self.inverted_cache.get(&provider)?,
         })
     }
 
-    pub(crate) fn promotions(&self, provider: Provider) -> Option<Vec<WggSaleCategory>> {
-        let item = self.promotions_cache.get(&provider)?;
+    pub(super) fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>, InsertionAction> {
+        let item = self.promotions_cache.get(&provider).ok_or(InsertionAction::Nothing)?;
 
         if item.is_expired() {
             drop(item);
             let _ = self.promotions_cache.remove(&provider);
-            self.expire_all_derived(provider)?;
-            None
+            self.clear_all_derived(provider).ok_or(InsertionAction::Nothing)?;
+            Err(InsertionAction::ReconcileCache)
         } else {
-            Some(item.item.clone())
+            Ok(item.item.clone())
         }
     }
 
-    pub(crate) fn promotion_sublist(&self, provider: Provider, sublist_id: &str) -> Option<WggSaleGroupComplete> {
-        let sublist_cache = self.sublist_cache.get(&provider)?;
-        let item = sublist_cache.get(sublist_id)?;
+    pub(super) fn promotion_sublist(
+        &self,
+        provider: Provider,
+        sublist_id: &str,
+    ) -> Result<WggSaleGroupComplete, InsertionAction> {
+        let sublist_cache = self.sublist_cache.get(&provider).ok_or(InsertionAction::Nothing)?;
+        let item = sublist_cache.get(sublist_id).ok_or(InsertionAction::Nothing)?;
 
         if item.is_expired() {
             drop(item);
             let _ = sublist_cache.remove(sublist_id);
-            self.expire_derived_sublist(provider, sublist_id);
-            None
+            self.clear_derived_sublist(provider, sublist_id);
+            Err(InsertionAction::ReconcileCache)
         } else {
-            Some(item.item.clone())
+            Ok(item.item.clone())
         }
     }
 
-    pub(crate) fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) {
+    pub(super) fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) -> InsertionAction {
         let cache = PromoCacheEntry {
             item: promos,
             inserted_at: Utc::now(),
@@ -93,10 +97,17 @@ impl PromotionsCache {
         };
 
         let _ = self.promotions_cache.insert(provider, cache);
+
+        InsertionAction::ReconcileCache
     }
 
-    pub(crate) fn insert_promotion_sublist(&self, provider: Provider, promo: WggSaleGroupComplete) -> Option<()> {
+    pub(super) fn insert_promotion_sublist(
+        &self,
+        provider: Provider,
+        promo: WggSaleGroupComplete,
+    ) -> Option<InsertionAction> {
         let promo_id = promo.id.clone();
+
         let cache = PromoCacheEntry {
             inserted_at: Utc::now(),
             expires: sale_resolver::get_sale_validity(promo.decorators.iter()).valid_until,
@@ -106,14 +117,14 @@ impl PromotionsCache {
         let provider = self.sublist_cache.get(&provider)?;
         let _ = provider.insert(promo_id, cache);
 
-        Some(())
+        Some(InsertionAction::ReconcileCache)
     }
 
     /// Pre-emptively clear all currently expired entries.
     pub(crate) fn clear_expired(&self) {
         self.promotions_cache.retain(|provider, value| {
             if value.is_expired() {
-                let _ = self.expire_all_derived(*provider);
+                let _ = self.clear_all_derived(*provider);
             }
 
             !value.is_expired()
@@ -122,7 +133,7 @@ impl PromotionsCache {
         for (_, dash) in self.sublist_cache.iter() {
             dash.retain(|sublist_id, value| {
                 if value.is_expired() {
-                    self.expire_derived_sublist(value.provider, sublist_id);
+                    self.clear_derived_sublist(value.provider, sublist_id);
                 }
 
                 !value.is_expired()
@@ -130,20 +141,26 @@ impl PromotionsCache {
         }
     }
 
-    fn expire_all_derived(&self, provider: Provider) -> Option<()> {
+    pub(super) fn clear_all_derived(&self, provider: Provider) -> Option<()> {
         let derived = self.derived_caches(provider)?;
         derived.normal_cache.clear();
         derived.inverted_cache.clear();
+        self.sublist_cache.get(&provider)?.clear();
         Some(())
     }
 
-    fn expire_derived_sublist(&self, provider: Provider, sublist_id: &str) -> Option<()> {
+    pub(super) fn clear_derived_sublist(&self, provider: Provider, sublist_id: &str) -> Option<()> {
         let derived = self.derived_caches(provider)?;
         derived.normal_cache.remove(sublist_id);
         derived.inverted_cache.retain(|_, value| sublist_id != value);
 
         Some(())
     }
+}
+
+pub enum InsertionAction {
+    ReconcileCache,
+    Nothing,
 }
 
 pub struct DerivedCaches<'a> {

@@ -1,17 +1,27 @@
-use crate::caching::{get_default_provider_map, PromotionsCache};
-use crate::models::{ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleItem};
+use crate::caching::get_default_provider_map;
+use crate::models::{
+    ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
+};
 use crate::providers::ProviderInfo;
 use crate::WggProvider;
 use anyhow::Context;
 use chrono::{DateTime, Datelike, Utc, Weekday};
+use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use tracing::log;
+
+mod promotions_cache;
+pub mod scheduled;
+
+use crate::sale_resolver::promotions_cache::InsertionAction;
+pub use promotions_cache::PromotionsCache;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SaleResolver {
-    pub(crate) cache: PromotionsCache,
+    cache: PromotionsCache,
     pub(crate) meta_info: DashMap<Provider, ProviderMetaInfo>,
 }
 
@@ -49,49 +59,102 @@ impl SaleResolver {
         }
     }
 
+    pub async fn promotions(&self, provider: Provider, providers: &WggProvider) -> Option<Vec<WggSaleCategory>> {
+        let result = self.cache.promotions(provider);
+
+        match result {
+            Ok(result) => Some(result),
+            Err(action) => {
+                let _ = self.perform_action(action, provider, providers).await;
+                None
+            }
+        }
+    }
+
+    pub async fn promotion_sublist(
+        &self,
+        provider: Provider,
+        sublist_id: &str,
+        providers: &WggProvider,
+    ) -> Option<WggSaleGroupComplete> {
+        let action = self.cache.promotion_sublist(provider, sublist_id);
+
+        match action {
+            Ok(result) => Some(result),
+            Err(action) => {
+                let _ = self.perform_action(action, provider, providers).await;
+                None
+            }
+        }
+    }
+
     pub fn get_sale_info(&self, provider: Provider, product_id: &str) -> Option<SaleInfo> {
         let derived = self.cache.derived_caches(provider)?;
         let sale_list = derived.inverted_cache.get(product_id)?;
         Some(derived.normal_cache.get(&*sale_list)?.clone())
     }
 
-    pub async fn refresh_promotions(&self, provider: Provider, wgg_providers: &WggProvider) -> crate::Result<()> {
+    pub(crate) async fn insert_promotions(
+        &self,
+        provider: Provider,
+        promos: Vec<WggSaleCategory>,
+        wgg_providers: &WggProvider,
+    ) {
+        let action = self.cache.insert_promotions(provider, promos);
+        let _ = self.perform_action(action, provider, wgg_providers).await;
+    }
+
+    pub(crate) async fn insert_promotion_sublist(
+        &self,
+        provider: Provider,
+        promo: WggSaleGroupComplete,
+        wgg_providers: &WggProvider,
+    ) -> Option<()> {
+        let action = self.cache.insert_promotion_sublist(provider, promo)?;
+        let _ = self.perform_action(action, provider, wgg_providers).await;
+        Some(())
+    }
+
+    pub(crate) async fn refresh_promotions(
+        &self,
+        provider: Provider,
+        wgg_providers: &WggProvider,
+    ) -> crate::Result<()> {
         refresh_promotions(wgg_providers, provider).await
     }
-}
 
-pub mod scheduled {
-    use crate::sale_resolver::refresh_promotions;
-    use crate::WggProvider;
-    use std::sync::Arc;
-    use wgg_scheduler::schedule::Schedule;
-    use wgg_scheduler::Job;
+    pub(crate) fn cache(&self) -> &PromotionsCache {
+        &self.cache
+    }
 
-    pub fn get_promotions_refresh_job(schedule: Schedule, providers: Arc<WggProvider>) -> Job {
-        Job::new(schedule, move |_, _| {
-            let provs = providers.clone();
-            Box::pin(async move {
-                let span = tracing::span!(tracing::Level::DEBUG, "Scheduled Job - Promotion Data");
-                let _enter = span.enter();
-
-                for provider in provs.active_providers() {
-                    let real_provider = provider.provider();
-                    tracing::debug!(provider=?real_provider, "Refreshing promotion data for provider");
-                    refresh_promotions(&provs, real_provider).await?
+    async fn perform_action(
+        &self,
+        action: InsertionAction,
+        provider: Provider,
+        wgg_providers: &WggProvider,
+    ) -> crate::Result<()> {
+        match action {
+            InsertionAction::ReconcileCache => {
+                if let TryResult::Present(mut entry) = self.meta_info.try_get_mut(&provider) {
+                    entry.is_complete = false;
+                    drop(entry);
+                    self.refresh_promotions(provider, wgg_providers).await
+                } else {
+                    Ok(())
                 }
-                Ok(())
-            })
-        })
-        .expect("Invalid schedule provided")
+            }
+            _ => Ok(()),
+        }
     }
 }
 
+#[tracing::instrument(level = "debug", skip(providers), err)]
 pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> crate::Result<()> {
     let WggProvider { sales, .. } = providers;
     // We want to force network requests so skip directly to the underlying provider.
     let external_prov = providers.find_provider(provider)?;
 
-    let (promos, (added, removed)) = {
+    let (promos, (mut added, removed)) = {
         let promos = external_prov.promotions().await?;
         let current_promos = sales.cache.promotions(provider).unwrap_or_default();
 
@@ -100,16 +163,30 @@ pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> 
         (promos, diff)
     };
 
-    if added.is_empty() && removed.is_empty() {
-        // Completely equal, can skip doing anything for this refresh!
-        return Ok(());
-    }
-
-    // First remove the removed or modified items
     let derived_caches = sales
         .cache
         .derived_caches(provider)
         .context("Expected provider to exist which didn't")?;
+
+    // Fallback to ensure we reconcile any brokenness
+    if !derived_caches.are_valid() {
+        sales.cache.clear_all_derived(provider);
+        added = promos.clone();
+    }
+
+    if added.is_empty() && removed.is_empty() {
+        // Completely equal, can skip doing anything for this refresh!
+        log::debug!("No differences detected, returning early");
+        return Ok(());
+    }
+
+    tracing::trace!(
+        ad_len = added.len(),
+        rem_len = removed.len(),
+        "Detected differences for sale refresh"
+    );
+
+    // First remove the removed or modified items
     for diff in removed {
         if let Some(id) = diff.id {
             let _ = derived_caches.normal_cache.remove(&id);
@@ -123,7 +200,7 @@ pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> 
     }
 
     // Then add the newly added sub-lists
-    let results = get_sales(added, external_prov).await?;
+    let results = get_sales(added, external_prov, sales).await?;
     for (id, info) in results {
         derived_caches.normal_cache.insert(id, info);
     }
@@ -164,15 +241,21 @@ fn get_difference(vec1: &[WggSaleCategory], vec2: &[WggSaleCategory]) -> (Vec<Wg
     (added, removed)
 }
 
+#[tracing::instrument(level = "debug", skip_all, err)]
 pub async fn get_sales(
     promotions: impl IntoIterator<Item = WggSaleCategory>,
     provider: &(dyn ProviderInfo + Send + Sync),
+    sales_resolver: &SaleResolver,
 ) -> crate::Result<HashMap<SublistId, SaleInfo>> {
     let mut result: HashMap<SublistId, SaleInfo> = HashMap::new();
 
     for promo in promotions {
         if let Some(id) = promo.id {
             let sub_list = provider.promotions_sublist(&id).await?;
+            sales_resolver
+                .cache
+                .insert_promotion_sublist(provider.provider(), sub_list.clone());
+
             let sale_validity = get_sale_validity(&sub_list.decorators);
 
             let to_insert = SaleInfo {
