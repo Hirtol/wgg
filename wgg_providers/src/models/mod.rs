@@ -78,7 +78,7 @@ pub struct SaleLabel {
 }
 
 /// Until what date (inclusive) the attached sale is valid.
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SaleValidity {
     pub valid_from: DateTime<Utc>,
     pub valid_until: DateTime<Utc>,

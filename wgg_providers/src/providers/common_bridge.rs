@@ -1,4 +1,6 @@
-use crate::models::{CentPrice, Unit, UnitPrice, UnitQuantity};
+use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity, WggDecorator};
+use chrono::{DateTime, Datelike, Utc, Weekday};
+use std::borrow::Cow;
 
 /// Try to parse the provided price in the format `l` or `kg` as a [crate::models::Unit].
 ///
@@ -67,6 +69,39 @@ pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: Cen
         price: (display_price as f64 / normalised_quantity).round() as CentPrice,
     }
     .into()
+}
+
+/// Get either a [SaleValidity] from the given decorators, or make a guess based on the current time.
+///
+/// See [get_guessed_sale_validity] for more.
+pub(crate) fn get_sale_validity<'a>(decorators: impl IntoIterator<Item = &'a WggDecorator>) -> Cow<'a, SaleValidity> {
+    decorators
+        .into_iter()
+        .flat_map(|i| match i {
+            WggDecorator::SaleValidity(valid) => Some(Cow::Borrowed(valid)),
+            _ => None,
+        })
+        .next()
+        .unwrap_or_else(|| Cow::Owned(get_guessed_sale_validity(Utc::now())))
+}
+
+/// Return a best estimate sale validity date.
+/// Assumes that the sale started at the beginning of `now`'s week (Monday 00:00:00) and will last until the end of `now`'s
+/// week (Sunday 23:59:59).
+pub(crate) fn get_guessed_sale_validity(now: DateTime<Utc>) -> SaleValidity {
+    // We assume a sale is valid until the very end of this week
+    let monday =
+        chrono::NaiveDate::from_isoywd(now.iso_week().year(), now.iso_week().week(), Weekday::Mon).and_hms(0, 0, 0);
+    let sunday =
+        chrono::NaiveDate::from_isoywd(now.iso_week().year(), now.iso_week().week(), Weekday::Sun).and_hms(23, 59, 59);
+
+    let valid_from: DateTime<Utc> = DateTime::from_local(monday, Utc);
+    let valid_until: DateTime<Utc> = DateTime::from_local(sunday, Utc);
+
+    SaleValidity {
+        valid_from,
+        valid_until,
+    }
 }
 
 #[cfg(test)]

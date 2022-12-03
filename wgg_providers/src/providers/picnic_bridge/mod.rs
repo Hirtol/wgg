@@ -8,7 +8,7 @@ use crate::models::{
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::parse_quantity;
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use chrono::{Datelike, LocalResult, NaiveDate, TimeZone};
+use chrono::{Datelike, LocalResult, NaiveDate, TimeZone, Utc};
 use futures::future::FutureExt;
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
@@ -223,7 +223,21 @@ impl ProviderInfo for PicnicBridge {
             .next()
             .ok_or(ProviderError::NothingFound)?;
 
-        Ok(WggSaleGroupComplete {
+        // Check for sale validity
+        let sale_validity = {
+            let mut items = sale_cat.items.iter();
+            loop {
+                match items.next() {
+                    Some(WggSaleItem::Product(item)) => {
+                        break common_bridge::get_sale_validity(&item.decorators).into_owned()
+                    }
+                    None => break common_bridge::get_guessed_sale_validity(Utc::now()),
+                    _ => {}
+                }
+            }
+        };
+
+        let result = WggSaleGroupComplete {
             id: sale_cat
                 .id
                 .expect("Picnic Category does not have an id when it is expected"),
@@ -240,9 +254,12 @@ impl ProviderInfo for PicnicBridge {
                     }
                 })
                 .collect(),
-            decorators: Vec::new(),
+            decorators: vec![WggDecorator::SaleValidity(sale_validity)],
+            sale_validity,
             provider: sale_cat.provider,
-        })
+        };
+
+        Ok(result)
     }
 }
 

@@ -4,7 +4,7 @@ use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 use crate::pagination::OffsetPagination;
 use std::borrow::Cow;
 
-mod common_bridge;
+pub mod common_bridge;
 mod jumbo_bridge;
 mod picnic_bridge;
 

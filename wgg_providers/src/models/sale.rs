@@ -1,4 +1,4 @@
-use crate::models::{Provider, ProviderInfo, SublistId, WggDecorator, WggSearchProduct};
+use crate::models::{Provider, ProviderInfo, SaleValidity, SublistId, WggDecorator, WggSearchProduct};
 use serde::{Deserialize, Serialize};
 
 // ** Promotions **
@@ -47,6 +47,10 @@ pub struct WggSaleGroupLimited {
     pub image_urls: Vec<String>,
     /// A list of only product Ids.
     pub items: Vec<ProductIdT>,
+    /// Until when this sale is valid.
+    ///
+    /// Note that some providers may make a best guess for this if the original API does not provide it.
+    pub sale_validity: SaleValidity,
     pub decorators: Vec<WggDecorator>,
     #[graphql(skip)]
     pub provider: Provider,
@@ -69,6 +73,10 @@ pub struct WggSaleGroupComplete {
     /// All items that are part of this promotion.
     pub items: Vec<WggSearchProduct>,
     pub decorators: Vec<WggDecorator>,
+    /// Until when this sale is valid.
+    ///
+    /// Note that some providers may make a best guess for this if the original API does not provide it.
+    pub sale_validity: SaleValidity,
     #[graphql(skip)]
     pub provider: Provider,
 }

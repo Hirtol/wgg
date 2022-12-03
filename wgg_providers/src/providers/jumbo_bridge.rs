@@ -155,6 +155,10 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleGrou
             .into_iter()
             .map(|product| ProductIdT { id: product.into() })
             .collect(),
+        sale_validity: SaleValidity {
+            valid_from: promotion.start_date,
+            valid_until: promotion.end_date,
+        },
         decorators: vec![],
         provider: Provider::Jumbo,
     };
@@ -213,6 +217,7 @@ fn parse_jumbo_promotion_complete(
         image_urls: promo.image_urls,
         items,
         decorators: promo.decorators,
+        sale_validity: promo.sale_validity,
         provider: promo.provider,
     })
 }

@@ -1,6 +1,6 @@
 use crate::caching::get_default_provider_map;
 use crate::models::{ProductId, Provider, SublistId, WggSaleCategory, WggSaleGroupComplete};
-use crate::{sale_resolver, ProviderMap, SaleInfo};
+use crate::{ProviderMap, SaleInfo};
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
@@ -90,10 +90,11 @@ impl PromotionsCache {
     }
 
     pub(super) fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) -> CacheAction {
+        let now = Utc::now();
         let cache = PromoCacheEntry {
             item: promos,
-            inserted_at: Utc::now(),
-            expires: sale_resolver::get_guessed_sale_validity().valid_until,
+            inserted_at: now,
+            expires: crate::providers::common_bridge::get_guessed_sale_validity(now).valid_until,
         };
 
         let _ = self.promotions_cache.insert(provider, cache);
@@ -110,7 +111,7 @@ impl PromotionsCache {
 
         let cache = PromoCacheEntry {
             inserted_at: Utc::now(),
-            expires: sale_resolver::get_sale_validity(promo.decorators.iter()).valid_until,
+            expires: promo.sale_validity.valid_until,
             item: promo,
         };
 
@@ -166,7 +167,7 @@ pub enum CacheAction {
 
 impl CacheAction {
     /// Combine one [CacheAction] with another.
-    /// 
+    ///
     /// So long as at least one requires some form of action that one is picked.
     pub fn combine(&self, other: CacheAction) -> CacheAction {
         if let Self::ReconcileCache = self {

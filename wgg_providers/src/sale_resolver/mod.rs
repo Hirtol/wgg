@@ -1,16 +1,13 @@
 use crate::caching::get_default_provider_map;
 use crate::error::Result;
-use crate::models::{
-    ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
-};
+use crate::models::{ProductId, Provider, SublistId, WggSaleCategory, WggSaleGroupComplete, WggSaleItem};
 use crate::sale_resolver::promotions_cache::CacheAction;
 use crate::{DynProvider, DynamicProviders};
 use anyhow::Context;
-use chrono::{DateTime, Datelike, Utc, Weekday};
+use chrono::{DateTime, Utc};
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -271,11 +268,9 @@ pub async fn get_sales(
                 .cache
                 .insert_promotion_sublist(provider.provider(), sub_list.clone());
 
-            let sale_validity = get_sale_validity(&sub_list.decorators);
-
             let to_insert = SaleInfo {
-                valid_from: sale_validity.valid_from,
-                valid_until: sale_validity.valid_until,
+                valid_from: sub_list.sale_validity.valid_from,
+                valid_until: sub_list.sale_validity.valid_until,
                 item_ids: sub_list.items.into_iter().map(|i| i.id).collect(),
             };
 
@@ -285,11 +280,10 @@ pub async fn get_sales(
         for item in promo.items {
             if let WggSaleItem::Group(limited_group) = item {
                 let id = limited_group.id;
-                let sale_validity = get_sale_validity(&limited_group.decorators);
 
                 let to_insert = SaleInfo {
-                    valid_from: sale_validity.valid_from,
-                    valid_until: sale_validity.valid_until,
+                    valid_from: limited_group.sale_validity.valid_from,
+                    valid_until: limited_group.sale_validity.valid_until,
                     item_ids: limited_group.items.into_iter().map(|i| i.id).collect(),
                 };
 
@@ -299,29 +293,4 @@ pub async fn get_sales(
     }
 
     Ok(result)
-}
-
-pub fn get_sale_validity<'a>(decorators: impl IntoIterator<Item = &'a WggDecorator>) -> Cow<'a, SaleValidity> {
-    decorators
-        .into_iter()
-        .flat_map(|i| match i {
-            WggDecorator::SaleValidity(valid) => Some(Cow::Borrowed(valid)),
-            _ => None,
-        })
-        .next()
-        .unwrap_or_else(|| Cow::Owned(get_guessed_sale_validity()))
-}
-
-pub fn get_guessed_sale_validity() -> SaleValidity {
-    let now = Utc::now();
-
-    // We assume a sale is valid until the very end of this week
-    let sunday =
-        chrono::NaiveDate::from_isoywd(now.iso_week().year(), now.iso_week().week(), Weekday::Sun).and_hms(23, 59, 59);
-    let valid_until: DateTime<Utc> = DateTime::from_local(sunday, Utc);
-
-    SaleValidity {
-        valid_from: now,
-        valid_until,
-    }
 }
