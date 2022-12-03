@@ -15,11 +15,6 @@ pub struct PromotionsCache {
     inverted_cache: ProviderMap<DashMap<ProductId, SublistId>>,
 }
 
-pub struct DerivedCaches<'a> {
-    pub(crate) normal_cache: &'a DashMap<SublistId, SaleInfo>,
-    pub(crate) inverted_cache: &'a DashMap<ProductId, SublistId>,
-}
-
 impl PromotionsCache {
     pub fn new(providers: impl Iterator<Item = Provider> + Clone) -> Self {
         Self {
@@ -37,7 +32,7 @@ impl PromotionsCache {
     pub(crate) fn restore_from_cached_state(&mut self, active_providers: impl Iterator<Item = Provider> + Clone) {
         let promotions_cache = self.promotions_cache.iter().map(|k| *k.key()).collect::<HashSet<_>>();
         let other = active_providers.collect::<HashSet<_>>();
-        let mut diff = promotions_cache.symmetric_difference(&other);
+        let diff = promotions_cache.symmetric_difference(&other);
 
         for difference in diff {
             // We no longer have the given provider in our active list.
@@ -148,6 +143,21 @@ impl PromotionsCache {
         derived.inverted_cache.retain(|_, value| sublist_id != value);
 
         Some(())
+    }
+}
+
+pub struct DerivedCaches<'a> {
+    pub(crate) normal_cache: &'a DashMap<SublistId, SaleInfo>,
+    pub(crate) inverted_cache: &'a DashMap<ProductId, SublistId>,
+}
+
+impl<'a> DerivedCaches<'a> {
+    /// Check whether the current derived caches are valid under the assumption that there are normal promotions
+    ///
+    /// This can become `false` if the main cache expired `promotions_cache` but the scheduled refresh job hasn't yet
+    /// had a chance to run.
+    pub fn are_valid(&self) -> bool {
+        !self.normal_cache.is_empty() && !self.inverted_cache.is_empty()
     }
 }
 

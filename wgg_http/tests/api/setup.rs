@@ -64,6 +64,7 @@ impl TestApp {
     pub fn settings() -> TestSettings {
         let mut settings = Config::default();
         settings.app.port = 0;
+        settings.app.startup_sale_validation = false;
         settings.db.in_memory = true;
 
         TestSettings { config: settings }

@@ -77,6 +77,10 @@ pub struct AppConfig {
     pub static_dir: PathBuf,
     /// The directory where the provider product cache is stored between runs
     pub cache_dir: PathBuf,
+    /// On startup immediately fetch the latest sales and compare them with the local cache.
+    ///
+    /// Will be done asynchronously but will send *a lot* (~80 per provider) of requests.
+    pub startup_sale_validation: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -89,7 +93,7 @@ pub struct DbConfig {
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ProviderConfig {
-    pub picnic: PicnicConfig
+    pub picnic: PicnicConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -97,18 +101,18 @@ pub struct PicnicConfig {
     /// The maximum requests per second to allow towards Picnic servers.
     /// More is better, but comes with a greater risk of API bans.
     pub requests_per_second: Option<NonZeroU32>,
-    /// The stored/original auth token for Picnic. 
-    /// 
+    /// The stored/original auth token for Picnic.
+    ///
     /// Note that this is automatically refreshed by the application when it is needed, assuming [the credentials](AuthConfig)
     /// are provided.
-    /// 
+    ///
     /// # Security
-    /// 
+    ///
     /// This stores a potentially sensitive token in this config file, it is therefore highly advised to keep this in a
     /// secure place with limited permissions for other processes.
     pub auth_token: Option<String>,
     /// The email associated with the Picnic account.
-    /// 
+    ///
     /// Both the email and password should be provided through environment variables
     #[serde(skip_serializing)]
     pub picnic_email: Option<String>,
@@ -130,6 +134,7 @@ impl Default for AppConfig {
                 .expect("Can't get current directory")
                 .join("static"),
             cache_dir: crate::utils::get_app_dirs().config_dir.join("cache"),
+            startup_sale_validation: true,
         }
     }
 }

@@ -55,6 +55,7 @@ impl Application {
         let cache = caching::setup_cache(&config).await;
         let mut providers_builder = WggProvider::builder()
             .with_cache(cache)
+            .with_startup_sale_validation(config.app.startup_sale_validation)
             .with_jumbo(Default::default())
             .with_picnic_rps(config.pd.picnic.requests_per_second);
 

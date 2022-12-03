@@ -344,6 +344,7 @@ pub struct WggProviderBuilder {
     picnic_rps: Option<NonZeroU32>,
     jumbo: Option<BaseJumboApi>,
     cache: Option<SerdeCache>,
+    startup_validation: bool,
 }
 
 impl WggProviderBuilder {
@@ -383,9 +384,16 @@ impl WggProviderBuilder {
         self
     }
 
+    /// Whether to launch an asynchronous fetching of sale/promotion data as soon as the [WggProvider] is constructed.
+    pub fn with_startup_sale_validation(mut self, startup_validation: bool) -> Self {
+        self.startup_validation = startup_validation;
+        self
+    }
+
     /// Create a new collection of providers.
     ///
     /// By default only the `JumboApi` is enabled, see [Self::with_picnic] to enable `Picnic`.
+    #[tracing::instrument(level = "info", skip_all)]
     pub async fn build(self) -> Result<WggProvider> {
         let providers = Provider::items().iter().map(|i| i.value);
         let (sales_cache, product_cache) = if let Some(cache) = self.cache {
@@ -410,11 +418,21 @@ impl WggProviderBuilder {
             None
         };
 
-        Ok(WggProvider {
+        let result = WggProvider {
             picnic,
             jumbo: JumboBridge::new(jumbo),
             cache: product_cache,
             sales,
-        })
+        };
+
+        if self.startup_validation {
+            tracing::debug!("Starting start-up sale validation");
+            let futures = result
+                .active_providers()
+                .map(|provider| result.sales.refresh_promotions(provider.provider(), &result));
+            let _ = futures::future::join_all(futures).await;
+        }
+
+        Ok(result)
     }
 }
