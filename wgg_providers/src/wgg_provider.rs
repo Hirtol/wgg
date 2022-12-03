@@ -19,7 +19,7 @@ use crate::sale_resolver::{SaleInfo, SaleResolver};
 use crate::Result;
 use wgg_scheduler::JobScheduler;
 
-type DynProvider = dyn ProviderInfo + Send + Sync;
+pub(crate) type DynProvider = dyn ProviderInfo + Send + Sync;
 
 pub struct WggProvider {
     pub(crate) dyn_providers: Arc<ProviderMap<Arc<DynProvider>>>,
@@ -156,12 +156,12 @@ impl WggProvider {
     pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
         let prov = self.find_provider(provider)?;
 
-        if let Some(promos) = self.sales.promotions(provider, &self).await {
+        if let Some(promos) = self.sales.promotions(provider).await {
             Ok(promos)
         } else {
             let result = prov.promotions().await?;
 
-            self.sales.insert_promotions(provider, result.clone(), self).await;
+            self.sales.insert_promotions(provider, result.clone()).await;
 
             // Persist any extra search products as we find them
             for category in &result {
@@ -199,16 +199,13 @@ impl WggProvider {
         provider: Provider,
         sublist_id: impl AsRef<str>,
     ) -> Result<WggSaleGroupComplete> {
-        if let Some(result) = self.sales.promotion_sublist(provider, sublist_id.as_ref(), &self).await {
+        if let Some(result) = self.sales.promotion_sublist(provider, sublist_id.as_ref()).await {
             Ok(result)
         } else {
             let prov = self.find_provider(provider)?;
             let result = prov.promotions_sublist(sublist_id.as_ref()).await?;
 
-            let _ = self
-                .sales
-                .insert_promotion_sublist(provider, result.clone(), self)
-                .await;
+            let _ = self.sales.insert_promotion_sublist(provider, result.clone()).await;
 
             // We persist any and all products for the sake of easing custom list searches.
             for item in &result.items {
@@ -381,22 +378,7 @@ impl WggProviderBuilder {
     /// By default only the `JumboApi` is enabled, see [Self::with_picnic] to enable `Picnic`.
     #[tracing::instrument(level = "info", skip_all)]
     pub async fn build(self) -> Result<WggProvider> {
-        let providers = Provider::items().iter().map(|i| i.value);
-        let (sales_cache, product_cache) = if let Some(cache) = self.cache {
-            (Some(cache.promotions_cache), Some(cache.product_cache))
-        } else {
-            (None, None)
-        };
-
-        let product_cache = WggProviderCache::new(
-            product_cache,
-            Duration::from_secs(86400),
-            providers.clone(),
-            NonZeroUsize::new(1000).unwrap(),
-        );
-        let sales = SaleResolver::new(providers, sales_cache);
-
-        // Create the providers
+        // ** Create the providers **
         let mut dyn_providers: ProviderMap<Arc<DynProvider>> = ProviderMap::new();
 
         // Picnic
@@ -411,17 +393,35 @@ impl WggProviderBuilder {
         let jumbo = Arc::new(JumboBridge::new(base_api));
         dyn_providers.insert(Provider::Jumbo, jumbo);
 
+        let dyn_providers = Arc::new(dyn_providers);
+
+        // ** Caches **
+        let providers = Provider::items().iter().map(|i| i.value);
+        let (sales_cache, product_cache) = if let Some(cache) = self.cache {
+            (Some(cache.promotions_cache), Some(cache.product_cache))
+        } else {
+            (None, None)
+        };
+
+        let product_cache = WggProviderCache::new(
+            product_cache,
+            Duration::from_secs(86400),
+            providers.clone(),
+            NonZeroUsize::new(1000).unwrap(),
+        );
+        let sales = SaleResolver::new(dyn_providers.clone(), sales_cache);
+
         let result = WggProvider {
-            dyn_providers: dyn_providers.into(),
+            dyn_providers,
             cache: product_cache,
             sales,
         };
 
         if self.startup_validation {
-            tracing::info!("Starting start-up sale validation");
+            tracing::info!("Initiating start-up sale validation");
             let futures = result
                 .active_providers()
-                .map(|provider| result.sales.refresh_promotions(provider.provider(), &result));
+                .map(|provider| result.sales.refresh_promotions(provider.provider()));
             let _ = futures::future::join_all(futures).await;
         }
 

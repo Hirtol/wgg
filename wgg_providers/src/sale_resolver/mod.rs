@@ -1,9 +1,10 @@
-use crate::caching::get_default_provider_map;
+use crate::caching::{get_default_provider_map, ProviderMap};
 use crate::models::{
     ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
 };
-use crate::providers::ProviderInfo;
-use crate::WggProvider;
+use crate::sale_resolver::promotions_cache::InsertionAction;
+use crate::wgg_provider::DynProvider;
+use crate::ProviderError;
 use anyhow::Context;
 use chrono::{DateTime, Datelike, Utc, Weekday};
 use dashmap::try_result::TryResult;
@@ -11,17 +12,19 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::ops::Deref;
+use std::sync::Arc;
 use tracing::log;
 
 mod promotions_cache;
 pub mod scheduled;
 
-use crate::sale_resolver::promotions_cache::InsertionAction;
 pub use promotions_cache::PromotionsCache;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub struct SaleResolver {
     cache: PromotionsCache,
+    providers: Arc<ProviderMap<Arc<DynProvider>>>,
     pub(crate) meta_info: DashMap<Provider, ProviderMetaInfo>,
 }
 
@@ -44,45 +47,42 @@ pub struct SaleInfo {
 }
 
 impl SaleResolver {
-    pub fn new(providers: impl Iterator<Item = Provider> + Clone, previous_cache: Option<PromotionsCache>) -> Self {
+    pub fn new(providers: Arc<ProviderMap<Arc<DynProvider>>>, previous_cache: Option<PromotionsCache>) -> Self {
+        let provider_keys = providers.keys().copied();
         let cache = if let Some(mut cache) = previous_cache {
-            cache.restore_from_cached_state(providers.clone());
+            cache.restore_from_cached_state(provider_keys.clone());
             cache.clear_expired();
             cache
         } else {
-            PromotionsCache::new(providers.clone())
+            PromotionsCache::new(provider_keys.clone())
         };
 
         SaleResolver {
             cache,
-            meta_info: get_default_provider_map(providers),
+            meta_info: get_default_provider_map(provider_keys),
+            providers,
         }
     }
 
-    pub async fn promotions(&self, provider: Provider, providers: &WggProvider) -> Option<Vec<WggSaleCategory>> {
+    pub async fn promotions(&self, provider: Provider) -> Option<Vec<WggSaleCategory>> {
         let result = self.cache.promotions(provider);
 
         match result {
             Ok(result) => Some(result),
             Err(action) => {
-                let _ = self.perform_action(action, provider, providers).await;
+                let _ = self.perform_action(action, provider).await;
                 None
             }
         }
     }
 
-    pub async fn promotion_sublist(
-        &self,
-        provider: Provider,
-        sublist_id: &str,
-        providers: &WggProvider,
-    ) -> Option<WggSaleGroupComplete> {
+    pub async fn promotion_sublist(&self, provider: Provider, sublist_id: &str) -> Option<WggSaleGroupComplete> {
         let action = self.cache.promotion_sublist(provider, sublist_id);
 
         match action {
             Ok(result) => Some(result),
             Err(action) => {
-                let _ = self.perform_action(action, provider, providers).await;
+                let _ = self.perform_action(action, provider).await;
                 None
             }
         }
@@ -94,51 +94,32 @@ impl SaleResolver {
         Some(derived.normal_cache.get(&*sale_list)?.clone())
     }
 
-    pub(crate) async fn insert_promotions(
-        &self,
-        provider: Provider,
-        promos: Vec<WggSaleCategory>,
-        wgg_providers: &WggProvider,
-    ) {
+    pub(crate) async fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) {
         let action = self.cache.insert_promotions(provider, promos);
-        let _ = self.perform_action(action, provider, wgg_providers).await;
+        let _ = self.perform_action(action, provider).await;
     }
 
-    pub(crate) async fn insert_promotion_sublist(
-        &self,
-        provider: Provider,
-        promo: WggSaleGroupComplete,
-        wgg_providers: &WggProvider,
-    ) -> Option<()> {
+    pub(crate) async fn insert_promotion_sublist(&self, provider: Provider, promo: WggSaleGroupComplete) -> Option<()> {
         let action = self.cache.insert_promotion_sublist(provider, promo)?;
-        let _ = self.perform_action(action, provider, wgg_providers).await;
+        let _ = self.perform_action(action, provider).await;
         Some(())
     }
 
-    pub(crate) async fn refresh_promotions(
-        &self,
-        provider: Provider,
-        wgg_providers: &WggProvider,
-    ) -> crate::Result<()> {
-        refresh_promotions(wgg_providers, provider).await
+    pub(crate) async fn refresh_promotions(&self, provider: Provider) -> crate::Result<()> {
+        refresh_promotions(self, provider).await
     }
 
     pub(crate) fn cache(&self) -> &PromotionsCache {
         &self.cache
     }
 
-    async fn perform_action(
-        &self,
-        action: InsertionAction,
-        provider: Provider,
-        wgg_providers: &WggProvider,
-    ) -> crate::Result<()> {
+    async fn perform_action(&self, action: InsertionAction, provider: Provider) -> crate::Result<()> {
         match action {
             InsertionAction::ReconcileCache => {
                 if let TryResult::Present(mut entry) = self.meta_info.try_get_mut(&provider) {
                     entry.is_complete = false;
                     drop(entry);
-                    self.refresh_promotions(provider, wgg_providers).await
+                    self.refresh_promotions(provider).await
                 } else {
                     Ok(())
                 }
@@ -148,11 +129,13 @@ impl SaleResolver {
     }
 }
 
-#[tracing::instrument(level = "debug", skip(providers), err)]
-pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> crate::Result<()> {
-    let WggProvider { sales, .. } = providers;
+#[tracing::instrument(level = "debug", skip(sales), err)]
+pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> crate::Result<()> {
     // We want to force network requests so skip directly to the underlying provider.
-    let external_prov = providers.find_provider(provider)?;
+    let external_prov = sales
+        .providers
+        .get(&provider)
+        .ok_or(ProviderError::ProviderUninitialised(provider))?;
 
     let (promos, (mut added, removed)) = {
         let promos = external_prov.promotions().await?;
@@ -200,7 +183,7 @@ pub async fn refresh_promotions(providers: &WggProvider, provider: Provider) -> 
     }
 
     // Then add the newly added sub-lists
-    let results = get_sales(added, external_prov, sales).await?;
+    let results = get_sales(added, external_prov.deref(), sales).await?;
     for (id, info) in results {
         derived_caches.normal_cache.insert(id, info);
     }
@@ -244,7 +227,7 @@ fn get_difference(vec1: &[WggSaleCategory], vec2: &[WggSaleCategory]) -> (Vec<Wg
 #[tracing::instrument(level = "debug", skip_all, err)]
 pub async fn get_sales(
     promotions: impl IntoIterator<Item = WggSaleCategory>,
-    provider: &(dyn ProviderInfo + Send + Sync),
+    provider: &DynProvider,
     sales_resolver: &SaleResolver,
 ) -> crate::Result<HashMap<SublistId, SaleInfo>> {
     let mut result: HashMap<SublistId, SaleInfo> = HashMap::new();

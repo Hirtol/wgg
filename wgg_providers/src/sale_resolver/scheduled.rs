@@ -15,7 +15,7 @@ pub fn get_promotions_refresh_job(schedule: Schedule, providers: Arc<WggProvider
             for provider in providers.active_providers() {
                 let real_provider = provider.provider();
                 tracing::debug!(provider=?real_provider, "Refreshing promotion data for provider");
-                refresh_promotions(&providers, real_provider).await?
+                refresh_promotions(&providers.sales, real_provider).await?
             }
             Ok(())
         }
