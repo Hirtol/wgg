@@ -15,6 +15,7 @@ mod tests {
     use crate::scheduler::JobScheduler;
     use chrono::Utc;
     use std::time::Duration;
+    use futures::FutureExt;
     use tokio::sync::mpsc::UnboundedReceiver;
 
     #[tokio::test]
@@ -95,11 +96,11 @@ mod tests {
         let (send, recv) = tokio::sync::mpsc::unbounded_channel();
         let job = Job::new(schedule, move |id, _| {
             let snd = send.clone();
-            Box::pin(async move {
+            async move {
                 println!("Basic Job: {} - now: {:?}", id, Utc::now());
                 snd.send(()).unwrap();
                 Ok(())
-            })
+            }.boxed()
         })
         .unwrap();
 

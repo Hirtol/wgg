@@ -7,10 +7,11 @@ use wgg_scheduler::schedule::Schedule;
 use wgg_scheduler::Job;
 
 pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: State) -> Job {
+    use futures::future::FutureExt;
     use futures::stream::StreamExt;
     Job::new(schedule, move |_, _| {
         let state = state.clone();
-        Box::pin(async move {
+        async move {
             let span = tracing::span!(tracing::Level::DEBUG, "Scheduled Job - Cart Data");
             let _enter = span.enter();
 
@@ -25,7 +26,8 @@ pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: State) -> Job 
             while (stream.next().await).is_some() {}
 
             Ok(())
-        })
+        }
+        .boxed()
     })
     .unwrap()
 }

@@ -51,12 +51,12 @@ impl JobScheduler {
     /// # use wgg_scheduler::*;
     /// # use wgg_scheduler::job::Job;
     /// let scheduler = JobScheduler::new();
-    /// let job = Job::new("* 0/5 * * * * *", |job_id, scheduler| Box::pin(async move {
+    /// let job = Job::new("* 0/5 * * * * *", |job_id, scheduler| async move {
     ///     println!("Hello World Every 5 Minutes!");
     ///     // Stop self after the first execution
     ///     scheduler.remove(job_id);
     ///     Ok(())
-    /// }))?;
+    /// }.boxed())?;
     ///
     /// let job_id = scheduler.push(job);
     /// // Start executing the above job

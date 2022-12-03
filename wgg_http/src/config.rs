@@ -91,12 +91,12 @@ pub struct DbConfig {
     pub in_memory: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 pub struct ProviderConfig {
     pub picnic: PicnicConfig,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PicnicConfig {
     /// The maximum requests per second to allow towards Picnic servers.
     /// More is better, but comes with a greater risk of API bans.
@@ -144,6 +144,7 @@ impl Debug for Config {
         f.debug_struct("Config")
             .field("app", &self.app)
             .field("db", &self.db)
+            .field("pd", &self.pd)
             .finish()
     }
 }
