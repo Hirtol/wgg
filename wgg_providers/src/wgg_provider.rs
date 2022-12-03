@@ -229,14 +229,14 @@ impl WggProvider {
     ///
     /// This is highly recommended for the majority of cases to reduce latency and external network calls as several
     /// cache layers can be used at once.
-    #[tracing::instrument(level="debug", skip_all, fields(provider, query = product_id.as_ref()))]
+    #[tracing::instrument(level="debug", skip_all, fields(provider, product_id = product_id.as_ref()))]
     pub async fn search_product(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<WggSearchProduct> {
-        let id = product_id.as_ref().to_string();
+        let id = product_id.as_ref();
 
-        if let Some(item) = self.cache.get_search_product(provider, &id) {
+        if let Some(item) = self.cache.get_search_product(provider, id) {
             Ok(item)
         } else {
-            Ok(self.product_network(provider, &id).await?.into())
+            Ok(self.product_network(provider, id).await?.into())
         }
     }
 
