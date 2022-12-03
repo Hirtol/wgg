@@ -2,6 +2,8 @@ use crate::error::SubProviderError::{JumboMiscError, PicnicMiscError};
 use crate::models::Provider;
 use thiserror::Error;
 
+pub type Result<T> = std::result::Result<T, ProviderError>;
+
 #[derive(Debug, Error)]
 pub enum ProviderError {
     #[error("Could not initialise providers: {0}")]

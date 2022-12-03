@@ -1,6 +1,6 @@
-use crate::caching::{get_default_provider_map, ProviderMap};
+use crate::caching::get_default_provider_map;
 use crate::models::{ProductId, Provider, SublistId, WggSaleCategory, WggSaleGroupComplete};
-use crate::{sale_resolver, SaleInfo};
+use crate::{sale_resolver, ProviderMap, SaleInfo};
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};

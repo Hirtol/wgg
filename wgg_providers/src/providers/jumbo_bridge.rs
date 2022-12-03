@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::models::{
     AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
     NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, Provider, SaleDescription, SaleLabel, SaleValidity,
@@ -7,7 +8,7 @@ use crate::models::{
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use crate::{ProviderError, Result};
+use crate::ProviderError;
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -46,7 +47,7 @@ impl ProviderInfo for JumboBridge {
     }
 
     #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]
-    async fn autocomplete(&self, query: &str) -> crate::Result<Vec<WggAutocomplete>> {
+    async fn autocomplete(&self, query: &str) -> crate::error::Result<Vec<WggAutocomplete>> {
         // Cache the response for a day at a time, as the Jumbo autocomplete is just a giant list of terms.
         #[once(time = 86400, result = true)]
         async fn inner(api: &BaseJumboApi) -> Result<Vec<WggAutocomplete>> {

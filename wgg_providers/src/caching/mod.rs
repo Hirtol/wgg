@@ -6,15 +6,12 @@ mod product_cache;
 use crate::models::Provider;
 use crate::sale_resolver::PromotionsCache;
 pub use product_cache::WggProviderCache;
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SerdeCache {
     pub(crate) product_cache: SerdeWggCache,
     pub(crate) promotions_cache: PromotionsCache,
 }
-
-pub type ProviderMap<T> = HashMap<Provider, T>;
 
 pub(crate) fn get_default_provider_map<T: Default, B: FromIterator<(Provider, T)>>(
     providers: impl Iterator<Item = Provider>,

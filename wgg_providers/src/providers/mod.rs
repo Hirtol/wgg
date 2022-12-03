@@ -1,7 +1,7 @@
+use crate::error::Result;
 use crate::models::{Provider, WggAutocomplete, WggSearchProduct};
 use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 use crate::pagination::OffsetPagination;
-use crate::Result;
 use std::borrow::Cow;
 
 mod common_bridge;

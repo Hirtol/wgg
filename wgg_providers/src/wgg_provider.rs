@@ -9,20 +9,18 @@ use std::sync::Arc;
 use std::time::Duration;
 use wgg_jumbo::BaseJumboApi;
 
+use crate::caching::SerdeCache;
 use crate::caching::WggProviderCache;
-use crate::caching::{ProviderMap, SerdeCache};
-use crate::error::ProviderError;
+use crate::error::{ProviderError, Result};
 use crate::pagination::OffsetPagination;
 use crate::providers::PicnicCredentials;
-use crate::providers::{JumboBridge, PicnicBridge, ProviderInfo};
+use crate::providers::{JumboBridge, PicnicBridge};
 use crate::sale_resolver::{SaleInfo, SaleResolver};
-use crate::Result;
+use crate::{DynProvider, DynamicProviders};
 use wgg_scheduler::JobScheduler;
 
-pub(crate) type DynProvider = dyn ProviderInfo + Send + Sync;
-
 pub struct WggProvider {
-    pub(crate) dyn_providers: Arc<ProviderMap<Arc<DynProvider>>>,
+    pub(crate) dyn_providers: Arc<DynamicProviders>,
     pub(crate) cache: WggProviderCache,
     pub(crate) sales: SaleResolver,
 }
@@ -44,7 +42,7 @@ impl WggProvider {
     /// Returns the latest Picnic auth token in use, if the provider has been initialised with [with_picnic](WggProviderBuilder::with_picnic)
     /// in the builder.
     pub async fn picnic_auth_token(&self) -> Option<String> {
-        let real_ref = self.find_provider(Provider::Picnic).ok()?;
+        let real_ref = self.dyn_providers.find_provider(Provider::Picnic).ok()?;
         let picnic = real_ref.as_any().downcast_ref::<PicnicBridge>()?;
 
         Some(picnic.credentials().await.auth_token)
@@ -66,7 +64,7 @@ impl WggProvider {
             prov.autocomplete(query).await
         }
 
-        let provider = self.find_provider(provider)?;
+        let provider = self.dyn_providers.find_provider(provider)?;
 
         inner(provider, query.as_ref()).await
     }
@@ -98,7 +96,7 @@ impl WggProvider {
             prov.search(query, offset).await
         }
 
-        let provider_concrete = self.find_provider(provider)?;
+        let provider_concrete = self.dyn_providers.find_provider(provider)?;
 
         let result = inner(provider_concrete, query.as_ref(), offset, provider_concrete.provider()).await?;
 
@@ -154,7 +152,7 @@ impl WggProvider {
     /// Retrieve all valid promotions for the current week for the given provider.
     #[tracing::instrument(level = "debug", skip_all, fields(provider))]
     pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
-        let prov = self.find_provider(provider)?;
+        let prov = self.dyn_providers.find_provider(provider)?;
 
         if let Some(promos) = self.sales.promotions(provider).await {
             Ok(promos)
@@ -202,7 +200,7 @@ impl WggProvider {
         if let Some(result) = self.sales.promotion_sublist(provider, sublist_id.as_ref()).await {
             Ok(result)
         } else {
-            let prov = self.find_provider(provider)?;
+            let prov = self.dyn_providers.find_provider(provider)?;
             let result = prov.promotions_sublist(sublist_id.as_ref()).await?;
 
             let _ = self.sales.insert_promotion_sublist(provider, result.clone()).await;
@@ -285,20 +283,12 @@ impl WggProvider {
 
     /// Perform a network request for the requested product.
     async fn product_network(&self, provider: Provider, product_id: &str) -> Result<WggProduct> {
-        let provider_concrete = self.find_provider(provider)?;
+        let provider_concrete = self.dyn_providers.find_provider(provider)?;
         let result = provider_concrete.product(product_id).await?;
 
         self.cache.insert_product(provider, result.clone());
 
         Ok(result)
-    }
-
-    /// Return a reference to the requested provider.
-    pub(crate) fn find_provider(&self, provider: Provider) -> Result<&DynProvider> {
-        self.dyn_providers
-            .get(&provider)
-            .ok_or(ProviderError::ProviderUninitialised(provider))
-            .map(|i| i.deref())
     }
 
     /// Iterate over all providers in arbitrary order, allowing an action to be performed on all of them
@@ -379,7 +369,7 @@ impl WggProviderBuilder {
     #[tracing::instrument(level = "info", skip_all)]
     pub async fn build(self) -> Result<WggProvider> {
         // ** Create the providers **
-        let mut dyn_providers: ProviderMap<Arc<DynProvider>> = ProviderMap::new();
+        let mut dyn_providers: DynamicProviders = DynamicProviders::new();
 
         // Picnic
         if let Some(credentials) = self.picnic_creds {

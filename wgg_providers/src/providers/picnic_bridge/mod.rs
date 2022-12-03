@@ -21,7 +21,7 @@ use std::time::Duration;
 use wgg_picnic::models::{Body, Decorator, ImageSize, PmlComponent, SubCategory, UnavailableReason};
 use wgg_picnic::PicnicApi;
 
-use crate::Result;
+use crate::error::Result;
 
 mod authentication;
 

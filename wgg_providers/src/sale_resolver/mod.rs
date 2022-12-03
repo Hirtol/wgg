@@ -1,10 +1,10 @@
-use crate::caching::{get_default_provider_map, ProviderMap};
+use crate::caching::get_default_provider_map;
 use crate::models::{
     ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
 };
 use crate::sale_resolver::promotions_cache::InsertionAction;
-use crate::wgg_provider::DynProvider;
 use crate::ProviderError;
+use crate::{DynProvider, DynamicProviders};
 use anyhow::Context;
 use chrono::{DateTime, Datelike, Utc, Weekday};
 use dashmap::try_result::TryResult;
@@ -24,7 +24,7 @@ pub use promotions_cache::PromotionsCache;
 #[derive(Clone)]
 pub struct SaleResolver {
     cache: PromotionsCache,
-    providers: Arc<ProviderMap<Arc<DynProvider>>>,
+    providers: Arc<DynamicProviders>,
     pub(crate) meta_info: DashMap<Provider, ProviderMetaInfo>,
 }
 
@@ -47,7 +47,7 @@ pub struct SaleInfo {
 }
 
 impl SaleResolver {
-    pub fn new(providers: Arc<ProviderMap<Arc<DynProvider>>>, previous_cache: Option<PromotionsCache>) -> Self {
+    pub(crate) fn new(providers: Arc<DynamicProviders>, previous_cache: Option<PromotionsCache>) -> Self {
         let provider_keys = providers.keys().copied();
         let cache = if let Some(mut cache) = previous_cache {
             cache.restore_from_cached_state(provider_keys.clone());
@@ -105,7 +105,7 @@ impl SaleResolver {
         Some(())
     }
 
-    pub(crate) async fn refresh_promotions(&self, provider: Provider) -> crate::Result<()> {
+    pub(crate) async fn refresh_promotions(&self, provider: Provider) -> crate::error::Result<()> {
         refresh_promotions(self, provider).await
     }
 
@@ -113,7 +113,7 @@ impl SaleResolver {
         &self.cache
     }
 
-    async fn perform_action(&self, action: InsertionAction, provider: Provider) -> crate::Result<()> {
+    async fn perform_action(&self, action: InsertionAction, provider: Provider) -> crate::error::Result<()> {
         match action {
             InsertionAction::ReconcileCache => {
                 if let TryResult::Present(mut entry) = self.meta_info.try_get_mut(&provider) {
@@ -130,12 +130,9 @@ impl SaleResolver {
 }
 
 #[tracing::instrument(level = "debug", skip(sales), err)]
-pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> crate::Result<()> {
+pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> crate::error::Result<()> {
     // We want to force network requests so skip directly to the underlying provider.
-    let external_prov = sales
-        .providers
-        .get(&provider)
-        .ok_or(ProviderError::ProviderUninitialised(provider))?;
+    let external_prov = sales.providers.find_provider(provider)?;
 
     let (promos, (mut added, removed)) = {
         let promos = external_prov.promotions().await?;
@@ -229,7 +226,7 @@ pub async fn get_sales(
     promotions: impl IntoIterator<Item = WggSaleCategory>,
     provider: &DynProvider,
     sales_resolver: &SaleResolver,
-) -> crate::Result<HashMap<SublistId, SaleInfo>> {
+) -> crate::error::Result<HashMap<SublistId, SaleInfo>> {
     let mut result: HashMap<SublistId, SaleInfo> = HashMap::new();
 
     for promo in promotions {
