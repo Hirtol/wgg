@@ -58,14 +58,14 @@ impl PromotionsCache {
         })
     }
 
-    pub(super) fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>, InsertionAction> {
-        let item = self.promotions_cache.get(&provider).ok_or(InsertionAction::Nothing)?;
+    pub(super) fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>, CacheAction> {
+        let item = self.promotions_cache.get(&provider).ok_or(CacheAction::Nothing)?;
 
         if item.is_expired() {
             drop(item);
             let _ = self.promotions_cache.remove(&provider);
-            self.clear_all_derived(provider).ok_or(InsertionAction::Nothing)?;
-            Err(InsertionAction::ReconcileCache)
+            self.clear_all_derived(provider).ok_or(CacheAction::Nothing)?;
+            Err(CacheAction::ReconcileCache)
         } else {
             Ok(item.item.clone())
         }
@@ -75,21 +75,21 @@ impl PromotionsCache {
         &self,
         provider: Provider,
         sublist_id: &str,
-    ) -> Result<WggSaleGroupComplete, InsertionAction> {
-        let sublist_cache = self.sublist_cache.get(&provider).ok_or(InsertionAction::Nothing)?;
-        let item = sublist_cache.get(sublist_id).ok_or(InsertionAction::Nothing)?;
+    ) -> Result<WggSaleGroupComplete, CacheAction> {
+        let sublist_cache = self.sublist_cache.get(&provider).ok_or(CacheAction::Nothing)?;
+        let item = sublist_cache.get(sublist_id).ok_or(CacheAction::Nothing)?;
 
         if item.is_expired() {
             drop(item);
             let _ = sublist_cache.remove(sublist_id);
             self.clear_derived_sublist(provider, sublist_id);
-            Err(InsertionAction::ReconcileCache)
+            Err(CacheAction::ReconcileCache)
         } else {
             Ok(item.item.clone())
         }
     }
 
-    pub(super) fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) -> InsertionAction {
+    pub(super) fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) -> CacheAction {
         let cache = PromoCacheEntry {
             item: promos,
             inserted_at: Utc::now(),
@@ -98,14 +98,14 @@ impl PromotionsCache {
 
         let _ = self.promotions_cache.insert(provider, cache);
 
-        InsertionAction::ReconcileCache
+        CacheAction::ReconcileCache
     }
 
     pub(super) fn insert_promotion_sublist(
         &self,
         provider: Provider,
         promo: WggSaleGroupComplete,
-    ) -> Option<InsertionAction> {
+    ) -> Option<CacheAction> {
         let promo_id = promo.id.clone();
 
         let cache = PromoCacheEntry {
@@ -117,7 +117,7 @@ impl PromotionsCache {
         let provider = self.sublist_cache.get(&provider)?;
         let _ = provider.insert(promo_id, cache);
 
-        Some(InsertionAction::ReconcileCache)
+        Some(CacheAction::ReconcileCache)
     }
 
     /// Pre-emptively clear all currently expired entries.
@@ -158,9 +158,25 @@ impl PromotionsCache {
     }
 }
 
-pub enum InsertionAction {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum CacheAction {
     ReconcileCache,
     Nothing,
+}
+
+impl CacheAction {
+    /// Combine one [CacheAction] with another.
+    /// 
+    /// So long as at least one requires some form of action that one is picked.
+    pub fn combine(&self, other: CacheAction) -> CacheAction {
+        if let Self::ReconcileCache = self {
+            CacheAction::ReconcileCache
+        } else if let Self::ReconcileCache = other {
+            CacheAction::ReconcileCache
+        } else {
+            CacheAction::Nothing
+        }
+    }
 }
 
 pub struct DerivedCaches<'a> {

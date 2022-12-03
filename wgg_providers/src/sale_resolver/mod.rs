@@ -1,9 +1,9 @@
 use crate::caching::get_default_provider_map;
+use crate::error::Result;
 use crate::models::{
     ProductId, Provider, SaleValidity, SublistId, WggDecorator, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
 };
-use crate::sale_resolver::promotions_cache::InsertionAction;
-use crate::ProviderError;
+use crate::sale_resolver::promotions_cache::CacheAction;
 use crate::{DynProvider, DynamicProviders};
 use anyhow::Context;
 use chrono::{DateTime, Datelike, Utc, Weekday};
@@ -64,26 +64,64 @@ impl SaleResolver {
         }
     }
 
-    pub async fn promotions(&self, provider: Provider) -> Option<Vec<WggSaleCategory>> {
+    /// Retrieve all promotions for the given provider.
+    ///
+    /// # Caching behaviour
+    ///
+    /// Whenever this function has to go over the network the response will be cloned and saved until either:
+    /// * The end of the current week (Sunday 23:59:59)
+    /// * A given sale end-date by the [Provider]
+    ///
+    /// Whenever it is saved a sequence of network requests can occur (depending on the provider) for sub-lists.
+    /// This is unfortunately necessary to ensure valid sale resolution.
+    /// Until it is invalidated all subsequent requests will be served by this cache, save for one exception
+    ///
+    /// # Scheduled Refresh
+    ///
+    /// This sale resolver has a scheduled job which can be optionally used to check, every day at a user defined time,
+    /// for cache staleness. If this is detected all stale promotions *and* their sub-lists are refreshed.
+    ///
+    /// Note that this can cause quite a bit of network traffic, so the `rps` config options for each [Provider] should be set sensibly!
+    ///
+    /// [Provider]: crate::providers::ProviderInfo
+    pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
         let result = self.cache.promotions(provider);
 
         match result {
-            Ok(result) => Some(result),
+            Ok(result) => Ok(result),
             Err(action) => {
-                let _ = self.perform_action(action, provider).await;
-                None
+                let prov = self.providers.find_provider(provider)?;
+                let result = prov.promotions().await?;
+
+                let insert_action = self.cache.insert_promotions(provider, result.clone());
+
+                self.perform_action(action.combine(insert_action), provider).await?;
+
+                Ok(result)
             }
         }
     }
 
-    pub async fn promotion_sublist(&self, provider: Provider, sublist_id: &str) -> Option<WggSaleGroupComplete> {
-        let action = self.cache.promotion_sublist(provider, sublist_id);
+    /// Retrieve a complete sub-list for the given provider.
+    ///
+    /// This function has the same caching behaviour as [promotions](Self::promotions).
+    pub async fn promotion_sublist(&self, provider: Provider, sublist_id: &str) -> Result<WggSaleGroupComplete> {
+        let result = self.cache.promotion_sublist(provider, sublist_id);
 
-        match action {
-            Ok(result) => Some(result),
+        match result {
+            Ok(result) => Ok(result),
             Err(action) => {
-                let _ = self.perform_action(action, provider).await;
-                None
+                let prov = self.providers.find_provider(provider)?;
+                let result = prov.promotions_sublist(sublist_id).await?;
+
+                let insert_action = self
+                    .cache
+                    .insert_promotion_sublist(provider, result.clone())
+                    .unwrap_or(CacheAction::Nothing);
+
+                self.perform_action(action.combine(insert_action), provider).await?;
+
+                Ok(result)
             }
         }
     }
@@ -94,18 +132,15 @@ impl SaleResolver {
         Some(derived.normal_cache.get(&*sale_list)?.clone())
     }
 
-    pub(crate) async fn insert_promotions(&self, provider: Provider, promos: Vec<WggSaleCategory>) {
-        let action = self.cache.insert_promotions(provider, promos);
-        let _ = self.perform_action(action, provider).await;
+    #[allow(dead_code)]
+    pub fn is_part_of_sale(&self, provider: Provider, product_id: &str) -> bool {
+        let Some(derived) = self.cache.derived_caches(provider) else {
+            return false;
+        };
+        derived.inverted_cache.get(product_id).is_some()
     }
 
-    pub(crate) async fn insert_promotion_sublist(&self, provider: Provider, promo: WggSaleGroupComplete) -> Option<()> {
-        let action = self.cache.insert_promotion_sublist(provider, promo)?;
-        let _ = self.perform_action(action, provider).await;
-        Some(())
-    }
-
-    pub(crate) async fn refresh_promotions(&self, provider: Provider) -> crate::error::Result<()> {
+    pub(crate) async fn refresh_promotions(&self, provider: Provider) -> Result<()> {
         refresh_promotions(self, provider).await
     }
 
@@ -113,9 +148,9 @@ impl SaleResolver {
         &self.cache
     }
 
-    async fn perform_action(&self, action: InsertionAction, provider: Provider) -> crate::error::Result<()> {
+    async fn perform_action(&self, action: CacheAction, provider: Provider) -> Result<()> {
         match action {
-            InsertionAction::ReconcileCache => {
+            CacheAction::ReconcileCache => {
                 if let TryResult::Present(mut entry) = self.meta_info.try_get_mut(&provider) {
                     entry.is_complete = false;
                     drop(entry);
@@ -130,7 +165,7 @@ impl SaleResolver {
 }
 
 #[tracing::instrument(level = "debug", skip(sales), err)]
-pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> crate::error::Result<()> {
+pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> Result<()> {
     // We want to force network requests so skip directly to the underlying provider.
     let external_prov = sales.providers.find_provider(provider)?;
 
@@ -161,12 +196,12 @@ pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> cra
     }
 
     tracing::trace!(
-        ad_len = added.len(),
-        rem_len = removed.len(),
+        added_len = added.len(),
+        removed_len = removed.len(),
         "Detected differences for sale refresh"
     );
 
-    // First remove the removed or modified items
+    // First remove the removed/modified items
     for diff in removed {
         if let Some(id) = diff.id {
             let _ = derived_caches.normal_cache.remove(&id);
@@ -226,13 +261,13 @@ pub async fn get_sales(
     promotions: impl IntoIterator<Item = WggSaleCategory>,
     provider: &DynProvider,
     sales_resolver: &SaleResolver,
-) -> crate::error::Result<HashMap<SublistId, SaleInfo>> {
+) -> Result<HashMap<SublistId, SaleInfo>> {
     let mut result: HashMap<SublistId, SaleInfo> = HashMap::new();
 
     for promo in promotions {
         if let Some(id) = promo.id {
             let sub_list = provider.promotions_sublist(&id).await?;
-            sales_resolver
+            let _ = sales_resolver
                 .cache
                 .insert_promotion_sublist(provider.provider(), sub_list.clone());
 

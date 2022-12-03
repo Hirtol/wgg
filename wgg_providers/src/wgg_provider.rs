@@ -152,26 +152,18 @@ impl WggProvider {
     /// Retrieve all valid promotions for the current week for the given provider.
     #[tracing::instrument(level = "debug", skip_all, fields(provider))]
     pub async fn promotions(&self, provider: Provider) -> Result<Vec<WggSaleCategory>> {
-        let prov = self.dyn_providers.find_provider(provider)?;
+        let result = self.sales.promotions(provider).await?;
 
-        if let Some(promos) = self.sales.promotions(provider).await {
-            Ok(promos)
-        } else {
-            let result = prov.promotions().await?;
-
-            self.sales.insert_promotions(provider, result.clone()).await;
-
-            // Persist any extra search products as we find them
-            for category in &result {
-                for item in &category.items {
-                    if let WggSaleItem::Product(product) = item {
-                        self.cache.insert_search_product(provider, product.clone());
-                    }
+        // Persist any extra search products as we find them
+        for category in &result {
+            for item in &category.items {
+                if let WggSaleItem::Product(product) = item {
+                    self.cache.insert_search_product(provider, product.clone());
                 }
             }
-
-            Ok(result)
         }
+
+        Ok(result)
     }
 
     /// Retrieve all valid promotions for the current week.
@@ -197,21 +189,14 @@ impl WggProvider {
         provider: Provider,
         sublist_id: impl AsRef<str>,
     ) -> Result<WggSaleGroupComplete> {
-        if let Some(result) = self.sales.promotion_sublist(provider, sublist_id.as_ref()).await {
-            Ok(result)
-        } else {
-            let prov = self.dyn_providers.find_provider(provider)?;
-            let result = prov.promotions_sublist(sublist_id.as_ref()).await?;
+        let result = self.sales.promotion_sublist(provider, sublist_id.as_ref()).await?;
 
-            let _ = self.sales.insert_promotion_sublist(provider, result.clone()).await;
-
-            // We persist any and all products for the sake of easing custom list searches.
-            for item in &result.items {
-                self.cache.insert_search_product(item.provider, item.clone());
-            }
-
-            Ok(result)
+        // We persist any and all products for the sake of easing custom list searches.
+        for item in &result.items {
+            self.cache.insert_search_product(item.provider, item.clone());
         }
+
+        Ok(result)
     }
 
     /// Retrieve the provided `product_id` from the `provider`.
