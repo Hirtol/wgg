@@ -171,7 +171,7 @@ pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> Res
         let current_promos = sales.cache.promotions(provider).unwrap_or_default();
 
         // Check if we have to do anything new.
-        let diff = get_difference(&promos, current_promos.as_slice());
+        let diff = get_difference(current_promos.as_slice(), &promos);
         (promos, diff)
     };
 

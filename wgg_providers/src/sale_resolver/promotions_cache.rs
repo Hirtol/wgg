@@ -116,9 +116,13 @@ impl PromotionsCache {
         };
 
         let provider = self.sublist_cache.get(&provider)?;
-        let _ = provider.insert(promo_id, cache);
+        let old_item = provider.insert(promo_id, cache);
 
-        Some(CacheAction::ReconcileCache)
+        if old_item.is_some() {
+            Some(CacheAction::ReconcileCache)
+        } else {
+            Some(CacheAction::Nothing)
+        }
     }
 
     /// Pre-emptively clear all currently expired entries.
