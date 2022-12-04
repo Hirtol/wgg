@@ -1,5 +1,6 @@
 use crate::models::{
-    Provider, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+    Provider, SublistId, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
+    WggSearchProduct,
 };
 use async_graphql::EnumType;
 use std::fmt::Debug;
@@ -252,14 +253,19 @@ impl WggProvider {
             .await
     }
 
-    /// Retrieve the associated sale for this item
-    pub async fn product_sale_association(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<SaleInfo> {
+    /// Retrieve the associated sale for this item.
+    pub fn product_sale_association(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<SaleInfo> {
         self.sales
             .get_sale_info(provider, product_id.as_ref())
             .ok_or(ProviderError::NothingFound)
     }
 
-    /// Push all jobs relevant for optimal service of [WggProvider]s onto the given scheduler
+    /// Retrieve the associated sale sublist for this item.
+    pub fn product_sale_id(&self, provider: Provider, product_id: impl AsRef<str>) -> Option<SublistId> {
+        self.sales.get_sale_sublist_id(provider, product_id.as_ref())
+    }
+
+    /// Push all jobs relevant for optimal service of [WggProvider]s onto the given scheduler.
     ///
     /// These services are *not* mandatory for this to work, but they *are* mandatory for things to stay up-to-date.
     pub fn schedule_all_jobs(self: Arc<Self>, scheduler: &JobScheduler) {

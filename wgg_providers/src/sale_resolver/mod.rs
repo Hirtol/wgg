@@ -123,10 +123,22 @@ impl SaleResolver {
         }
     }
 
+    /// Retrieve a sale info (containing the [SublistId] and all associated product ids) for a given product/provider.
+    ///
+    /// [None] is returned if no sale was available for the given product.
     pub fn get_sale_info(&self, provider: Provider, product_id: &str) -> Option<SaleInfo> {
         let derived = self.cache.derived_caches(provider)?;
         let sale_list = derived.inverted_cache.get(product_id)?;
         Some(derived.normal_cache.get(&*sale_list)?.clone())
+    }
+
+    /// Retrieve the associated [SublistId] for the given product/provider.
+    ///
+    /// If there is no associated sale [None] is returned instead.
+    pub fn get_sale_sublist_id(&self, provider: Provider, product_id: &str) -> Option<SublistId> {
+        let derived = self.cache.derived_caches(provider)?;
+        let item = derived.inverted_cache.get(product_id)?;
+        Some(item.clone())
     }
 
     #[allow(dead_code)]
