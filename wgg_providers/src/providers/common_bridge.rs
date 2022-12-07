@@ -32,11 +32,9 @@ pub(crate) fn parse_quantity(quantity: &str) -> Option<UnitQuantity> {
         let mut whitespaces = quantity.split_whitespace();
         let multiplier = whitespaces.next()?;
         let _ = whitespaces.next()?;
-        let (quantity, unit) = (whitespaces.next()?, whitespaces.next()?);
-        // TODO: This cuts of `1.5 liter` at the moment!
+
+        let (quantity, unit) = parse_quantity_unit(whitespaces)?;
         let multiplier: f64 = multiplier.parse().ok()?;
-        let quantity: f64 = quantity.parse().ok()?;
-        let unit = parse_unit_component(unit)?;
 
         UnitQuantity {
             unit,
@@ -44,13 +42,31 @@ pub(crate) fn parse_quantity(quantity: &str) -> Option<UnitQuantity> {
         }
         .into()
     } else {
-        let mut whitespaces = quantity.split_whitespace();
-        let (quantity, unit) = (whitespaces.next()?, whitespaces.next()?);
-        // TODO: This cuts of `1.5 liter` at the moment!
-        let quantity: f64 = quantity.replace(',', ".").parse().ok()?;
-        let unit = parse_unit_component(unit)?;
+        let (quantity, unit) = parse_quantity_unit(quantity.split_whitespace())?;
 
         UnitQuantity { unit, amount: quantity }.into()
+    }
+}
+
+/// Attempt to parse a `(Quantity, Unit)` combination adhering to either of the following formats:
+/// * `55 g`
+/// * `500ml`
+fn parse_quantity_unit<'a>(mut whitespaces: impl Iterator<Item = &'a str>) -> Option<(f64, Unit)> {
+    let quantity = whitespaces.next()?.replace(',', ".");
+    // If we can parse in one go we know that we're dealing with a format of `55 g`.
+    if let Ok(quant) = quantity.parse::<f64>() {
+        let unit = parse_unit_component(whitespaces.next()?)?;
+        Some((quant, unit))
+    } else {
+        // Otherwise we'll need to try and split them.
+        let (index, _) = quantity
+            .char_indices()
+            .take_while(|(_, chr)| chr.is_ascii_digit())
+            .last()?;
+
+        let (quantity_part, unit_part) = quantity.split_at(index + 1);
+
+        Some((quantity_part.parse().ok()?, parse_unit_component(unit_part)?))
     }
 }
 
@@ -77,7 +93,7 @@ pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: Cen
 pub(crate) fn get_sale_validity<'a>(decorators: impl IntoIterator<Item = &'a WggDecorator>) -> Cow<'a, SaleValidity> {
     decorators
         .into_iter()
-        .flat_map(|i| match i {
+        .flat_map(|i| match &i {
             WggDecorator::SaleValidity(valid) => Some(Cow::Borrowed(valid)),
             _ => None,
         })
