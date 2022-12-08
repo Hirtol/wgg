@@ -6,6 +6,7 @@
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
     import ProductImage from '$lib/components/products/ProductImage.svelte';
+    import SaleLabel from '$lib/components/products/SaleLabel.svelte';
     import { CartStore } from '$lib/state';
     import { Pen } from 'carbon-icons-svelte';
     import classNames from 'classnames';
@@ -28,8 +29,7 @@
     $: cardTitle = getCardTitle(data);
     $: priceData = getPriceData(data);
 
-    $: saleLabel =
-        data.__typename == 'CartProviderProduct' && data.product.decorators.find((l) => l.__typename == 'SaleLabel');
+    $: saleInfo = data.__typename == 'CartProviderProduct' && data.product.saleInformation;
     $: unavailableReason =
         data.__typename == 'CartProviderProduct'
             ? data.product.decorators.find((u) => u.__typename == 'UnavailableItem')
@@ -132,8 +132,8 @@
             href={productUrl}>
             <h6 class="line-clamp-2">{cardTitle}</h6>
 
-            {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-                <span class="badge w-min min-w-0 bg-primary-300 dark:bg-primary-800">{saleLabel.text}</span>
+            {#if saleInfo}
+                <SaleLabel class="min-w-0" text={saleInfo.label} saleType={saleInfo.saleType} />
             {/if}
 
             {#if unavailableReason != undefined && unavailableReason.__typename == 'UnavailableItem'}

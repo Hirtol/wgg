@@ -55,9 +55,6 @@ pub enum Unit {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WggDecorator {
     FreshLabel(FreshLabel),
-    SaleLabel(SaleLabel),
-    SaleValidity(SaleValidity),
-    SaleDescription(SaleDescription),
     Unavailable(UnavailableItem),
     PrepTime(PrepTime),
     NumberOfServings(NumberOfServings),
@@ -69,25 +66,11 @@ pub struct FreshLabel {
     pub days_fresh: u32,
 }
 
-/// Describes the type of sale that applies to the attached object.
-///
-/// Think of "1 + 1 Free", or "50% off".
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SaleLabel {
-    pub text: String,
-}
-
 /// Until what date (inclusive) the attached sale is valid.
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SaleValidity {
     pub valid_from: DateTime<Utc>,
     pub valid_until: DateTime<Utc>,
-}
-
-/// A subtitle for a particular sale.
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SaleDescription {
-    pub text: String,
 }
 
 /// If the item is unavailable

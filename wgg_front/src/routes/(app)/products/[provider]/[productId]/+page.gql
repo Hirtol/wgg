@@ -19,6 +19,17 @@ fragment FullProductFragment on WggProduct {
             price
         }
     }
+    saleInformation {
+        label
+        additionalLabel
+        saleValidity {
+            validFrom
+            validUntil
+        }
+        saleType {
+            __typename
+        }
+    }
     unitQuantity {
         unit
         amount
@@ -61,16 +72,6 @@ fragment FullDecorator on WggDecorator {
     __typename
     ... on FreshLabel {
         daysFresh
-    }
-    ... on SaleLabel {
-        text
-    }
-    ... on SaleValidity {
-        validFrom
-        validUntil
-    }
-    ... on SaleDescription {
-        text
     }
     ... on UnavailableItem {
         reason

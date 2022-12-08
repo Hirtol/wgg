@@ -1,14 +1,14 @@
 use crate::error::ProviderError;
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
-    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, SaleInformation, SaleLabel, SaleValidity,
-    SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct,
-    WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, SaleInformation, SaleValidity, SubNutritionalItem,
+    TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct, WggSaleCategory,
+    WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
-use crate::providers::common_bridge::{get_sale_validity, parse_quantity, parse_sale_label};
+use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use chrono::{Datelike, LocalResult, NaiveDate, TimeZone, Utc};
+use chrono::{Datelike, NaiveDate, Utc};
 use futures::future::FutureExt;
 use governor::clock::DefaultClock;
 use governor::state::{InMemoryState, NotKeyed};
@@ -223,19 +223,24 @@ impl ProviderInfo for PicnicBridge {
             .next()
             .ok_or(ProviderError::NothingFound)?;
 
-        // Check for sale validity
-        let sale_validity = {
-            let mut items = sale_cat.items.iter();
-            loop {
-                match items.next() {
-                    Some(WggSaleItem::Product(item)) => {
-                        break common_bridge::get_sale_validity(&item.decorators).into_owned()
-                    }
-                    None => break common_bridge::get_guessed_sale_validity(Utc::now()),
-                    _ => {}
-                }
-            }
-        };
+        // Check for sale info.
+        // Picnic doesn't embed this in the promotion itself, so we have to get it from one of the items.
+        let sale_info: SaleInformation = sale_cat
+            .items
+            .iter()
+            .flat_map(|i| match i {
+                WggSaleItem::Product(item) => Some(item),
+                _ => None,
+            })
+            .flat_map(|item| &item.sale_information)
+            .next()
+            .cloned()
+            .unwrap_or_else(|| SaleInformation {
+                label: "UNKNOWN".to_string(),
+                additional_label: Vec::new(),
+                sale_validity: common_bridge::get_guessed_sale_validity(Utc::now()),
+                sale_type: None,
+            });
 
         let result = WggSaleGroupComplete {
             id: sale_cat
@@ -254,8 +259,8 @@ impl ProviderInfo for PicnicBridge {
                     }
                 })
                 .collect(),
-            decorators: vec![WggDecorator::SaleValidity(sale_validity)],
-            sale_validity,
+            sale_info,
+            sale_description: None,
             provider: sale_cat.provider,
         };
 
@@ -493,6 +498,18 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         }
     }
 
+    // Parse Sales
+    let (_, sale_validity) = parse_decorators_for_sale(&product.decorators);
+    if let Some(promo) = product.labels.promo {
+        result.sale_information = SaleInformation {
+            sale_type: parse_sale_label(&promo.text),
+            label: promo.text,
+            additional_label: Vec::new(),
+            sale_validity: sale_validity.unwrap_or_else(|| common_bridge::get_guessed_sale_validity(Utc::now())),
+        }
+        .into();
+    }
+
     // Parse remaining decorators
     for dec in product.decorators {
         parse_decorator(
@@ -501,19 +518,6 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
             Some(&mut result.price_info.display_price),
             Some(&mut result.available),
         )
-    }
-
-    // Parse Sales
-    if let Some(promo) = product.labels.promo {
-        let sale_info = SaleInformation {
-            label: promo.text.clone(),
-            sale_validity: get_sale_validity(&result.decorators).into_owned(),
-            sale_type: parse_sale_label(&promo.text),
-        };
-        result.sale_information = Some(sale_info);
-        result
-            .decorators
-            .push(WggDecorator::SaleLabel(SaleLabel { text: promo.text }))
     }
 
     // Parse misc items
@@ -583,6 +587,18 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
         provider: Provider::Picnic,
     };
 
+    // Parse sale data
+    let (sale_label, sale_validity) = parse_decorators_for_sale(&article.decorators);
+    if let Some(label) = sale_label {
+        result.sale_information = SaleInformation {
+            sale_type: parse_sale_label(&label),
+            label,
+            additional_label: Vec::new(),
+            sale_validity: sale_validity.unwrap_or_else(|| common_bridge::get_guessed_sale_validity(Utc::now())),
+        }
+        .into()
+    }
+
     // Parse remaining decorators
     for dec in article.decorators {
         parse_decorator(
@@ -591,20 +607,6 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
             Some(&mut result.display_price),
             Some(&mut result.available),
         )
-    }
-
-    // Parse sale data
-    for dec in &result.decorators {
-        if let WggDecorator::SaleLabel(label) = dec {
-            let sale_info = SaleInformation {
-                label: label.text.clone(),
-                sale_validity: get_sale_validity(&result.decorators).into_owned(),
-                sale_type: parse_sale_label(&label.text),
-            };
-
-            result.sale_information = Some(sale_info);
-            break;
-        }
     }
 
     // Parse unit quantity
@@ -631,55 +633,55 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
     result
 }
 
+fn parse_decorators_for_sale(decorators: &[Decorator]) -> (Option<String>, Option<SaleValidity>) {
+    let mut sale_label = None;
+    let mut sale_validity = None;
+
+    for dec in decorators {
+        match dec {
+            Decorator::Label { text } => {
+                sale_label = Some(text.clone());
+            }
+            Decorator::ValidityLabel { valid_until } => {
+                let valid_until = chrono::DateTime::from_local(valid_until.and_hms(23, 59, 59), Utc);
+                let valid_from =
+                    NaiveDate::from_isoywd(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
+                        .and_hms(0, 0, 0);
+                let valid_from = chrono::DateTime::from_local(valid_from, Utc);
+
+                sale_validity = Some(SaleValidity {
+                    valid_from,
+                    valid_until,
+                });
+            }
+            _ => {}
+        }
+    }
+
+    (sale_label, sale_validity)
+}
+
 // Encourage inlining to get rid of the Option costs.
 #[inline(always)]
 pub fn parse_decorator(
     decorator: Decorator,
-    result: &mut Vec<crate::models::WggDecorator>,
+    result: &mut Vec<WggDecorator>,
     set_display_price: Option<&mut u32>,
     set_available: Option<&mut bool>,
 ) {
     match decorator {
         // If we already parsed it above, we don't want to do it again!
-        Decorator::FreshLabel { period }
-            if !result
-                .iter()
-                .any(|i| matches!(i, crate::models::WggDecorator::FreshLabel(_))) =>
-        {
+        Decorator::FreshLabel { period } if !result.iter().any(|i| matches!(i, WggDecorator::FreshLabel(_))) => {
             if let Some(days_fresh) = parse_days_fresh(&period) {
                 let fresh_label = FreshLabel { days_fresh };
 
-                result.push(crate::models::WggDecorator::FreshLabel(fresh_label))
+                result.push(WggDecorator::FreshLabel(fresh_label))
             }
-        }
-        Decorator::Label { text } => {
-            let sale_label = SaleLabel { text };
-
-            result.push(crate::models::WggDecorator::SaleLabel(sale_label))
         }
         Decorator::Price { display_price } => {
             // Decorator price is the price *including* current sales if available.
             if let Some(dp) = set_display_price {
                 *dp = display_price
-            }
-        }
-        Decorator::ValidityLabel { valid_until } => {
-            if let LocalResult::Single(valid_until) = chrono::Utc.from_local_datetime(&valid_until.and_hms(23, 59, 59))
-            {
-                let valid_from =
-                    NaiveDate::from_isoywd(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
-                        .and_hms(0, 0, 0);
-                let valid_from = if let Some(time) = chrono::Utc.from_local_datetime(&valid_from).single() {
-                    time
-                } else {
-                    return;
-                };
-                let sale_validity = SaleValidity {
-                    valid_from,
-                    valid_until,
-                };
-
-                result.push(crate::models::WggDecorator::SaleValidity(sale_validity))
             }
         }
         Decorator::Unavailable {
@@ -704,7 +706,7 @@ pub fn parse_decorator(
             if let Some(available) = set_available {
                 *available = false;
             }
-            result.push(crate::models::WggDecorator::Unavailable(unavailable))
+            result.push(WggDecorator::Unavailable(unavailable))
         }
         Decorator::MoreButton { images, .. } => {
             let more_button = MoreButton {
@@ -714,7 +716,7 @@ pub fn parse_decorator(
                     .collect(),
             };
 
-            result.push(crate::models::WggDecorator::MoreButton(more_button))
+            result.push(WggDecorator::MoreButton(more_button))
         }
         _ => {}
     }

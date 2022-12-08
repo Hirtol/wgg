@@ -1,9 +1,8 @@
 use crate::models::sale_types::{NumEuroOff, NumForPrice, NumPercentOff, NumPlusNumFree, NumthPercentOff, SaleType};
-use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity, WggDecorator};
+use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity};
 use chrono::{DateTime, Datelike, Utc, Weekday};
 use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
-use std::borrow::Cow;
 
 /// Try to parse the provided price in the format `l` or `kg` as a [crate::models::Unit].
 ///
@@ -198,20 +197,6 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
 
 pub(crate) fn parse_int_fract_price(integer_part: CentPrice, fractional_part: CentPrice) -> CentPrice {
     (integer_part * 100) + fractional_part
-}
-
-/// Get either a [SaleValidity] from the given decorators, or make a guess based on the current time.
-///
-/// See [get_guessed_sale_validity] for more.
-pub(crate) fn get_sale_validity<'a>(decorators: impl IntoIterator<Item = &'a WggDecorator>) -> Cow<'a, SaleValidity> {
-    decorators
-        .into_iter()
-        .flat_map(|i| match &i {
-            WggDecorator::SaleValidity(valid) => Some(Cow::Borrowed(valid)),
-            _ => None,
-        })
-        .next()
-        .unwrap_or_else(|| Cow::Owned(get_guessed_sale_validity(Utc::now())))
 }
 
 /// Return a best estimate sale validity date.

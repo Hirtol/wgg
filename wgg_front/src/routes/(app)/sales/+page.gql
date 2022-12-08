@@ -29,14 +29,16 @@ fragment SaleCategoryFragment on WggSaleCategory {
             id
             name
             imageUrls
-            decorators {
-                ...ProductCardDecoratorFragment
-                ... on SaleDescription {
-                    text
-                }
-                ... on SaleValidity {
+            saleDescription
+            saleInfo {
+                label
+                additionalLabel
+                saleValidity {
                     validFrom
                     validUntil
+                }
+                saleType {
+                    __typename
                 }
             }
         }
@@ -50,14 +52,16 @@ fragment SaleGroupFragment on WggSaleGroupLimited {
     id
     name
     imageUrls
-    decorators {
-        ...ProductCardDecoratorFragment
-        ... on SaleDescription {
-            text
-        }
-        ... on SaleValidity {
+    saleDescription
+    saleInfo {
+        label
+        additionalLabel
+        saleValidity {
             validFrom
             validUntil
+        }
+        saleType {
+            __typename
         }
     }
 }

@@ -6,6 +6,17 @@ fragment ProductCardFragment on WggSearchProduct {
     fullPrice
     imageUrl
     available
+    saleInformation {
+         label
+         additionalLabel
+         saleValidity {
+            validFrom
+            validUntil
+         }
+         saleType {
+            __typename
+         }
+    }
     unitQuantity {
         unit
         amount
@@ -25,13 +36,6 @@ fragment ProductCardFragment on WggSearchProduct {
 
 fragment ProductCardDecoratorFragment on WggDecorator {
     __typename
-    ... on SaleLabel {
-        text
-    }
-    ... on SaleValidity {
-        validFrom
-        validUntil
-    }
     ... on UnavailableItem {
         reason
         explanationShort
@@ -42,4 +46,8 @@ fragment ProductCardDecoratorFragment on WggDecorator {
             imageUrl
         }
     }
+}
+
+fragment SaleTypeNameFragment on SaleType {
+    __typename
 }

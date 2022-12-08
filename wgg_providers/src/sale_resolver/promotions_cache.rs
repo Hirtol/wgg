@@ -111,7 +111,7 @@ impl PromotionsCache {
 
         let cache = PromoCacheEntry {
             inserted_at: Utc::now(),
-            expires: promo.sale_validity.valid_until,
+            expires: promo.sale_info.sale_validity.valid_until,
             item: promo,
         };
 

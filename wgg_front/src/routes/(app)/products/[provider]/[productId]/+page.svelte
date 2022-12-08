@@ -12,6 +12,7 @@
     import ShortDecorator from './ShortDecorator.svelte';
     import PriceQuantityComponent from '$lib/components/products/PriceQuantityComponent.svelte';
     import ExtendedDescription from './ExtendedDescription.svelte';
+    import SaleLabel from '$lib/components/products/SaleLabel.svelte';
 
     export let data: PageData;
 
@@ -47,18 +48,25 @@
                     <ShortDecorator
                         class="text-base text-gray-500 line-clamp-1 dark:text-gray-400"
                         data={product.decorators} />
+
                     <PriceQuantityComponent class="!text-base !font-normal" data={product} />
+
                     <PriceComponent
                         data={{
                             displayPrice: product.priceInfo.displayPrice,
                             fullPrice: product.priceInfo.originalPrice
                         }} />
+
                     <AddComponent
                         class="min-h-[2.5rem] max-w-[8rem] pt-2"
                         normalButton
                         {quantity}
                         on:setQuantity={(e) =>
                             product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
+
+                    {#if product.saleInformation}
+                        <SaleLabel text={product.saleInformation.label} saleType={product.saleInformation.saleType}/>
+                    {/if}
 
                     {#if unavailable && unavailable.__typename == 'UnavailableItem'}
                         <span

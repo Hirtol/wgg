@@ -1,6 +1,6 @@
 query getSaleSublist($id: String!, $provider: Provider!) {
     proPromotionsSublist(provider: $provider, sublistId: $id) {
-      ... SaleGroupCompleteFragment
+        ...SaleGroupCompleteFragment
     }
 }
 
@@ -9,14 +9,22 @@ fragment SaleGroupCompleteFragment on WggSaleGroupComplete {
     name
     imageUrls
     items {
-        ... ProductCardFragment
+        ...ProductCardFragment
     }
-    decorators {
-        ... ProductCardDecoratorFragment
+    saleDescription
+    saleInfo {
+        label
+        additionalLabel
+        saleValidity {
+            validFrom
+            validUntil
+        }
+        saleType {
+            __typename
+        }
     }
     providerInfo {
-      provider
-      logoUrl
+        provider
+        logoUrl
     }
 }
-

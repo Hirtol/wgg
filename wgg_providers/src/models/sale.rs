@@ -1,5 +1,5 @@
 use crate::models::sale_types::SaleType;
-use crate::models::{Provider, ProviderInfo, SaleValidity, SublistId, WggDecorator, WggSearchProduct};
+use crate::models::{Provider, ProviderInfo, SaleValidity, SublistId, WggSearchProduct};
 use serde::{Deserialize, Serialize};
 
 // ** Promotions **
@@ -48,11 +48,10 @@ pub struct WggSaleGroupLimited {
     pub image_urls: Vec<String>,
     /// A list of only product Ids.
     pub items: Vec<ProductIdT>,
-    /// Until when this sale is valid.
-    ///
-    /// Note that some providers may make a best guess for this if the original API does not provide it.
-    pub sale_validity: SaleValidity,
-    pub decorators: Vec<WggDecorator>,
+    /// Contains all info related to the sale
+    pub sale_info: SaleInformation,
+    /// The description of this particular sale group.
+    pub sale_description: Option<String>,
     #[graphql(skip)]
     pub provider: Provider,
 }
@@ -73,11 +72,10 @@ pub struct WggSaleGroupComplete {
     pub image_urls: Vec<String>,
     /// All items that are part of this promotion.
     pub items: Vec<WggSearchProduct>,
-    pub decorators: Vec<WggDecorator>,
-    /// Until when this sale is valid.
-    ///
-    /// Note that some providers may make a best guess for this if the original API does not provide it.
-    pub sale_validity: SaleValidity,
+    /// Contains all info related to the sale
+    pub sale_info: SaleInformation,
+    /// The description of this particular sale group.
+    pub sale_description: Option<String>,
     #[graphql(skip)]
     pub provider: Provider,
 }
@@ -100,8 +98,11 @@ pub struct SaleInformation {
     /// A label for a sale like `1 + 1 GRATIS` or `2 voor 2.50`.
     /// Used to derived [Self::sale_type]
     pub label: String,
+    /// Additional labels relevant for this particular item such as:
+    /// * `Only online`.
+    pub additional_label: Vec<String>,
     /// From and to when this sale is valid.
-    /// 
+    ///
     /// Some providers may make a best guess so this information isn't always 100% accurate.
     pub sale_validity: SaleValidity,
     /// The derived sale type used for cart analysis.

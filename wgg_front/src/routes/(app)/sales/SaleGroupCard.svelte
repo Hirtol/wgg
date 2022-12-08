@@ -12,8 +12,6 @@
     export let provider: Provider;
     export let data: SaleGroupFragment;
 
-    $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
-    $: saleDescription = data.decorators.find((l) => l.__typename == 'SaleDescription');
     $: listUrl = salesPageItemUrl(provider, data.id);
 </script>
 
@@ -21,10 +19,7 @@
     <header class="relative mx-auto">
         <ProductImage data={{ name: data.name, imageUrl: data.imageUrls[0] }} />
 
-        <!-- Sale Label -->
-        {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-            <SaleLabel class="absolute bottom-0 left-0" text={saleLabel.text} />
-        {/if}
+        <SaleLabel class="absolute bottom-0 left-0" text={data.saleInfo.label} saleType={data.saleInfo.saleType} />
     </header>
 
     <div class="body">
@@ -32,9 +27,8 @@
     </div>
 
     <div class="footer flex h-full flex-col justify-end pt-1">
-        <!-- Redundant test to satisfy Typescript type error, this invariant is already assured in $saleDescription's declaration. -->
-        {#if saleDescription?.__typename == 'SaleDescription'}
-            <p class="mt-auto line-clamp-2">{@html saleDescription?.text}</p>
+        {#if data.saleDescription}
+            <p class="mt-auto line-clamp-2">{@html data.saleDescription}</p>
         {/if}
     </div>
 </ProductCardSkeleton>

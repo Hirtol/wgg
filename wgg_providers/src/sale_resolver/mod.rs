@@ -281,8 +281,8 @@ pub async fn get_sales(
                 .insert_promotion_sublist(provider.provider(), sub_list.clone());
 
             let to_insert = SaleInfo {
-                valid_from: sub_list.sale_validity.valid_from,
-                valid_until: sub_list.sale_validity.valid_until,
+                valid_from: sub_list.sale_info.sale_validity.valid_from,
+                valid_until: sub_list.sale_info.sale_validity.valid_until,
                 item_ids: sub_list.items.into_iter().map(|i| i.id).collect(),
             };
 
@@ -294,8 +294,8 @@ pub async fn get_sales(
                 let id = limited_group.id;
 
                 let to_insert = SaleInfo {
-                    valid_from: limited_group.sale_validity.valid_from,
-                    valid_until: limited_group.sale_validity.valid_until,
+                    valid_from: limited_group.sale_info.sale_validity.valid_from,
+                    valid_until: limited_group.sale_info.sale_validity.valid_until,
                     item_ids: limited_group.items.into_iter().map(|i| i.id).collect(),
                 };
 

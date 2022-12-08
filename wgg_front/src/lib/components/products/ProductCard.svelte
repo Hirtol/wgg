@@ -9,7 +9,7 @@
     import { ProductCardFragment, Provider } from '$lib/api/graphql_types';
     import { productPageItemUrl } from '$lib/routing';
     import { centsToTextPrice, unitToText } from '$lib/utils';
-    import { Information } from 'carbon-icons-svelte';
+    import { Information, Warning } from 'carbon-icons-svelte';
     import { createEventDispatcher } from 'svelte';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
@@ -30,7 +30,7 @@
 
     let className: string = '';
 
-    $: saleLabel = data.decorators.find((l) => l.__typename == 'SaleLabel');
+    $: saleInfo = data.saleInformation;
 
     $: productUrl = productPageItemUrl(data.providerInfo.provider, data.id);
 
@@ -74,8 +74,8 @@
         </div>
 
         <!-- Sale Label -->
-        {#if saleLabel && saleLabel.__typename == 'SaleLabel'}
-            <SaleLabel text={saleLabel.text} />
+        {#if saleInfo}
+            <SaleLabel text={saleInfo.label} saleType={saleInfo.saleType} />
         {/if}
     </div>
 

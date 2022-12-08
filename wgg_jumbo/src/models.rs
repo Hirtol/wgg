@@ -384,6 +384,12 @@ pub struct Tag {
     pub text: String,
 }
 
+impl AsRef<str> for Tag {
+    fn as_ref(&self) -> &str {
+        &self.text
+    }
+}
+
 // ** Search **
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
