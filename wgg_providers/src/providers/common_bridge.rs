@@ -1,5 +1,8 @@
+use crate::models::sale_types::{NumEuroOff, NumForPrice, NumPercentOff, NumPlusNumFree, NumthPercentOff, SaleType};
 use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity, WggDecorator};
 use chrono::{DateTime, Datelike, Utc, Weekday};
+use once_cell::sync::Lazy;
+use regex::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
 use std::borrow::Cow;
 
 /// Try to parse the provided price in the format `l` or `kg` as a [crate::models::Unit].
@@ -87,6 +90,114 @@ pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: Cen
     .into()
 }
 
+/// Try to parse the given sale label into a proper [SaleType]
+pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
+    static SALE_RX: Lazy<(RegexSet, Vec<Regex>)> = Lazy::new(|| {
+        //language=regexp
+        let regex_patterns = [
+            // Basic `1 + 2 gratis`
+            r#"(\d+) \s* \+ \s* (\d+) \s* gratis"#,
+            // `2e gratis`
+            r#"(\d+) \s* e \s* gratis"#,
+            // `50% korting`
+            r#"(\d+) \s* % \s* korting"#,
+            // `2e halve prijs`
+            r#"(\d+) \s* e \s* halve \s* prijs"#,
+            // `3 voor €4,50`
+            r#"(\d+) \s* voor \s* €? \s* (\d+)[,.](\d+)"#,
+            // `1 euro korting` | `1.50 euro korting`
+            r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
+        ];
+        let set = RegexSetBuilder::new(regex_patterns)
+            .case_insensitive(true)
+            .ignore_whitespace(true)
+            .build()
+            .expect("Failed to compile regexes");
+        let regexes: Vec<_> = regex_patterns
+            .iter()
+            .map(|pat| {
+                RegexBuilder::new(pat)
+                    .case_insensitive(true)
+                    .ignore_whitespace(true)
+                    .build()
+                    .expect("Failed to compile regex")
+            })
+            .collect();
+        (set, regexes)
+    });
+
+    let match_idx = SALE_RX.0.matches(sale_label).into_iter().next()?;
+    let capture = SALE_RX.1[match_idx].captures(sale_label)?;
+
+    match match_idx {
+        0 => {
+            // Basic `1 + 2 gratis`
+            let (required, free) = (capture.get(1)?, capture.get(2)?);
+            let result = NumPlusNumFree {
+                required: required.as_str().parse().ok()?,
+                free: free.as_str().parse().ok()?,
+            };
+
+            Some(SaleType::NumPlusNumFree(result))
+        }
+        1 => {
+            //`2e gratis`
+            let required: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let result = NumPlusNumFree {
+                required: required.checked_sub(1)?,
+                free: 1,
+            };
+
+            Some(SaleType::NumPlusNumFree(result))
+        }
+        2 => {
+            // `50% korting`
+            let percent_off: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let result = NumPercentOff { percent_off };
+
+            Some(SaleType::NumPercentOff(result))
+        }
+        3 => {
+            // `2e halve prijs`
+            let required: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let result = NumthPercentOff {
+                required,
+                last_percent_off: 50,
+            };
+
+            Some(SaleType::NumthPercentOff(result))
+        }
+        4 => {
+            // `3 voor €4,50`
+            let required: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let (integer_part, fractional_part) = (capture.get(2)?, capture.get(3)?);
+            let price = parse_int_fract_price(
+                integer_part.as_str().parse().ok()?,
+                fractional_part.as_str().parse().ok()?,
+            );
+            let result = NumForPrice { required, price };
+
+            Some(SaleType::NumForPrice(result))
+        }
+        5 => {
+            // `1 euro korting`
+            let (integer_part, fractional_part) = (capture.get(1)?, capture.get(2));
+            let price = parse_int_fract_price(
+                integer_part.as_str().parse().ok()?,
+                fractional_part.and_then(|frac| frac.as_str().parse().ok()).unwrap_or(0),
+            );
+            let result = NumEuroOff { price_off: price };
+
+            Some(SaleType::NumEuroOff(result))
+        }
+        _ => panic!("Wrong index match for sale matching, forgot an update to the match expression?"),
+    }
+}
+
+pub(crate) fn parse_int_fract_price(integer_part: CentPrice, fractional_part: CentPrice) -> CentPrice {
+    (integer_part * 100) + fractional_part
+}
+
 /// Get either a [SaleValidity] from the given decorators, or make a guess based on the current time.
 ///
 /// See [get_guessed_sale_validity] for more.
@@ -123,12 +234,60 @@ pub(crate) fn get_guessed_sale_validity(now: DateTime<Utc>) -> SaleValidity {
 #[cfg(test)]
 mod tests {
     use crate::models::{Unit, UnitPrice, UnitQuantity};
-    use crate::providers::common_bridge::{derive_unit_price, parse_quantity};
+    use crate::providers::common_bridge::{derive_unit_price, parse_quantity, parse_sale_label};
+
+    #[test]
+    pub fn test_sale_parser() {
+        use crate::models::sale_types::*;
+        let test_cases = [
+            "1 + 1 gratis",
+            "3 + 4 GRATIS",
+            "3e gratis",
+            "50% korting",
+            "2e halve prijs",
+            "3 voor €4,50",
+            "4 voor 4.50",
+            "2 voor € 2,75 ",
+            "15 euro korting",
+            "1.50 euro korting",
+        ];
+        let expected = [
+            SaleType::NumPlusNumFree(NumPlusNumFree { required: 1, free: 1 }),
+            SaleType::NumPlusNumFree(NumPlusNumFree { required: 3, free: 4 }),
+            SaleType::NumPlusNumFree(NumPlusNumFree { required: 2, free: 1 }),
+            SaleType::NumPercentOff(NumPercentOff { percent_off: 50 }),
+            SaleType::NumthPercentOff(NumthPercentOff {
+                required: 2,
+                last_percent_off: 50,
+            }),
+            SaleType::NumForPrice(NumForPrice {
+                required: 3,
+                price: 450,
+            }),
+            SaleType::NumForPrice(NumForPrice {
+                required: 4,
+                price: 450,
+            }),
+            SaleType::NumForPrice(NumForPrice {
+                required: 2,
+                price: 275,
+            }),
+            SaleType::NumEuroOff(NumEuroOff { price_off: 1500 }),
+            SaleType::NumEuroOff(NumEuroOff { price_off: 150 }),
+        ];
+
+        for (to_parse, expected) in test_cases.iter().zip(expected.iter()) {
+            assert_eq!(
+                parse_sale_label(to_parse).unwrap_or_else(|| panic!("Failed to parse example: {}", to_parse)),
+                *expected
+            );
+        }
+    }
 
     #[test]
     pub fn test_parse_quantity() {
-        let quantities = vec!["300 g", "380 g", "10 x 55 g", "1,36 kg"];
-        let expected = vec![
+        let quantities = ["300 g", "380 g", "10 x 55 g", "1,36 kg"];
+        let expected = [
             UnitQuantity {
                 unit: Unit::Gram,
                 amount: 300.,

@@ -1,12 +1,13 @@
 use crate::error::Result;
 use crate::models::{
     AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, Provider, SaleDescription, SaleLabel, SaleValidity,
-    SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggAutocomplete, WggDecorator,
-    WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem, WggSearchProduct,
+    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, Provider, SaleDescription, SaleInformation, SaleLabel,
+    SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggAutocomplete,
+    WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
+    WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
-use crate::providers::common_bridge::{derive_unit_price, parse_unit_component};
+use crate::providers::common_bridge::{derive_unit_price, parse_sale_label, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::ProviderError;
 use cached::proc_macro::once;
@@ -169,14 +170,15 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleGrou
             .push(WggDecorator::SaleDescription(SaleDescription { text: sub }));
     }
 
-    if let Some(tag) = promotion.tags.into_iter().next() {
-        result.decorators.push(WggDecorator::SaleLabel(SaleLabel { text: tag }));
-    }
+    result.decorators.extend(
+        promotion
+            .tags
+            .into_iter()
+            .map(|text| SaleLabel { text })
+            .map(WggDecorator::SaleLabel),
+    );
 
-    result.decorators.push(WggDecorator::SaleValidity(SaleValidity {
-        valid_from: promotion.start_date,
-        valid_until: promotion.end_date,
-    }));
+    result.decorators.push(WggDecorator::SaleValidity(result.sale_validity));
 
     result
 }
@@ -265,6 +267,8 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
         additional_items: vec![],
         // Will be parsed
         decorators: vec![],
+        // Will be parsed
+        sale_information: None,
         provider: Provider::Jumbo,
     };
 
@@ -283,6 +287,16 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
 
     // Promotions
     if let Some(promotion) = product.promotion {
+        let sale_type = promotion.tags.first().map(|tag| SaleInformation {
+            label: tag.text.clone(),
+            sale_validity: SaleValidity {
+                valid_from: promotion.from_date,
+                valid_until: promotion.to_date,
+            },
+            sale_type: parse_sale_label(&tag.text),
+        });
+        result.sale_information = sale_type;
+
         result.decorators.extend(
             promotion
                 .tags
@@ -410,6 +424,7 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
         available: article.available,
         image_url: article.image_info.primary_view.first().map(|i| i.url.clone()),
         decorators: Vec::new(),
+        sale_information: None,
         provider: Provider::Jumbo,
     };
 
@@ -428,6 +443,16 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
 
     // Promotions
     if let Some(promotion) = article.promotion {
+        let sale_type = promotion.tags.first().map(|tag| SaleInformation {
+            label: tag.text.clone(),
+            sale_validity: SaleValidity {
+                valid_from: promotion.from_date,
+                valid_until: promotion.to_date,
+            },
+            sale_type: parse_sale_label(&tag.text),
+        });
+        result.sale_information = sale_type;
+
         result.decorators.extend(
             promotion
                 .tags

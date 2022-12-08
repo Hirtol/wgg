@@ -1,4 +1,6 @@
-use crate::models::{CentPrice, Provider, ProviderInfo, UnitPrice, UnitQuantity, WggDecorator, WggProduct};
+use crate::models::{
+    CentPrice, Provider, ProviderInfo, SaleInformation, UnitPrice, UnitQuantity, WggDecorator, WggProduct,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
@@ -20,6 +22,8 @@ pub struct WggSearchProduct {
     /// Direct URL to product image.
     pub image_url: Option<String>,
     pub decorators: Vec<WggDecorator>,
+    /// Any information about sales relevant for this product.
+    pub sale_information: Option<SaleInformation>,
     #[graphql(skip)]
     /// The grocery store which provided this item.
     pub provider: Provider,
@@ -45,6 +49,7 @@ impl From<WggProduct> for WggSearchProduct {
             available: product.available,
             image_url: product.image_urls.into_iter().next(),
             decorators: product.decorators,
+            sale_information: product.sale_information,
             provider: product.provider,
         }
     }

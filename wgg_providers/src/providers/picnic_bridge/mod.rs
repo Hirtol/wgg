@@ -1,12 +1,12 @@
 use crate::error::ProviderError;
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
-    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, SaleLabel, SaleValidity, SubNutritionalItem,
-    TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct, WggSaleCategory,
-    WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, SaleInformation, SaleLabel, SaleValidity,
+    SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct,
+    WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
-use crate::providers::common_bridge::parse_quantity;
+use crate::providers::common_bridge::{get_sale_validity, parse_quantity, parse_sale_label};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use chrono::{Datelike, LocalResult, NaiveDate, TimeZone, Utc};
 use futures::future::FutureExt;
@@ -377,9 +377,11 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         // Will be parsed
         allergy_info: Vec::new(),
         // Will be parsed
+        additional_items: Vec::new(),
+        // Will be parsed
         decorators: Vec::new(),
         // Will be parsed
-        additional_items: Vec::new(),
+        sale_information: None,
         provider: Provider::Picnic,
     };
 
@@ -501,7 +503,14 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         )
     }
 
+    // Parse Sales
     if let Some(promo) = product.labels.promo {
+        let sale_info = SaleInformation {
+            label: promo.text.clone(),
+            sale_validity: get_sale_validity(&result.decorators).into_owned(),
+            sale_type: parse_sale_label(&promo.text),
+        };
+        result.sale_information = Some(sale_info);
         result
             .decorators
             .push(WggDecorator::SaleLabel(SaleLabel { text: promo.text }))
@@ -570,6 +579,7 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
         available: true,
         image_url: Some(wgg_picnic::images::image_url(article.image_id, ImageSize::Medium)),
         decorators: Vec::new(),
+        sale_information: None,
         provider: Provider::Picnic,
     };
 
@@ -581,6 +591,20 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
             Some(&mut result.display_price),
             Some(&mut result.available),
         )
+    }
+
+    // Parse sale data
+    for dec in &result.decorators {
+        if let WggDecorator::SaleLabel(label) = dec {
+            let sale_info = SaleInformation {
+                label: label.text.clone(),
+                sale_validity: get_sale_validity(&result.decorators).into_owned(),
+                sale_type: parse_sale_label(&label.text),
+            };
+
+            result.sale_information = Some(sale_info);
+            break;
+        }
     }
 
     // Parse unit quantity

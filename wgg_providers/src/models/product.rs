@@ -1,6 +1,6 @@
 use crate::models::{
-    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, Provider, ProviderInfo, TextType, UnitQuantity,
-    WggDecorator,
+    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, Provider, ProviderInfo, SaleInformation,
+    TextType, UnitQuantity, WggDecorator,
 };
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +41,8 @@ pub struct WggProduct {
     pub additional_items: Vec<ItemInfo>,
     /// All decorators describing the object in further detail.
     pub decorators: Vec<WggDecorator>,
+    /// Any information about sales relevant for this product.
+    pub sale_information: Option<SaleInformation>,
     /// The grocery store this item is provided from.
     #[graphql(skip)]
     pub provider: Provider,

@@ -1,3 +1,4 @@
+use crate::models::sale_types::SaleType;
 use crate::models::{Provider, ProviderInfo, SaleValidity, SublistId, WggDecorator, WggSearchProduct};
 use serde::{Deserialize, Serialize};
 
@@ -92,4 +93,75 @@ impl WggSaleGroupComplete {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct ProductIdT {
     pub id: String,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+pub struct SaleInformation {
+    /// A label for a sale like `1 + 1 GRATIS` or `2 voor 2.50`.
+    /// Used to derived [Self::sale_type]
+    pub label: String,
+    /// From and to when this sale is valid.
+    /// 
+    /// Some providers may make a best guess so this information isn't always 100% accurate.
+    pub sale_validity: SaleValidity,
+    /// The derived sale type used for cart analysis.
+    /// If this couldn't be derived this will be `None`, and should indicate to the user some caution as any relevant
+    /// sale is not taken into account.
+    pub sale_type: Option<SaleType>,
+}
+
+pub mod sale_types {
+    use crate::models::CentPrice;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
+    pub enum SaleType {
+        NumPlusNumFree(NumPlusNumFree),
+        NumPercentOff(NumPercentOff),
+        NumthPercentOff(NumthPercentOff),
+        NumForPrice(NumForPrice),
+        NumEuroOff(NumEuroOff),
+    }
+
+    /// Follows from the following kinds of sales:
+    /// * `1 + 1 GRATIS` - 1 required and 1 free
+    /// * `4 + 2 GRATIS` - 4 required and 2 free
+    /// * `2e GRATIS` - 1 required and 1 free
+    #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+    pub struct NumPlusNumFree {
+        pub required: u16,
+        pub free: u16,
+    }
+
+    /// Follows from the following kinds of sales:
+    /// * `20% OFF`
+    /// * `50% OFF`
+    #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+    pub struct NumPercentOff {
+        pub percent_off: u16,
+    }
+
+    /// Follows from the following kinds of sales:
+    /// * `2e HALVE PRIJS` - 2 required, last 50% off
+    #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+    pub struct NumthPercentOff {
+        pub required: u16,
+        pub last_percent_off: u16,
+    }
+
+    /// Follows from the following kinds of sales:
+    /// * `3 voor €4,50` - 3 required, 450 centprice
+    /// * `4 voor €2,50` - 4 required, 250 centprice
+    #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+    pub struct NumForPrice {
+        pub required: u16,
+        pub price: CentPrice,
+    }
+
+    /// Follows from the following kinds of sales:
+    /// * `1 EURO KORTING` - 100 centprice off
+    #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+    pub struct NumEuroOff {
+        pub price_off: CentPrice,
+    }
 }
