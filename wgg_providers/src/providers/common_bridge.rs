@@ -1,4 +1,6 @@
-use crate::models::sale_types::{NumEuroOff, NumForPrice, NumPercentOff, NumPlusNumFree, NumthPercentOff, SaleType};
+use crate::models::sale_types::{
+    NumEuroOff, NumEuroPrice, NumForPrice, NumPercentOff, NumPlusNumFree, NumthPercentOff, SaleType,
+};
 use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity};
 use chrono::{DateTime, Datelike, Utc, Weekday};
 use once_cell::sync::Lazy;
@@ -182,8 +184,8 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
 
             Some(SaleType::NumForPrice(result))
         }
-        5 | 6 | 7 => {
-            // `1 euro korting` / `€1.00 korting` / `NU €4.00`
+        5 | 6 => {
+            // `1 euro korting` / `€1.00 korting`
             let (integer_part, fractional_part) = (capture.get(1)?, capture.get(2));
             let price = parse_int_fract_price(
                 integer_part.as_str().parse().ok()?,
@@ -192,6 +194,17 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
             let result = NumEuroOff { price_off: price };
 
             Some(SaleType::NumEuroOff(result))
+        }
+        7 => {
+            // `NU €4.00`
+            let (integer_part, fractional_part) = (capture.get(1)?, capture.get(2));
+            let price = parse_int_fract_price(
+                integer_part.as_str().parse().ok()?,
+                fractional_part.and_then(|frac| frac.as_str().parse().ok()).unwrap_or(0),
+            );
+            let result = NumEuroPrice { price };
+
+            Some(SaleType::NumEuroPrice(result))
         }
         _ => panic!("Wrong index match for sale matching, forgot an update to the match expression?"),
     }

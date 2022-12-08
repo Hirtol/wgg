@@ -122,6 +122,7 @@ pub mod sale_types {
         NumthPercentOff(NumthPercentOff),
         NumForPrice(NumForPrice),
         NumEuroOff(NumEuroOff),
+        NumEuroPrice(NumEuroPrice),
     }
 
     /// Follows from the following kinds of sales:
@@ -164,5 +165,12 @@ pub mod sale_types {
     #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
     pub struct NumEuroOff {
         pub price_off: CentPrice,
+    }
+
+    /// Follows from the following kinds of sales:
+    /// * `NU  €4.00` - 400 centprice
+    #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+    pub struct NumEuroPrice {
+        pub price: CentPrice,
     }
 }
