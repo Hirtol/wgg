@@ -58,6 +58,8 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     NumberOfServings: () => null,
                     ProductId: () => null,
                     SaleDescription: () => null,
+                    SaleInformation: () => null,
+                    SaleType: () => null,
                     WggSaleCategory: (x) => {
                         const data = x as WggSaleCategory;
                         const id = data.providerInfo.provider + data.name + data.id;

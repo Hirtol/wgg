@@ -108,6 +108,8 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
             r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
             // `€1.00 korting`
             r#"€(\d+)(?:[,.](\d+))? \s* korting"#,
+            // `NU €4.00`
+            r#"NU \s* €(\d+)(?:[,.](\d+))?"#,
         ];
         let set = RegexSetBuilder::new(regex_patterns)
             .case_insensitive(true)
@@ -180,8 +182,8 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
 
             Some(SaleType::NumForPrice(result))
         }
-        5 | 6 => {
-            // `1 euro korting` / `€1.00 korting`
+        5 | 6 | 7 => {
+            // `1 euro korting` / `€1.00 korting` / `NU €4.00`
             let (integer_part, fractional_part) = (capture.get(1)?, capture.get(2));
             let price = parse_int_fract_price(
                 integer_part.as_str().parse().ok()?,

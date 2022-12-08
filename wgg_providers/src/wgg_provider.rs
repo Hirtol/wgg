@@ -277,7 +277,7 @@ impl WggProvider {
         let provider_concrete = self.dyn_providers.find_provider(provider)?;
         let result = provider_concrete.product(product_id).await?;
 
-        self.cache.insert_product(provider, result.clone());
+        self.cache.insert_product(provider, result.clone(), product_id);
 
         Ok(result)
     }

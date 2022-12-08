@@ -84,7 +84,7 @@ impl WggProviderCache {
         let search_cache = self.search_products.get(&provider)?;
 
         if search_cache.contains_key(product_id) {
-            self.get_or_invalidate(product_id, &search_cache)
+            self.get_or_invalidate(product_id, search_cache)
         } else {
             self.get_product(provider, product_id).map(|item| item.into())
         }
@@ -107,14 +107,23 @@ impl WggProviderCache {
         Some(())
     }
 
-    pub fn insert_product(&self, provider: Provider, product: WggProduct) -> Option<()> {
-        let search_cache = self.full_products.get(&provider)?;
+    pub fn insert_product(&self, provider: Provider, product: WggProduct, product_id: &str) -> Option<()> {
+        let full_cache = self.full_products.get(&provider)?;
         let to_insert = CacheEntry {
             entry: product,
             inserted_at: Utc::now(),
         };
+        // So, fun thing, sometimes APIs (*cough* Jumbo *cough) change the ID of an existing product.
+        // This would be fine, but the old product_id still works when requested through the URL.
+        // For example, imagine we had a product `207395ZK` which got re-assigned an ID `532148ZK`, when
+        // we fetch for `207395ZK` we now get a product with ID `532148ZK`! We want to be able to avoid repeated network
+        // fetches, so this check is here to ensure even re-assigned ids get cached.
+        if to_insert.entry.id != product_id {
+            full_cache.insert(product_id.to_string(), to_insert.clone());
+        }
 
-        search_cache.insert(to_insert.entry.id.clone(), to_insert);
+        full_cache.insert(to_insert.entry.id.clone(), to_insert);
+
         Some(())
     }
 
