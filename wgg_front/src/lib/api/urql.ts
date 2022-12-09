@@ -45,7 +45,6 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     FreshLabel: () => null,
                     UnitPrice: () => null,
                     UnavailableItem: () => null,
-                    SaleLabel: () => null,
                     SaleValidity: () => null,
                     PrepTime: () => null,
                     AllergyTags: () => null,
@@ -60,6 +59,13 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     SaleDescription: () => null,
                     SaleInformation: () => null,
                     SaleType: () => null,
+                    PriceInfo: () => null,
+                    SubNutritionalItem: () => null,
+                    NumPlusNumFree: () => null,
+                    NumPercentOff: () => null,
+                    NumthPercentOff: () => null,
+                    NumForPrice: () => null,
+                    NumEuroPrice: () => null,
                     WggSaleCategory: (x) => {
                         const data = x as WggSaleCategory;
                         const id = data.providerInfo.provider + data.name + data.id;
