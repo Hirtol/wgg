@@ -1,7 +1,5 @@
 <script lang="ts">
-    import {
-        CartContentFragment
-    } from '$lib/api/graphql_types';
+    import { CartContentFragment } from '$lib/api/graphql_types';
     import { getContextClient } from '$lib/api/urql';
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
@@ -30,7 +28,7 @@
     $: priceData = getPriceData(data);
 
     $: saleInfo = data.__typename == 'CartProviderProduct' && data.product.saleInformation;
-    $: unavailableReason =data.__typename == 'CartProviderProduct' && data.product.unavailableDetails;
+    $: unavailableReason = data.__typename == 'CartProviderProduct' && data.product.unavailableDetails;
 
     function getProductUrl(data: CartContentFragment): string | undefined {
         if (data.__typename == 'CartAggregateProduct') {
@@ -142,7 +140,15 @@
     </div>
 
     <!-- Right -->
-    <div class="flex flex-row">
+    <div class="flex flex-col relative">
+        <!-- Raw product provider indicator -->
+        {#if data.__typename == 'CartProviderProduct'}
+            <img
+                src={data.product.providerInfo.logoUrl}
+                class="pointer-events-none w-8 absolute top-0 right-0"
+                alt={data.product.providerInfo.provider} />
+        {/if}
+
         {#if priceData != undefined}
             <PriceComponent
                 dashed={unavailableReason != undefined}
