@@ -112,6 +112,7 @@ pub struct SaleInformation {
 }
 
 pub mod sale_types {
+    use std::num::NonZeroU16;
     use crate::models::CentPrice;
     use serde::{Deserialize, Serialize};
 
@@ -131,8 +132,8 @@ pub mod sale_types {
     /// * `2e GRATIS` - 1 required and 1 free
     #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
     pub struct NumPlusNumFree {
-        pub required: u16,
-        pub free: u16,
+        pub required: NonZeroU16,
+        pub free: NonZeroU16,
     }
 
     /// Follows from the following kinds of sales:
@@ -140,15 +141,15 @@ pub mod sale_types {
     /// * `50% OFF`
     #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
     pub struct NumPercentOff {
-        pub percent_off: u16,
+        pub percent_off: NonZeroU16,
     }
 
     /// Follows from the following kinds of sales:
     /// * `2e HALVE PRIJS` - 2 required, last 50% off
     #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
     pub struct NumthPercentOff {
-        pub required: u16,
-        pub last_percent_off: u16,
+        pub required: NonZeroU16,
+        pub last_percent_off: NonZeroU16,
     }
 
     /// Follows from the following kinds of sales:
@@ -156,7 +157,7 @@ pub mod sale_types {
     /// * `4 voor €2,50` - 4 required, 250 centprice
     #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
     pub struct NumForPrice {
-        pub required: u16,
+        pub required: NonZeroU16,
         pub price: CentPrice,
     }
 

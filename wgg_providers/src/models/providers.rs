@@ -7,7 +7,7 @@ use std::str::FromStr;
 pub fn provider_info(provider: Provider) -> ProviderInfo {
     ProviderInfo {
         provider,
-        logo_url: provider.get_logo_url(),
+        logo_url: provider.get_metadata().logo_url,
     }
 }
 
@@ -18,11 +18,11 @@ pub enum Provider {
 }
 
 impl Provider {
-    /// Get the logo url of the given provider.
-    pub fn get_logo_url(&self) -> Cow<'static, str> {
+    /// Get all relevant metadata for this provider
+    pub fn get_metadata(&self) -> ProviderMetadata {
         match self {
-            Provider::Picnic => PicnicBridge::logo_url(),
-            Provider::Jumbo => JumboBridge::logo_url(),
+            Provider::Picnic => PicnicBridge::metadata(),
+            Provider::Jumbo => JumboBridge::metadata(),
         }
     }
 
@@ -30,7 +30,7 @@ impl Provider {
     pub fn as_provider_info(&self) -> ProviderInfo {
         ProviderInfo {
             provider: *self,
-            logo_url: self.get_logo_url(),
+            logo_url: self.get_metadata().logo_url,
         }
     }
 }
@@ -52,5 +52,26 @@ pub struct ProviderInfo {
     /// The grocery store which provided this item.
     pub provider: Provider,
     /// The SVG logo of the grocery store
-    pub logo_url: std::borrow::Cow<'static, str>,
+    pub logo_url: Cow<'static, str>,
+}
+
+#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Hash, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ProviderMetadata {
+    /// The SVG logo of the grocery store
+    pub logo_url: Cow<'static, str>,
+    /// The strategy for multi-product sale resolution.
+    pub sale_strategy: SaleResolutionStrategy,
+}
+
+/// When resolving multi-product (think `1 + 1 free`, `2nd half off`, etc) the strategy determines how products will
+/// be grouped.
+///
+/// Specifically, this is for cases when -- in the case of a `1 + 1 free` deal -- one has `3` qualifying products of varying
+/// prices.
+#[derive(Serialize, Deserialize, async_graphql::Enum, Hash, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SaleResolutionStrategy {
+    /// When resolving a multi-product sale the provider will ensure the largest savings for the customer.
+    Opportunistic,
+    /// When resolving a multi-product sale the provider will ensure the smallest savings for the customer.
+    Pessimistic,
 }

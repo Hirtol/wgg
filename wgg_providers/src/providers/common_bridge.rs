@@ -5,6 +5,7 @@ use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity};
 use chrono::{DateTime, Datelike, Utc, Weekday};
 use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
+use std::num::NonZeroU16;
 
 /// Try to parse the provided price in the format `l` or `kg` as a [crate::models::Unit].
 ///
@@ -149,32 +150,32 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
             //`2e gratis`
             let required: u16 = capture.get(1)?.as_str().parse().ok()?;
             let result = NumPlusNumFree {
-                required: required.checked_sub(1)?,
-                free: 1,
+                required: required.checked_sub(1)?.try_into().ok()?,
+                free: NonZeroU16::new(1)?,
             };
 
             Some(SaleType::NumPlusNumFree(result))
         }
         2 => {
             // `50% korting`
-            let percent_off: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let percent_off: NonZeroU16 = capture.get(1)?.as_str().parse().ok()?;
             let result = NumPercentOff { percent_off };
 
             Some(SaleType::NumPercentOff(result))
         }
         3 => {
             // `2e halve prijs`
-            let required: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let required: NonZeroU16 = capture.get(1)?.as_str().parse().ok()?;
             let result = NumthPercentOff {
                 required,
-                last_percent_off: 50,
+                last_percent_off: NonZeroU16::new(50)?,
             };
 
             Some(SaleType::NumthPercentOff(result))
         }
         4 => {
             // `3 voor €4,50`
-            let required: u16 = capture.get(1)?.as_str().parse().ok()?;
+            let required: NonZeroU16 = capture.get(1)?.as_str().parse().ok()?;
             let (integer_part, fractional_part) = (capture.get(2)?, capture.get(3)?);
             let price = parse_int_fract_price(
                 integer_part.as_str().parse().ok()?,
@@ -241,6 +242,11 @@ mod tests {
     #[test]
     pub fn test_sale_parser() {
         use crate::models::sale_types::*;
+        macro_rules! nz {
+            ($val:expr) => {
+                ::std::num::NonZeroU16::new($val).unwrap()
+            };
+        }
         let test_cases = [
             "1 + 1 gratis",
             "3 + 4 GRATIS",
@@ -254,24 +260,33 @@ mod tests {
             "1.50 euro korting",
         ];
         let expected = [
-            SaleType::NumPlusNumFree(NumPlusNumFree { required: 1, free: 1 }),
-            SaleType::NumPlusNumFree(NumPlusNumFree { required: 3, free: 4 }),
-            SaleType::NumPlusNumFree(NumPlusNumFree { required: 2, free: 1 }),
-            SaleType::NumPercentOff(NumPercentOff { percent_off: 50 }),
+            SaleType::NumPlusNumFree(NumPlusNumFree {
+                required: nz!(1),
+                free: nz!(1),
+            }),
+            SaleType::NumPlusNumFree(NumPlusNumFree {
+                required: nz!(3),
+                free: nz!(4),
+            }),
+            SaleType::NumPlusNumFree(NumPlusNumFree {
+                required: nz!(2),
+                free: nz!(1),
+            }),
+            SaleType::NumPercentOff(NumPercentOff { percent_off: nz!(50) }),
             SaleType::NumthPercentOff(NumthPercentOff {
-                required: 2,
-                last_percent_off: 50,
+                required: nz!(2),
+                last_percent_off: nz!(50),
             }),
             SaleType::NumForPrice(NumForPrice {
-                required: 3,
+                required: nz!(3),
                 price: 450,
             }),
             SaleType::NumForPrice(NumForPrice {
-                required: 4,
+                required: nz!(4),
                 price: 450,
             }),
             SaleType::NumForPrice(NumForPrice {
-                required: 2,
+                required: nz!(2),
                 price: 275,
             }),
             SaleType::NumEuroOff(NumEuroOff { price_off: 1500 }),

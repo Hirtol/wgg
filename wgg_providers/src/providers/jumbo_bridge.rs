@@ -2,9 +2,10 @@ use crate::error::Result;
 use crate::models::sale_types::SaleType;
 use crate::models::{
     AllergyTags, AllergyType, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NumberOfServings,
-    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, Provider, SaleInformation, SaleValidity,
-    SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice, WggAutocomplete, WggDecorator,
-    WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem, WggSearchProduct,
+    NutritionalInfo, NutritionalItem, PriceInfo, ProductIdT, Provider, ProviderMetadata, SaleInformation,
+    SaleResolutionStrategy, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnavailableReason, UnitPrice,
+    WggAutocomplete, WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
+    WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{derive_unit_price, parse_sale_label, parse_unit_component};
@@ -13,7 +14,6 @@ use crate::ProviderError;
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::borrow::Cow;
 use wgg_jumbo::models::AvailabilityType;
 use wgg_jumbo::{BaseApi, BaseJumboApi};
 
@@ -32,8 +32,11 @@ impl StaticProviderInfo for JumboBridge {
         Provider::Jumbo
     }
 
-    fn logo_url() -> Cow<'static, str> {
-        "https://upload.wikimedia.org/wikipedia/commons/8/8d/Jumbo_Logo.svg".into()
+    fn metadata() -> ProviderMetadata {
+        ProviderMetadata {
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/8/8d/Jumbo_Logo.svg".into(),
+            sale_strategy: SaleResolutionStrategy::Pessimistic,
+        }
     }
 }
 
@@ -43,8 +46,8 @@ impl ProviderInfo for JumboBridge {
         <Self as StaticProviderInfo>::provider()
     }
 
-    fn logo_url(&self) -> Cow<'static, str> {
-        <Self as StaticProviderInfo>::logo_url()
+    fn metadata(&self) -> ProviderMetadata {
+        <Self as StaticProviderInfo>::metadata()
     }
 
     #[tracing::instrument(name = "jumbo_autocomplete", level="debug", skip_all, fields(query = query))]

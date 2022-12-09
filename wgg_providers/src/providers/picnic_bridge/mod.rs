@@ -1,9 +1,9 @@
 use crate::error::ProviderError;
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
-    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, SaleInformation, SaleValidity, SubNutritionalItem,
-    TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct, WggSaleCategory,
-    WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation,
+    SaleResolutionStrategy, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete,
+    WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
@@ -16,7 +16,6 @@ use governor::{Jitter, Quota};
 use itertools::Itertools;
 use regex::Regex;
 use secrecy::ExposeSecret;
-use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::num::NonZeroU32;
 use std::ops::Deref;
@@ -41,6 +40,21 @@ pub(crate) struct PicnicBridge {
     credentials: PicnicCredentials,
     /// Lock used to ensure only *one* future tries to refresh the auth-token when it is expired.
     refresh_lock: tokio::sync::Mutex<()>,
+}
+
+impl StaticProviderInfo for PicnicBridge {
+    fn provider() -> Provider {
+        Provider::Picnic
+    }
+
+    fn metadata() -> ProviderMetadata {
+        ProviderMetadata {
+            logo_url: "https://upload.wikimedia.org/wikipedia/commons/0/01/Picnic_logo.svg".into(),
+            // Technically Picnic sale resolution depends on the order of addition to the cart, but the user can manually
+            // make this opportunistic in that case.
+            sale_strategy: SaleResolutionStrategy::Opportunistic,
+        }
+    }
 }
 
 impl PicnicBridge {
@@ -122,16 +136,6 @@ impl PicnicBridge {
     }
 }
 
-impl StaticProviderInfo for PicnicBridge {
-    fn provider() -> Provider {
-        Provider::Picnic
-    }
-
-    fn logo_url() -> Cow<'static, str> {
-        "https://upload.wikimedia.org/wikipedia/commons/0/01/Picnic_logo.svg".into()
-    }
-}
-
 // These implementations contain a lot of duplicate code to handle the Auth token refresh (when needed).
 // Unfortunately, extracting these out to a common function taking a closure required higher-lifetime bounds I couldn't get to work (even with boxing :/)
 #[async_trait::async_trait]
@@ -140,8 +144,8 @@ impl ProviderInfo for PicnicBridge {
         <Self as StaticProviderInfo>::provider()
     }
 
-    fn logo_url(&self) -> Cow<'static, str> {
-        <Self as StaticProviderInfo>::logo_url()
+    fn metadata(&self) -> ProviderMetadata {
+        <Self as StaticProviderInfo>::metadata()
     }
 
     #[tracing::instrument(name = "picnic_autocomplete", level = "trace", skip(self))]
@@ -658,9 +662,11 @@ fn normalise_price_info(price_info: &mut PriceInfo, sale_info: &SaleInformation)
             SaleType::NumPlusNumFree(data) => {
                 // In the case of `2 + 1 gratis` the prices are as follows: `ORIGINAL: 11.37 - DISPLAY: 7.58`.
                 // The 'true' original price is `3.79`, however, so we want to get that back.
-                let total = data.free as u32 + data.required as u32;
+                let total = data.free.get() as u32 + data.required.get() as u32;
+
                 price_info.original_price /= total;
-                price_info.display_price /= data.required as u32;
+                price_info.display_price /= data.required.get() as u32;
+
                 // Sanity check for when Picnic *eventually* changes over to their new API in the future.
                 if price_info.original_price != price_info.display_price {
                     tracing::warn!(
@@ -671,13 +677,13 @@ fn normalise_price_info(price_info: &mut PriceInfo, sale_info: &SaleInformation)
             }
             SaleType::NumthPercentOff(data) => {
                 // In the case of `2de halve prijs` same as above
-                price_info.original_price /= data.required as u32;
+                price_info.original_price /= data.required.get() as u32;
                 price_info.display_price = price_info.original_price;
             }
             SaleType::NumForPrice(data) => {
                 // In the case of `2 voor 4.00` the prices are as follows `ORIGINAL: 4.54 - DISPLAY: 4.00`.
                 // The 'true' original price is `2.27`
-                price_info.original_price /= data.required as u32;
+                price_info.original_price /= data.required.get() as u32;
                 price_info.display_price = price_info.original_price;
             }
             SaleType::NumPercentOff(_) => {}

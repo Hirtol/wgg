@@ -63,7 +63,7 @@ impl UserCart {
                 .into_iter()
                 .map(|(provider, info)| CartTally::Current {
                     provider,
-                    price: info.display_price,
+                    original_price: info.original_price,
                     discount: info.discount,
                 })
                 .collect())
@@ -219,7 +219,7 @@ pub enum CartTally {
     Historical(db::cart_tally::Model),
     Current {
         provider: Provider,
-        price: CentPrice,
+        original_price: CentPrice,
         discount: CentPrice,
     },
 }
@@ -228,15 +228,19 @@ pub enum CartTally {
 impl CartTally {
     pub async fn full_price_cents(&self) -> CentPrice {
         match self {
-            CartTally::Historical(model) => (model.price_cents + model.discount) as CentPrice,
-            CartTally::Current { discount, price, .. } => discount + price,
+            CartTally::Historical(model) => model.price_cents as CentPrice,
+            CartTally::Current { original_price, .. } => *original_price,
         }
     }
 
     pub async fn price_cents(&self) -> CentPrice {
         match self {
-            CartTally::Historical(model) => model.price_cents as CentPrice,
-            CartTally::Current { price, .. } => *price,
+            CartTally::Historical(model) => (model.price_cents - model.discount) as CentPrice,
+            CartTally::Current {
+                original_price,
+                discount,
+                ..
+            } => original_price - discount,
         }
     }
 

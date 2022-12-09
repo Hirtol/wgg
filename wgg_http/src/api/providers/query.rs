@@ -136,7 +136,7 @@ impl ProviderQuery {
             .active_providers()
             .map(|prov| ProviderInfo {
                 provider: prov.provider(),
-                logo_url: prov.logo_url(),
+                logo_url: prov.metadata().logo_url,
             })
             .collect()
     }

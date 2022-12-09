@@ -193,7 +193,7 @@ impl CartMutation {
             let to_submit = tallies.into_iter().map(|(provider, info)| db::cart_tally::ActiveModel {
                 cart_id: cart.id.into_active_value(),
                 provider_id: state.provider_id_from_provider(&provider).into_active_value(),
-                price_cents: (info.display_price as i32).into_active_value(),
+                price_cents: (info.original_price as i32).into_active_value(),
                 discount: (info.discount as i32).into_active_value(),
             });
 

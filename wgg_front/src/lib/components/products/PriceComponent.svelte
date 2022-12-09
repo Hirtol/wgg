@@ -2,7 +2,7 @@
     import { centsToTextPrice } from '$lib/utils';
 
     export { _class as class };
-    
+
     export let data: { displayPrice: number; originalPrice: number };
 
     export let dashed: boolean = false;
@@ -15,7 +15,8 @@
 <div class="block {_class}">
     <h3 class:line-through={dashed}>
         {#if !hasSale}
-            <span class="inline-block text-gray-500 line-through dark:text-gray-400">{centsToTextPrice(data.originalPrice)}</span>
+            <span class="inline-block text-gray-500 line-through dark:text-gray-400"
+                >{centsToTextPrice(data.originalPrice)}</span>
         {/if}
 
         <span

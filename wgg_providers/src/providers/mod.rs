@@ -1,8 +1,7 @@
 use crate::error::Result;
-use crate::models::{Provider, WggAutocomplete, WggSearchProduct};
+use crate::models::{Provider, ProviderMetadata, WggAutocomplete, WggSearchProduct};
 use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 use crate::pagination::OffsetPagination;
-use std::borrow::Cow;
 
 pub mod common_bridge;
 mod jumbo_bridge;
@@ -18,7 +17,7 @@ pub trait StaticProviderInfo: ProviderToAny {
         Self: Sized;
 
     /// A direct link to a SVG displaying the provider's logo.
-    fn logo_url() -> Cow<'static, str>
+    fn metadata() -> ProviderMetadata
     where
         Self: Sized;
 }
@@ -27,7 +26,7 @@ pub trait StaticProviderInfo: ProviderToAny {
 pub trait ProviderInfo: StaticProviderInfo {
     fn provider(&self) -> Provider;
 
-    fn logo_url(&self) -> Cow<'static, str>;
+    fn metadata(&self) -> ProviderMetadata;
 
     /// Perform an autocomplete match for the provided query.
     ///
