@@ -1,13 +1,12 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
-    import type { ViewerContextFragment } from '$lib/api/graphql_types';
     import { notifications } from '$lib/components/notifications/notification';
     import PageRoot from '$lib/components/PageRoot.svelte';
-    import { isUserAuthenticated } from '$lib/state';
+    import { isUserAuthenticated, UserData } from '$lib/state';
     import LoginForm from './LoginForm.svelte';
 
-    async function loginSuccess(loginResponse: CustomEvent<ViewerContextFragment>) {
+    async function loginSuccess(loginResponse: CustomEvent<UserData>) {
         await goto($page.url.searchParams.get('redirect') ?? '/');
 
         notifications.info(`Signed in as: ${loginResponse.detail.username}`, 'Successful Login', 4000);

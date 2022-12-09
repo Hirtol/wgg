@@ -2,10 +2,25 @@ fragment ProductCardFragment on WggSearchProduct {
     __typename
     id
     name
-    displayPrice
-    fullPrice
+    priceInfo {
+        displayPrice
+        originalPrice
+        unitPrice {
+            unit
+            price
+        }
+    }
     imageUrl
-    available
+    unavailableDetails {
+        reason
+        explanationShort
+        explanationLong
+        replacements {
+            id
+            name
+            imageUrl
+        }
+    }
     saleInformation {
          label
          additionalLabel
@@ -21,10 +36,6 @@ fragment ProductCardFragment on WggSearchProduct {
         unit
         amount
     }
-    unitPrice {
-        unit
-        price
-    }
     decorators {
         ...ProductCardDecoratorFragment
     }
@@ -36,16 +47,6 @@ fragment ProductCardFragment on WggSearchProduct {
 
 fragment ProductCardDecoratorFragment on WggDecorator {
     __typename
-    ... on UnavailableItem {
-        reason
-        explanationShort
-        explanationLong
-        replacements {
-            id
-            name
-            imageUrl
-        }
-    }
 }
 
 fragment SaleTypeNameFragment on SaleType {

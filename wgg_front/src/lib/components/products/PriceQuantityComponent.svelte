@@ -1,22 +1,19 @@
 <script lang="ts">
     import { Unit } from '$lib/api/graphql_types';
     import { centsToTextPrice, unitToText } from '$lib/utils';
-    import classNames from 'classnames';
 
     interface DataRequired {
         unitQuantity: { amount: number; unit: Unit };
         priceInfo: { unitPrice?: { price: number; unit: Unit } };
     }
 
-    export { classes as class };
+    export { _class as class };
     export let data: DataRequired;
 
-    let classes = '';
-
-    $: classLocal = classNames("text-sm flex text-gray-500 line-clamp-1 dark:text-gray-400", classes);
+    let _class = '';
 </script>
 
-<h6 class={classLocal}>
+<h6 class="text-sm flex text-gray-500 line-clamp-1 dark:text-gray-400 {_class}">
     {data.unitQuantity.amount}
     {unitToText(data.unitQuantity.unit, true, false)}
 

@@ -1,24 +1,24 @@
 use crate::models::{
-    CentPrice, Provider, ProviderInfo, SaleInformation, UnitPrice, UnitQuantity, WggDecorator, WggProduct,
+    PriceInfo, Provider, ProviderInfo, SaleInformation, UnavailableItem, UnitQuantity, WggDecorator, WggProduct,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 #[graphql(complex)]
 pub struct WggSearchProduct {
+    /// This service's ID for the current product.
+    /// Not transferable between [Provider]s
     pub id: String,
+    /// The name of the product.
     pub name: String,
-    /// The full price of an article, ignoring any sales
-    pub full_price: CentPrice,
-    /// The present display price (taking into account active sales).
-    pub display_price: CentPrice,
+    /// All pricing info related to this object.
+    pub price_info: PriceInfo,
     /// The amount of weight/liters/pieces this product represents.
     pub unit_quantity: UnitQuantity,
-    pub unit_price: Option<UnitPrice>,
-    /// A small check to see if the current item is unavailable.
+    /// If this product is currently unavailable this will contain details explaining why.
     ///
-    /// `decorators` might contain more information as to the nature of the disruption.
-    pub available: bool,
+    /// If this is `None` then the object is available
+    pub unavailable_details: Option<UnavailableItem>,
     /// Direct URL to product image.
     pub image_url: Option<String>,
     pub decorators: Vec<WggDecorator>,
@@ -42,11 +42,9 @@ impl From<WggProduct> for WggSearchProduct {
         WggSearchProduct {
             id: product.id,
             name: product.name,
-            full_price: product.price_info.original_price,
-            display_price: product.price_info.display_price,
+            price_info: product.price_info,
             unit_quantity: product.unit_quantity,
-            unit_price: product.price_info.unit_price,
-            available: product.available,
+            unavailable_details: product.unavailable_details,
             image_url: product.image_urls.into_iter().next(),
             decorators: product.decorators,
             sale_information: product.sale_information,

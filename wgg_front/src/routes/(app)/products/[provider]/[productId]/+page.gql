@@ -34,7 +34,14 @@ fragment FullProductFragment on WggProduct {
         unit
         amount
     }
-    available
+    unavailableDetails {
+        reason
+        explanationShort
+        explanationLong
+        replacements {
+            ...ProductCardFragment
+        }
+    }
     imageUrls
     ingredients {
         name
@@ -72,14 +79,6 @@ fragment FullDecorator on WggDecorator {
     __typename
     ... on FreshLabel {
         daysFresh
-    }
-    ... on UnavailableItem {
-        reason
-        explanationShort
-        explanationLong
-        replacements {
-            ...ProductCardFragment
-        }
     }
     ... on PrepTime {
         timeMinutes

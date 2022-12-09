@@ -1,7 +1,7 @@
 <script lang="ts">
     import classNames from 'classnames';
 
-    export { className as class };
+    export { _class as class };
 
     export let title: string | undefined = undefined;
 
@@ -9,11 +9,11 @@
 
     export let data: { imageUrl?: string; name: string };
 
-    let className: string = '';
+    let _class: string = '';
 
     $: classes = classNames(
         'aspect-video h-24 cursor-pointer object-contain hover:object-scale-down md:h-32',
-        className
+        _class
     );
 </script>
 

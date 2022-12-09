@@ -7,16 +7,16 @@
 <script lang="ts">
     import classNames from 'classnames';
 
-    export { className as class };
+    export { _class as class };
 
     export let pulse: boolean = false;
 
-    let className: string = '';
+    let _class: string = '';
 
     $: classes = classNames(
-        className,
         'card card-body !bg-surface-50 dark:!bg-surface-700/75 h-full flex flex-col w-full',
-        pulse && 'animate-pulse'
+        pulse && 'animate-pulse',
+        _class
     );
 </script>
 

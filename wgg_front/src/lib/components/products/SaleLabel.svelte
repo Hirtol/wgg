@@ -7,16 +7,15 @@
 <script lang="ts">
     import { SaleTypeNameFragment } from '$lib/api/graphql_types';
     import { Warning } from 'carbon-icons-svelte';
-    import classNames from 'classnames';
 
-    export { className as class };
+    export { _class as class };
     export let text: string;
     export let saleType: SaleTypeNameFragment | undefined = undefined;
 
-    let className: string = '';
+    let _class: string = '';
 </script>
 
-<span class={classNames('badge w-min bg-primary-300 dark:bg-primary-800', className)}>{text}</span>
+<span class="badge w-min bg-primary-300 dark:bg-primary-800 {_class}">{text}</span>
 
 {#if !saleType}
     <Warning

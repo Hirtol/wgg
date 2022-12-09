@@ -6,12 +6,12 @@
     export let normalButton: boolean = false;
 
     /**
-     * Bindable property which declares the current quantity available
+     * Bind-able property which declares the current quantity available
      */
     export let quantity: number;
 
     /**
-     * Whether the current set of buttons should be permantently expanded to have both the add and subtract buttons,
+     * Whether the current set of buttons should be permanently expanded to have both the add and subtract buttons,
      * or just the quantity button.
      */
     export let permanentlyExpanded: boolean = false;

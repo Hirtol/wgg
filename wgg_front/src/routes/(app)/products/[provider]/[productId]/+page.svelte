@@ -1,11 +1,8 @@
 <script lang="ts">
-    import { AccordionItem, Carousel } from 'flowbite-svelte';
     import type { PageData } from './$types';
-    import { marked } from 'marked';
     import { Provider, TextType } from '$lib/api/graphql_types';
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
-    import { centsToTextPrice, unitToText } from '$lib/utils';
     import { AccordionGroup, Divider, tooltip } from '@brainandbones/skeleton';
     import ImageCarousal from '$lib/components/ImageCarousal.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
@@ -27,9 +24,7 @@
             imgurl: url
         })) ?? [];
 
-    $: descrPlainText = product?.description.textType != TextType.Markdown ?? true;
     $: quantity = product ? $cart.getProductQuantity(product.providerInfo.provider, product.id)[0]?.quantity ?? 0 : 0;
-    $: unavailable = product?.decorators.find((x) => x.__typename == 'UnavailableItem');
 
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         await cart.setCartContent({ productId, provider, quantity: newQuantity, __typename: 'RawProduct' }, client);
@@ -51,11 +46,7 @@
 
                     <PriceQuantityComponent class="!text-base !font-normal" data={product} />
 
-                    <PriceComponent
-                        data={{
-                            displayPrice: product.priceInfo.displayPrice,
-                            fullPrice: product.priceInfo.originalPrice
-                        }} />
+                    <PriceComponent data={product.priceInfo} />
 
                     <AddComponent
                         class="min-h-[2.5rem] max-w-[8rem] pt-2"
@@ -68,15 +59,15 @@
                         <SaleLabel text={product.saleInformation.label} saleType={product.saleInformation.saleType}/>
                     {/if}
 
-                    {#if unavailable && unavailable.__typename == 'UnavailableItem'}
+                    {#if product.unavailableDetails}
                         <span
                             use:tooltip={{
-                                content: unavailable.explanationLong ?? unavailable.explanationShort ?? '',
+                                content: product.unavailableDetails.explanationLong ?? product.unavailableDetails.explanationShort ?? '',
                                 background: '!bg-accent-500',
                                 regionContainer: 'max-w-fit'
                             }}
                             class="badge bg-warning-400 !text-lg dark:bg-warning-700">
-                            Unavailable: {unavailable.explanationShort}
+                            Unavailable: {product.unavailableDetails.explanationShort}
                         </span>
                     {/if}
                 </div>

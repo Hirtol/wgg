@@ -55,7 +55,6 @@ pub enum Unit {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WggDecorator {
     FreshLabel(FreshLabel),
-    Unavailable(UnavailableItem),
     PrepTime(PrepTime),
     NumberOfServings(NumberOfServings),
     MoreButton(MoreButton),

@@ -1,7 +1,4 @@
-use crate::models::{
-    AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, Provider, ProviderInfo, SaleInformation,
-    TextType, UnitQuantity, WggDecorator,
-};
+use crate::models::{AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, Provider, ProviderInfo, SaleInformation, TextType, UnavailableItem, UnitQuantity, WggDecorator};
 use serde::{Deserialize, Serialize};
 
 // ** Full Product **
@@ -19,10 +16,10 @@ pub struct WggProduct {
     pub price_info: PriceInfo,
     /// The amount of weight/liters/pieces this product represents.
     pub unit_quantity: UnitQuantity,
-    /// A small check to see if the current item is unavailable.
+    /// If this product is currently unavailable this will contain details explaining why.
     ///
-    /// `decorators` might contains more information as to the nature of the disruption.
-    pub available: bool,
+    /// If this is `None` then the object is available
+    pub unavailable_details: Option<UnavailableItem>,
     /// Direct URL to product image.
     pub image_urls: Vec<String>,
     /// All ingredients in a structured format.

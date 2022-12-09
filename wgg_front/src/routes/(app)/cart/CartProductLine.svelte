@@ -30,10 +30,7 @@
     $: priceData = getPriceData(data);
 
     $: saleInfo = data.__typename == 'CartProviderProduct' && data.product.saleInformation;
-    $: unavailableReason =
-        data.__typename == 'CartProviderProduct'
-            ? data.product.decorators.find((u) => u.__typename == 'UnavailableItem')
-            : undefined;
+    $: unavailableReason =data.__typename == 'CartProviderProduct' && data.product.unavailableDetails;
 
     function getProductUrl(data: CartContentFragment): string | undefined {
         if (data.__typename == 'CartAggregateProduct') {
@@ -65,11 +62,11 @@
         }
     }
 
-    function getPriceData(data: CartContentFragment): { displayPrice: number; fullPrice: number } | undefined {
+    function getPriceData(data: CartContentFragment): { displayPrice: number; originalPrice: number } | undefined {
         if (data.__typename == 'CartAggregateProduct') {
-            return { displayPrice: data.aggregate.price, fullPrice: data.aggregate.price };
+            return { displayPrice: data.aggregate.price, originalPrice: data.aggregate.price };
         } else if (data.__typename == 'CartProviderProduct') {
-            return data.product;
+            return data.product.priceInfo;
         } else if (data.__typename == 'CartNoteProduct') {
             return undefined;
         }
@@ -136,7 +133,7 @@
                 <SaleLabel class="min-w-0" text={saleInfo.label} saleType={saleInfo.saleType} />
             {/if}
 
-            {#if unavailableReason != undefined && unavailableReason.__typename == 'UnavailableItem'}
+            {#if unavailableReason}
                 <h6 class="text-xs text-black/70 line-clamp-2 dark:text-white/70">
                     {unavailableReason.explanationShort}
                 </h6>

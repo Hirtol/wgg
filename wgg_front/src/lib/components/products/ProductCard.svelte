@@ -8,8 +8,7 @@
 <script lang="ts">
     import { ProductCardFragment, Provider } from '$lib/api/graphql_types';
     import { productPageItemUrl } from '$lib/routing';
-    import { centsToTextPrice, unitToText } from '$lib/utils';
-    import { Information, Warning } from 'carbon-icons-svelte';
+    import { Information } from 'carbon-icons-svelte';
     import { createEventDispatcher } from 'svelte';
     import AddComponent from './AddComponent.svelte';
     import PriceComponent from './PriceComponent.svelte';
@@ -18,7 +17,7 @@
     import ProductImage from './ProductImage.svelte';
     import SaleLabel from './SaleLabel.svelte';
 
-    export { className as class };
+    export { _class as class };
 
     export let data: ProductCardFragment;
 
@@ -28,13 +27,11 @@
         updateCartContent: { productId: string; provider: Provider; newQuantity: number };
     }>();
 
-    let className: string = '';
+    let _class: string = '';
 
     $: saleInfo = data.saleInformation;
 
     $: productUrl = productPageItemUrl(data.providerInfo.provider, data.id);
-
-    $: unavailableReason = data.decorators.find((u) => u.__typename == 'UnavailableItem');
 
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         quantity = newQuantity;
@@ -42,13 +39,13 @@
     }
 </script>
 
-<ProductCardSkeleton class={className}>
+<ProductCardSkeleton class={_class}>
     <header class="relative mx-auto">
-        <ProductImage {data} blurImage={!data.available} />
+        <ProductImage {data} blurImage={data.unavailableDetails != undefined} />
 
-        {#if !data.available && unavailableReason?.__typename == 'UnavailableItem'}
+        {#if data.unavailableDetails}
             <p class="absolute bottom-0 left-0 w-full !text-warning-600 line-clamp-2 dark:!text-warning-300">
-                {unavailableReason.explanationShort}
+                {data.unavailableDetails.explanationShort}
             </p>
         {/if}
 
@@ -65,7 +62,7 @@
         <!-- Quantity and Add/Remove -->
         <div class="text-s flex text-gray-500 dark:text-gray-400">
             <PriceQuantityComponent
-                data={{ unitQuantity: data.unitQuantity, priceInfo: { unitPrice: data.unitPrice } }} />
+                data={{ unitQuantity: data.unitQuantity, priceInfo: data.priceInfo }} />
 
             <AddComponent
                 class="ml-auto inline-block !h-6"
@@ -86,7 +83,7 @@
                 <Information />
             </a>
 
-            <PriceComponent {data} />
+            <PriceComponent data={data.priceInfo} />
         </div>
     </div>
 </ProductCardSkeleton>

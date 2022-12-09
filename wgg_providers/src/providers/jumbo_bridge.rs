@@ -231,7 +231,8 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             .as_deref()
             .and_then(common_bridge::parse_quantity)
             .unwrap_or_default(),
-        available: product.available,
+        // Will be parsed
+        unavailable_details: None,
         image_urls: product.image_info.primary_view.into_iter().map(|i| i.url).collect(),
         // Will be parsed
         ingredients: vec![],
@@ -274,7 +275,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
 
     // Availability
     if product.availability.availability != AvailabilityType::Available {
-        let unavailable = UnavailableItem {
+        result.unavailable_details = UnavailableItem {
             reason: match product.availability.availability {
                 AvailabilityType::TemporarilyUnavailable => UnavailableReason::TemporarilyUnavailable,
                 AvailabilityType::Unavailable => UnavailableReason::OutOfAssortment,
@@ -283,9 +284,13 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
             explanation_short: product.availability.label,
             explanation_long: product.availability.reason,
             replacements: Vec::new(),
-        };
-
-        result.decorators.push(WggDecorator::Unavailable(unavailable));
+        }
+        .into();
+    } else if !product.available {
+        tracing::warn!(
+            product_id=?result.id,
+            "Jumbo bridge detected a product which is indicated as `Available`, but isn't!"
+        );
     }
 
     // Freshness
@@ -370,36 +375,38 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
     let mut result = WggSearchProduct {
         id: article.id.into(),
         name: article.title,
-        full_price: article.prices.price.amount,
-        display_price: article
-            .prices
-            .promotional_price
-            .map(|price| price.amount)
-            .unwrap_or(article.prices.price.amount),
         unit_quantity: article
             .quantity
             .as_deref()
             .and_then(common_bridge::parse_quantity)
             .unwrap_or_default(),
-        unit_price: None,
-        available: article.available,
         image_url: article.image_info.primary_view.first().map(|i| i.url.clone()),
         decorators: Vec::new(),
         sale_information: None,
         provider: Provider::Jumbo,
+        price_info: PriceInfo {
+            original_price: article.prices.price.amount,
+            display_price: article
+                .prices
+                .promotional_price
+                .map(|price| price.amount)
+                .unwrap_or(article.prices.price.amount),
+            unit_price: None,
+        },
+        unavailable_details: None,
     };
 
     // Unit Pricing
     if let Some(price) = article.prices.unit_price {
         if let Some(unit) = parse_unit_component(&price.unit) {
-            result.unit_price = UnitPrice {
+            result.price_info.unit_price = UnitPrice {
                 unit,
                 price: price.price.amount,
             }
             .into()
         }
     } else {
-        result.unit_price = derive_unit_price(&result.unit_quantity, result.display_price);
+        result.price_info.unit_price = derive_unit_price(&result.unit_quantity, result.price_info.display_price);
     }
 
     // Promotions
@@ -415,7 +422,7 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
 
     // Availability
     if article.availability.availability != AvailabilityType::Available {
-        let unavailable = UnavailableItem {
+        result.unavailable_details = UnavailableItem {
             reason: match article.availability.availability {
                 AvailabilityType::TemporarilyUnavailable => UnavailableReason::TemporarilyUnavailable,
                 AvailabilityType::Unavailable => UnavailableReason::OutOfAssortment,
@@ -424,9 +431,13 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
             explanation_short: article.availability.label,
             explanation_long: article.availability.reason,
             replacements: Vec::new(),
-        };
-
-        result.decorators.push(WggDecorator::Unavailable(unavailable));
+        }
+        .into();
+    } else if !article.available {
+        tracing::warn!(
+            product_id=?result.id,
+            "Jumbo bridge detected a product which is indicated as `Available`, but isn't!"
+        );
     }
 
     // Freshness

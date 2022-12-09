@@ -369,7 +369,7 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         // Will be parsed
         unit_quantity: Default::default(),
         // Will be parsed
-        available: true,
+        unavailable_details: None,
         image_urls: product
             .images
             .into_iter()
@@ -515,8 +515,8 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         parse_decorator(
             dec,
             &mut result.decorators,
-            Some(&mut result.price_info.display_price),
-            Some(&mut result.available),
+            &mut result.price_info.display_price,
+            &mut result.unavailable_details,
         )
     }
 
@@ -576,15 +576,17 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
     let mut result = WggSearchProduct {
         id: article.id,
         name: article.name,
-        full_price: article.display_price,
-        display_price: article.display_price,
         unit_quantity: Default::default(),
-        unit_price: None,
-        available: true,
         image_url: Some(wgg_picnic::images::image_url(article.image_id, ImageSize::Medium)),
         decorators: Vec::new(),
         sale_information: None,
         provider: Provider::Picnic,
+        price_info: PriceInfo {
+            display_price: article.display_price,
+            original_price: article.display_price,
+            unit_price: None,
+        },
+        unavailable_details: None,
     };
 
     // Parse sale data
@@ -604,8 +606,8 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
         parse_decorator(
             dec,
             &mut result.decorators,
-            Some(&mut result.display_price),
-            Some(&mut result.available),
+            &mut result.price_info.display_price,
+            &mut result.unavailable_details,
         )
     }
 
@@ -624,10 +626,11 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
 
     // Parse unit price quantity
     if let Some(unit_price_str) = &article.unit_quantity_sub {
-        result.unit_price = parse_unit_price(unit_price_str)
-            .or_else(|| common_bridge::derive_unit_price(&result.unit_quantity, result.display_price));
+        result.price_info.unit_price = parse_unit_price(unit_price_str)
+            .or_else(|| common_bridge::derive_unit_price(&result.unit_quantity, result.price_info.display_price));
     } else {
-        result.unit_price = common_bridge::derive_unit_price(&result.unit_quantity, result.display_price)
+        result.price_info.unit_price =
+            common_bridge::derive_unit_price(&result.unit_quantity, result.price_info.display_price)
     }
 
     result
@@ -666,8 +669,8 @@ fn parse_decorators_for_sale(decorators: &[Decorator]) -> (Option<String>, Optio
 pub fn parse_decorator(
     decorator: Decorator,
     result: &mut Vec<WggDecorator>,
-    set_display_price: Option<&mut u32>,
-    set_available: Option<&mut bool>,
+    set_display_price: &mut u32,
+    set_unavailable: &mut Option<UnavailableItem>,
 ) {
     match decorator {
         // If we already parsed it above, we don't want to do it again!
@@ -680,16 +683,14 @@ pub fn parse_decorator(
         }
         Decorator::Price { display_price } => {
             // Decorator price is the price *including* current sales if available.
-            if let Some(dp) = set_display_price {
-                *dp = display_price
-            }
+            *set_display_price = display_price
         }
         Decorator::Unavailable {
             reason,
             replacements,
             explanation,
         } => {
-            let unavailable = UnavailableItem {
+            *set_unavailable = UnavailableItem {
                 reason: match reason {
                     UnavailableReason::OutOfAssortment => crate::models::UnavailableReason::OutOfAssortment,
                     UnavailableReason::OutOfSeason => crate::models::UnavailableReason::OutOfSeason,
@@ -701,12 +702,8 @@ pub fn parse_decorator(
                 explanation_short: explanation.short_explanation.into(),
                 explanation_long: explanation.long_explanation.into(),
                 replacements: replacements.into_iter().map(parse_picnic_item_to_search_item).collect(),
-            };
-
-            if let Some(available) = set_available {
-                *available = false;
             }
-            result.push(WggDecorator::Unavailable(unavailable))
+            .into();
         }
         Decorator::MoreButton { images, .. } => {
             let more_button = MoreButton {

@@ -41,7 +41,7 @@ impl AggregateIngredient {
     /// Returns the average price of all constituent ingredients.
     pub async fn price(&self, ctx: &Context<'_>, format: PriceFilter) -> GraphqlResult<CentPrice> {
         let products = self.ingredients(ctx).await??;
-        let price_iter = products.iter().map(|i| i.display_price);
+        let price_iter = products.iter().map(|i| i.price_info.display_price);
 
         let result = match format {
             PriceFilter::Minimum => price_iter.min().unwrap_or_default(),
