@@ -52,9 +52,17 @@ pub async fn calculate_tallies(
 
             sale_items
                 .entry(sale_id)
-                .and_modify(|tracking| tracking.items.push((product.quantity as u32, search_product.clone())))
+                .and_modify(|tracking| {
+                    tracking.items.push(ProductWithQuantity {
+                        quantity: product.quantity as u32,
+                        item: search_product.clone(),
+                    })
+                })
                 .or_insert_with(|| SaleTracking {
-                    items: vec![(product.quantity as u32, search_product.clone())],
+                    items: vec![ProductWithQuantity {
+                        quantity: product.quantity as u32,
+                        item: search_product.clone(),
+                    }],
                     sale_info: sale.clone(),
                     provider,
                 });
@@ -88,12 +96,16 @@ pub async fn calculate_tallies(
                 sale_items
                     .entry(sale_id)
                     .and_modify(|tracking| {
-                        tracking
-                            .items
-                            .push((agg_ingredient.quantity as u32, search_product.clone()))
+                        tracking.items.push(ProductWithQuantity {
+                            quantity: agg_ingredient.quantity as u32,
+                            item: search_product.clone(),
+                        })
                     })
                     .or_insert_with(|| SaleTracking {
-                        items: vec![(agg_ingredient.quantity as u32, search_product.clone())],
+                        items: vec![ProductWithQuantity {
+                            quantity: agg_ingredient.quantity as u32,
+                            item: search_product.clone(),
+                        }],
                         sale_info: sale.clone(),
                         provider,
                     });
@@ -118,90 +130,165 @@ fn handle_sale_logic(
 ) -> GraphqlResult<Vec<SaleItemGroup>> {
     let mut item_group_results = Vec::new();
 
-    let sort_items_on_price =
-        |a: &WggSearchProduct, b: &WggSearchProduct| a.price_info.original_price.cmp(&b.price_info.original_price);
+    for (_, sale) in sale_items {
+        let Some(sale_type) = sale.sale_info.sale_type else {
+            // Can't do anything, assume the pessimistic original price
+            continue;
+        };
 
-    for (_, mut sale) in sale_items {
-        if let Some(sale_type) = sale.sale_info.sale_type {
-            match sale_type {
-                SaleType::NumPlusNumFree(data) => {
-                    let required = data.required.get() as u32;
-                    let total_required = required + data.free.get() as u32;
+        match sale_type {
+            SaleType::NumPlusNumFree(data) => {
+                let required = data.required.get() as u32;
+                let total_required = required + data.free.get() as u32;
 
-                    let mut total_qualifying_items: u32 = sale.items.iter().map(|(quantity, _)| quantity).sum();
-
-                    if total_qualifying_items >= total_required {
-                        match sale.provider.get_metadata().sale_strategy {
-                            SaleResolutionStrategy::Opportunistic => {
-                                sale.items.sort_by(|a, b| sort_items_on_price(&b.1, &a.1));
-                            }
-                            SaleResolutionStrategy::Pessimistic => {
-                                sale.items.sort_by(|a, b| sort_items_on_price(&a.1, &b.1));
-                            }
-                        }
-
-                        while total_qualifying_items >= total_required {
-                            total_qualifying_items -= total_required;
-                            let mut still_required = total_required;
-
-                            let item_group = sale.items.iter_mut().filter(|(quantity, _)| *quantity > 0).take_while(
-                                |(quantity, _)| {
-                                    if still_required == 0 {
-                                        false
-                                    } else {
-                                        still_required -= still_required.min(*quantity);
-                                        true
-                                    }
-                                },
-                            );
-
-                            let mut final_required = total_required;
-                            let mut total_original_price = 0;
-                            let mut items = Vec::with_capacity(total_required as usize);
-
-                            for (quantity, item) in item_group {
-                                let used_quantity = final_required.min(*quantity);
-
-                                final_required -= used_quantity;
-                                *quantity -= used_quantity;
-
-                                total_original_price += item.price_info.original_price * used_quantity;
-
-                                items.push(ProductWithQuantity {
-                                    quantity: used_quantity,
-                                    item: item.clone(),
-                                });
-                            }
-
-                            let final_price = (total_original_price / total_required) * required;
-                            let sale_group = SaleItemGroup {
-                                price_info: PriceInfo {
-                                    display_price: total_original_price,
-                                    original_price: final_price,
-                                    unit_price: None,
-                                },
-                                items,
-                            };
-
-                            tally_map
-                                .entry(sale.provider)
-                                .and_modify(|tally| tally.discount += total_original_price - final_price);
-                            item_group_results.push(sale_group)
-                        }
-                    }
-                }
-                SaleType::NumPercentOff(_) => {}
-                SaleType::NumthPercentOff(_) => {}
-                SaleType::NumForPrice(_) => {}
-                SaleType::NumEuroOff(_) => {}
-                SaleType::NumEuroPrice(_) => {}
+                handle_group(
+                    tally_map,
+                    &mut item_group_results,
+                    sale.provider,
+                    total_required,
+                    sale.items,
+                    |total_original_price| (total_original_price / total_required) * required,
+                );
             }
-        } else {
-            // Can't properly handle this one, assume pessimistic case of original price.
+            SaleType::NumthPercentOff(data) => {
+                let required = data.required.get() as u32;
+                let total_required = required;
+
+                handle_group(
+                    tally_map,
+                    &mut item_group_results,
+                    sale.provider,
+                    total_required,
+                    sale.items,
+                    |total_original_price| {
+                        total_original_price
+                            - ((total_original_price * data.last_percent_off.get() as u32) / (100 * required))
+                    },
+                );
+            }
+            SaleType::NumForPrice(data) => {
+                let total_required = data.required.get() as u32;
+
+                handle_group(
+                    tally_map,
+                    &mut item_group_results,
+                    sale.provider,
+                    total_required,
+                    sale.items,
+                    |_| data.price,
+                );
+            }
+            SaleType::NumPercentOff(_) | SaleType::NumEuroPrice(_) | SaleType::NumEuroOff(_) => {
+                // Since this is a single item we can assume the `display_price` property is well preserved.
+                for product in sale.items {
+                    let original_price = product.item.price_info.original_price * product.quantity;
+                    let display_price = product.item.price_info.display_price * product.quantity;
+
+                    tally_map
+                        .entry(product.item.provider)
+                        .and_modify(|tally| tally.discount += original_price - display_price);
+
+                    let sale_group = SaleItemGroup {
+                        price_info: PriceInfo {
+                            display_price,
+                            original_price,
+                            unit_price: None,
+                        },
+                        items: vec![ProductWithQuantity {
+                            quantity: product.quantity,
+                            item: product.item,
+                        }],
+                    };
+
+                    item_group_results.push(sale_group);
+                }
+            }
         }
     }
 
     Ok(item_group_results)
+}
+
+/// Handle a full [SaleTracking] and update the `tally_map`'s `discount`.
+///
+/// Additionally, the groupings of the items within the `items` [Vec] are pushed to `group_results`.
+///
+/// # Arguments
+///
+/// * `final_price_calc` - Takes the `total_original_price` of all items within a [SaleItemGroup] (which is a sub-group of the overal [SaleTracking])
+/// and expects the final price of the current promotion taking into account said original price.
+fn handle_group(
+    tally_map: &mut HashMap<Provider, TallyPriceInfo>,
+    group_results: &mut Vec<SaleItemGroup>,
+    provider: Provider,
+    total_required: u32,
+    mut items: Vec<ProductWithQuantity>,
+    mut final_price_calc: impl FnMut(CentPrice) -> CentPrice,
+) {
+    let mut total_qualifying_items: u32 = items.iter().map(|product| product.quantity).sum();
+    let sort_items_on_price =
+        |a: &WggSearchProduct, b: &WggSearchProduct| a.price_info.original_price.cmp(&b.price_info.original_price);
+
+    if total_qualifying_items >= total_required {
+        match provider.get_metadata().sale_strategy {
+            SaleResolutionStrategy::Opportunistic => {
+                items.sort_by(|a, b| sort_items_on_price(&b.item, &a.item));
+            }
+            SaleResolutionStrategy::Pessimistic => {
+                items.sort_by(|a, b| sort_items_on_price(&a.item, &b.item));
+            }
+        }
+
+        while total_qualifying_items >= total_required {
+            total_qualifying_items -= total_required;
+            let mut still_required = total_required;
+
+            let item_group = items
+                .iter_mut()
+                .filter(|product| product.quantity > 0)
+                .take_while(|product| {
+                    if still_required == 0 {
+                        false
+                    } else {
+                        still_required -= still_required.min(product.quantity);
+                        true
+                    }
+                });
+
+            let mut final_required = total_required;
+            let mut total_original_price = 0;
+            let mut items = Vec::with_capacity(total_required as usize);
+
+            for product in item_group {
+                let used_quantity = final_required.min(product.quantity);
+
+                final_required -= used_quantity;
+                product.quantity -= used_quantity;
+
+                total_original_price += product.item.price_info.original_price * used_quantity;
+
+                items.push(ProductWithQuantity {
+                    quantity: used_quantity,
+                    item: product.item.clone(),
+                });
+            }
+
+            let final_price = final_price_calc(total_original_price);
+            let sale_group = SaleItemGroup {
+                price_info: PriceInfo {
+                    display_price: total_original_price,
+                    original_price: final_price,
+                    unit_price: None,
+                },
+                items,
+            };
+
+            tally_map
+                .entry(provider)
+                .and_modify(|tally| tally.discount += total_original_price - final_price);
+            group_results.push(sale_group)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -217,7 +304,7 @@ struct ProductWithQuantity {
 }
 
 struct SaleTracking {
-    items: Vec<(u32, WggSearchProduct)>,
+    items: Vec<ProductWithQuantity>,
     sale_info: SaleInformation,
     provider: Provider,
 }

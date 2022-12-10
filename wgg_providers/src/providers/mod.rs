@@ -16,7 +16,7 @@ pub trait StaticProviderInfo: ProviderToAny {
     where
         Self: Sized;
 
-    /// A direct link to a SVG displaying the provider's logo.
+    /// An object containing all static metadata for this provider.
     fn metadata() -> ProviderMetadata
     where
         Self: Sized;
