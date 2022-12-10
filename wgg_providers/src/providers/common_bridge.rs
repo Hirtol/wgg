@@ -272,7 +272,7 @@ mod tests {
                 required: nz!(2),
                 free: nz!(1),
             }),
-            SaleType::NumPercentOff(NumPercentOff { percent_off: nz!(50) }),
+            SaleType::NumPercentOff(NumPercentOff::new(50).unwrap()),
             SaleType::NumthPercentOff(NumthPercentOff {
                 required: nz!(2),
                 last_percent_off: nz!(50),
