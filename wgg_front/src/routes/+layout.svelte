@@ -1,7 +1,7 @@
 <script lang="ts">
     import '../theme.postcss';
     import '../app.postcss';
-    import { afterNavigate, beforeNavigate, prefetchRoutes } from '$app/navigation';
+    import { afterNavigate, beforeNavigate, preloadCode } from '$app/navigation';
     import { setContextClient } from '$lib/api/urql';
     import GlobalLoading from '$lib/components/global_progress/GlobalLoading.svelte';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
@@ -13,7 +13,7 @@
 
     setContextClient(data.client);
 
-    prefetchRoutes([cartPageRootUrl]);
+    preloadCode(cartPageRootUrl);
 
     beforeNavigate((nav) => {
         globalLoading.start();

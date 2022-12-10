@@ -2,7 +2,7 @@ import { createUrqlClient } from '$lib/api/urql';
 import { LayoutLoad } from './$types';
 import { createPreferenceStore } from '$lib/state';
 
-export const preprocess = false;
+export const prerender = false;
 export const ssr = false;
 
 /**
