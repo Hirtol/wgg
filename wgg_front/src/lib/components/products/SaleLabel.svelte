@@ -15,11 +15,13 @@
     let _class: string = '';
 </script>
 
-<span class="badge w-min bg-primary-300 dark:bg-primary-800 {_class}">{text}</span>
-
-{#if !saleType}
-    <Warning
-        class="inline"
-        color="red"
-        title="Couldn't parse sale type, cart tally will be wrong if this product is included!" />
-{/if}
+<div class={_class}>
+    <span class="badge w-min bg-primary-300 dark:bg-primary-800">{text}</span>
+    
+    {#if !saleType}
+        <Warning
+            class="inline"
+            color="red"
+            title="Couldn't parse sale type, cart tally will be wrong if this product is included!" />
+    {/if}
+</div>
