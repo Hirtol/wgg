@@ -159,7 +159,7 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
         2 => {
             // `50% korting`
             let percent_off: NonZeroU16 = capture.get(1)?.as_str().parse().ok()?;
-            let result = NumPercentOff { percent_off };
+            let result = NumPercentOff::new(percent_off)?;
 
             Some(SaleType::NumPercentOff(result))
         }

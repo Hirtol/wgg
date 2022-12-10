@@ -112,9 +112,9 @@ pub struct SaleInformation {
 }
 
 pub mod sale_types {
-    use std::num::NonZeroU16;
     use crate::models::CentPrice;
     use serde::{Deserialize, Serialize};
+    use std::num::NonZeroU16;
 
     #[derive(Serialize, Deserialize, async_graphql::Union, Clone, Debug, PartialEq, PartialOrd)]
     pub enum SaleType {
@@ -141,7 +141,26 @@ pub mod sale_types {
     /// * `50% OFF`
     #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
     pub struct NumPercentOff {
-        pub percent_off: NonZeroU16,
+        /// The percent reduction. Guaranteed to be `> 0 && <= 100`.
+        percent_off: NonZeroU16,
+    }
+
+    impl NumPercentOff {
+        pub fn new(percent_off: impl TryInto<NonZeroU16>) -> Option<Self> {
+            let percent_off = percent_off.try_into().ok()?;
+            if percent_off.get() > 100 {
+                None
+            } else {
+                Self { percent_off }.into()
+            }
+        }
+
+        /// Get the percent off.
+        ///
+        /// Guaranteed to be `> 0 && <= 100`.
+        pub fn get_percent_off(&self) -> NonZeroU16 {
+            self.percent_off
+        }
     }
 
     /// Follows from the following kinds of sales:
