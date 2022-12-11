@@ -1,11 +1,6 @@
 import { derived, type Readable, writable, type Writable } from 'svelte/store';
-import {
-    type ViewerContextFragment,
-    ViewerInfoQueryDocument,
-    SubmitLoginDocument,
-    LogoutMutationDocument
-} from '$lib/api/graphql_types';
-import { asyncMutationStore, asyncQueryStore, Client } from '$lib/api/urql';
+import { type ViewerContextFragment, SubmitLoginDocument, LogoutMutationDocument } from '$lib/api/graphql_types';
+import { asyncMutationStore, Client } from '$lib/api/urql';
 
 type isAuthenticated = boolean;
 // Current cart is an implementation detail for the GraphQL fetching in one round-trip, not relevant on actual user.
