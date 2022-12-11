@@ -2,4 +2,8 @@ query ViewerInfoQuery {
     viewer {
         ...ViewerContext
     }
+    proProviders {
+        provider
+        logoUrl
+    }
 }

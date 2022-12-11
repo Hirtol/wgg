@@ -8,8 +8,8 @@
     import { afterNavigate, goto } from '$app/navigation';
     import { page } from '$app/stores';
     import PageRoot from '$lib/components/PageRoot.svelte';
-    import { getProviders } from '$lib/state';
-    import { capitaliseFirst, updateQueryParameter } from '$lib/utils';
+    import { updateQueryParameter } from '$lib/routing';
+    import { capitaliseFirst } from '$lib/utils';
     import type { PageData } from './$types';
     import SalesList from './SalesList.svelte';
 
@@ -17,7 +17,7 @@
 
     let currentProvider = data.initialProvider;
 
-    $: ({ result, cart } = data);
+    $: ({ result, cart, availableProviders } = data);
 
     // Navigate directly to the correct provider.
     updateQueryParameter($page.url, 'provider', data.initialProvider, { replaceState: true });
@@ -49,7 +49,7 @@
             <label class="w-full">
                 <span>Current Provider Sales</span>
                 <select bind:value={currentProvider} on:change={updateHistory}>
-                    {#each getProviders() as item (item)}
+                    {#each [...availableProviders.keys()] as item (item)}
                         <option value={item}>{capitaliseFirst(item)}</option>
                     {/each}
                 </select>

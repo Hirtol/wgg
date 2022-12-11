@@ -1,15 +1,19 @@
-import { authenticateUser, authSession, initialiseRealCart } from '$lib/state';
+import { ProviderInfo, ViewerContextFragment, ViewerInfoQueryDocument } from '$lib/api/graphql_types';
+import { asyncQueryStore } from '$lib/api/urql';
+import { authSession, createAvailableProvidersMap, initialiseRealCart, verifyPreferenceIntegrity } from '$lib/state';
 import { redirect } from '@sveltejs/kit';
+import { Client } from '@urql/svelte';
 import { get } from 'svelte/store';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async (event) => {
     // First check if we just had a login event, if not we proceed with the manual check.
-    const { client } = await event.parent();
+    const { client, preferences } = await event.parent();
     let cartContents = undefined;
-    
+    let providers = undefined;
+
     if (get(authSession) == undefined) {
-        const { isAuthenticated, user } = await authenticateUser(client);
+        const { isAuthenticated, user, remoteProviders } = await authenticateUser(client);
 
         // Perform authentication check
         if (!isAuthenticated) {
@@ -18,11 +22,47 @@ export const load: LayoutLoad = async (event) => {
             throw redirect(302, loginUrl);
         } else {
             cartContents = user?.currentCart;
+            providers = remoteProviders;
         }
+    }
+
+    // Verify preference integrity
+    const availableProviders = createAvailableProvidersMap(providers ?? []);
+    if (verifyPreferenceIntegrity(preferences, availableProviders)) {
+        console.log('ALL GOOD');
     }
 
     // We can safely assume we're authenticated.
     return {
-        cart: initialiseRealCart(client, cartContents)
-    }
+        cart: initialiseRealCart(client, cartContents),
+        availableProviders
+    };
 };
+
+/**
+ * Authenticate the user, if possible.
+ *
+ * If the current user is authenticated, the `authSession` and `isUserAuthenticated` stores will be initialised.
+ */
+async function authenticateUser(client: Client): Promise<{
+    user: ViewerContextFragment | undefined;
+    isAuthenticated: boolean;
+    remoteProviders: ProviderInfo[] | undefined;
+}> {
+    try {
+        const { item } = await asyncQueryStore({ query: ViewerInfoQueryDocument, client });
+        authSession.set(item.data?.viewer);
+
+        if (item.error) {
+            console.log('User is not authenticated', item.error);
+        }
+
+        return {
+            user: item.data?.viewer,
+            isAuthenticated: item.data != undefined,
+            remoteProviders: item.data?.proProviders
+        };
+    } catch (error) {
+        return { user: undefined, isAuthenticated: false, remoteProviders: undefined };
+    }
+}
