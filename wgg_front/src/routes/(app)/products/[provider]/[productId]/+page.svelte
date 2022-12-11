@@ -56,7 +56,7 @@
                             product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
 
                     {#if product.saleInformation}
-                        <SaleLabel text={product.saleInformation.label} saleType={product.saleInformation.saleType}/>
+                        <SaleLabel textSize="!text-base" text={product.saleInformation.label} saleType={product.saleInformation.saleType}/>
                     {/if}
 
                     {#if product.unavailableDetails}
@@ -66,7 +66,7 @@
                                 background: '!bg-accent-500',
                                 regionContainer: 'max-w-fit'
                             }}
-                            class="badge bg-warning-400 !text-lg dark:bg-warning-700">
+                            class="badge bg-warning-400 !text-base dark:bg-warning-700">
                             Unavailable: {product.unavailableDetails.explanationShort}
                         </span>
                     {/if}

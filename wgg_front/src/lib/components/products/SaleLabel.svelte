@@ -11,12 +11,13 @@
     export { _class as class };
     export let text: string;
     export let saleType: SaleTypeNameFragment | undefined = undefined;
+    export let textSize: string | undefined = undefined;
 
     let _class: string = '';
 </script>
 
 <div class={_class}>
-    <span class="badge w-min bg-primary-300 dark:bg-primary-800">{text}</span>
+    <span class="badge w-min bg-primary-300 dark:bg-primary-800 {textSize}">{text}</span>
     
     {#if !saleType}
         <Warning
