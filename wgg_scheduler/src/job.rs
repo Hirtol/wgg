@@ -14,7 +14,6 @@ pub struct Job {
     pub(crate) function: Box<dyn Send + Sync + FnMut(JobId, JobScheduler) -> BoxFuture<'static, anyhow::Result<()>>>,
     pub(crate) schedule: Schedule,
     pub(crate) next_run_at: DateTime<Utc>,
-    is_paused: bool,
 }
 
 impl Job {
@@ -36,7 +35,6 @@ impl Job {
             function: Box::new(func),
             next_run_at: schedule.next(Utc::now()).ok_or(ScheduleError::OutOfRange)?,
             schedule,
-            is_paused: false,
         })
     }
 
@@ -46,16 +44,7 @@ impl Job {
 
     /// Check whether this job is currently pending execution
     pub fn is_pending(&self, now: DateTime<Utc>) -> bool {
-        !self.is_paused && now > self.next_run_at
-    }
-
-    /// Check whether this job is currently paused.
-    pub fn is_paused(&self) -> bool {
-        self.is_paused
-    }
-
-    pub fn set_paused(&mut self, paused: bool) {
-        self.is_paused = paused;
+        now > self.next_run_at
     }
 
     /// Run the current job and update the next time to execute
@@ -74,7 +63,6 @@ impl Debug for Job {
             .field("id", &self.id)
             .field("next_run_at", &self.next_run_at)
             .field("schedule", &self.schedule)
-            .field("is_paused", &self.is_paused)
             .finish()
     }
 }

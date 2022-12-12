@@ -152,7 +152,6 @@ impl JobScheduler {
         let (snd, recv) = tokio::sync::mpsc::unbounded_channel();
 
         let runner = RunnerState::new(
-            Default::default(),
             self.clone(),
             recv,
             notify.clone(),

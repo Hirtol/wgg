@@ -14,8 +14,8 @@ mod tests {
     use crate::schedule::Schedule;
     use crate::scheduler::JobScheduler;
     use chrono::Utc;
-    use std::time::Duration;
     use futures::FutureExt;
+    use std::time::Duration;
     use tokio::sync::mpsc::UnboundedReceiver;
 
     #[tokio::test]
@@ -100,7 +100,8 @@ mod tests {
                 println!("Basic Job: {} - now: {:?}", id, Utc::now());
                 snd.send(()).unwrap();
                 Ok(())
-            }.boxed()
+            }
+            .boxed()
         })
         .unwrap();
 

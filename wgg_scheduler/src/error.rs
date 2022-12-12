@@ -1,3 +1,4 @@
+use crate::JobId;
 use std::convert::Infallible;
 use thiserror::Error;
 
@@ -13,6 +14,8 @@ pub enum ScheduleError {
     OutOfRange,
     #[error("Failed to properly stop runner, it seems that it was already stopped?")]
     StopFailure,
+    #[error("Failed to run job (`{0}`) because it was already busy")]
+    JobAlreadyBusy(JobId),
 }
 
 impl From<Infallible> for ScheduleError {
