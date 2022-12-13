@@ -4,7 +4,6 @@ use crate::db;
 use crate::db::Id;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::HashMap;
-use std::ops::{Add, AddAssign};
 use wgg_providers::models::sale_types::SaleType;
 use wgg_providers::models::{
     CentPrice, PriceInfo, Provider, SaleInformation, SaleResolutionStrategy, SublistId, WggSearchProduct,
@@ -17,7 +16,7 @@ pub async fn calculate_tallies(
     cart_id: Id,
     state: &State,
 ) -> GraphqlResult<HashMap<Provider, TallyPriceInfo>> {
-    let mut result = HashMap::with_capacity(state.db_providers.len());
+    let mut result: HashMap<Provider, TallyPriceInfo> = HashMap::with_capacity(state.db_providers.len());
     let mut sale_items: HashMap<SublistId, SaleTracking> = HashMap::new();
 
     let products = db::cart_contents::raw_product::Entity::find()
@@ -31,6 +30,33 @@ pub async fn calculate_tallies(
 
     let (products, aggregate) = futures::future::try_join(products, aggregate).await?;
 
+    let mut add_sale_item = |search_product: WggSearchProduct, quantity: u32| {
+        let Some(sale) = &search_product.sale_information else { return Ok(()) };
+
+        let provider = search_product.provider;
+        let Some(sale_id) = state.providers.product_sale_id(provider, &search_product.id) else {
+            return Err(GraphqlError::InternalError(format!("Product: {:?} - {} - has a sale with no associated sale!", provider, search_product.id)));
+        };
+
+        sale_items
+            .entry(sale_id)
+            .and_modify(|tracking| {
+                tracking.items.push(ProductWithQuantity {
+                    quantity,
+                    item: search_product.clone(),
+                })
+            })
+            .or_insert_with(|| SaleTracking {
+                items: vec![ProductWithQuantity {
+                    quantity,
+                    item: search_product.clone(),
+                }],
+                sale_info: sale.clone(),
+                provider,
+            });
+        Ok(())
+    };
+
     for product in products {
         let provider = state.provider_from_id(product.provider_id);
 
@@ -39,39 +65,18 @@ pub async fn calculate_tallies(
             .search_product(provider, &product.provider_product)
             .await?;
 
-        let new_tally = TallyPriceInfo {
-            original_price: product.quantity as u32 * search_product.price_info.original_price,
-            discount: 0,
-        };
+        let original_price = product.quantity as u32 * search_product.price_info.original_price;
 
         // Handle sale look-up.
-        if let Some(sale) = &search_product.sale_information {
-            let Some(sale_id) = state.providers.product_sale_id(search_product.provider, &search_product.id) else {
-                return Err(GraphqlError::InternalError(format!("Product: {:?} - {} - has a sale with no associated sale!", search_product.provider, search_product.id)));
-            };
-
-            sale_items
-                .entry(sale_id)
-                .and_modify(|tracking| {
-                    tracking.items.push(ProductWithQuantity {
-                        quantity: product.quantity as u32,
-                        item: search_product.clone(),
-                    })
-                })
-                .or_insert_with(|| SaleTracking {
-                    items: vec![ProductWithQuantity {
-                        quantity: product.quantity as u32,
-                        item: search_product.clone(),
-                    }],
-                    sale_info: sale.clone(),
-                    provider,
-                });
-        }
+        add_sale_item(search_product, product.quantity as u32)?;
 
         result
             .entry(provider)
-            .and_modify(|tally| *tally += new_tally)
-            .or_insert(new_tally);
+            .and_modify(|tally| tally.original_price += original_price)
+            .or_insert(TallyPriceInfo {
+                original_price,
+                discount: 0,
+            });
     }
 
     for (agg_ingredient, products) in aggregate {
@@ -82,39 +87,18 @@ pub async fn calculate_tallies(
                 .search_product(provider, &product.provider_ingr_id)
                 .await?;
 
-            let new_tally = TallyPriceInfo {
-                original_price: agg_ingredient.quantity as u32 * search_product.price_info.original_price,
-                discount: 0,
-            };
+            let original_price = agg_ingredient.quantity as u32 * search_product.price_info.original_price;
 
             // Handle sale look-up.
-            if let Some(sale) = &search_product.sale_information {
-                let Some(sale_id) = state.providers.product_sale_id(search_product.provider, &search_product.id) else {
-                    return Err(GraphqlError::InternalError(format!("Product: {:?} - {} - has a sale with no associated sale!", search_product.provider, search_product.id)));
-                };
-
-                sale_items
-                    .entry(sale_id)
-                    .and_modify(|tracking| {
-                        tracking.items.push(ProductWithQuantity {
-                            quantity: agg_ingredient.quantity as u32,
-                            item: search_product.clone(),
-                        })
-                    })
-                    .or_insert_with(|| SaleTracking {
-                        items: vec![ProductWithQuantity {
-                            quantity: agg_ingredient.quantity as u32,
-                            item: search_product.clone(),
-                        }],
-                        sale_info: sale.clone(),
-                        provider,
-                    });
-            }
+            add_sale_item(search_product, agg_ingredient.quantity as u32)?;
 
             result
                 .entry(provider)
-                .and_modify(|tally| *tally += new_tally)
-                .or_insert(new_tally);
+                .and_modify(|tally| tally.original_price += original_price)
+                .or_insert(TallyPriceInfo {
+                    original_price,
+                    discount: 0,
+                });
         }
     }
 
@@ -291,44 +275,26 @@ fn handle_group(
     }
 }
 
-#[derive(Debug)]
-struct SaleItemGroup {
-    price_info: PriceInfo,
-    items: Vec<ProductWithQuantity>,
-}
-
-#[derive(Debug)]
-struct ProductWithQuantity {
-    quantity: u32,
-    item: WggSearchProduct,
-}
-
 struct SaleTracking {
     items: Vec<ProductWithQuantity>,
     sale_info: SaleInformation,
     provider: Provider,
 }
 
+#[derive(Debug)]
+pub struct SaleItemGroup {
+    price_info: PriceInfo,
+    items: Vec<ProductWithQuantity>,
+}
+
+#[derive(Debug)]
+pub struct ProductWithQuantity {
+    quantity: u32,
+    item: WggSearchProduct,
+}
+
 #[derive(Copy, Clone)]
 pub struct TallyPriceInfo {
     pub original_price: CentPrice,
     pub discount: CentPrice,
-}
-
-impl Add for TallyPriceInfo {
-    type Output = TallyPriceInfo;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            original_price: self.original_price + rhs.original_price,
-            discount: self.discount + rhs.discount,
-        }
-    }
-}
-
-impl AddAssign for TallyPriceInfo {
-    fn add_assign(&mut self, rhs: Self) {
-        self.original_price += rhs.original_price;
-        self.discount += rhs.discount;
-    }
 }
