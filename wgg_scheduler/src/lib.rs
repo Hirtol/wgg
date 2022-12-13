@@ -14,7 +14,6 @@ mod tests {
     use crate::schedule::Schedule;
     use crate::scheduler::JobScheduler;
     use chrono::Utc;
-    use futures::FutureExt;
     use std::time::Duration;
     use tokio::sync::mpsc::UnboundedReceiver;
 

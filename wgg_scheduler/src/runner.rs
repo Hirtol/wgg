@@ -26,14 +26,13 @@ pub enum Messages {
 }
 
 pub struct RunnerState {
-    jobs: HashMap<JobId, JobWrapper>,
-    job_queue: KeyedPriorityQueue<JobId, Reverse<DateTime<Utc>>>,
-    main_ref: JobScheduler,
-    recv: UnboundedReceiver<Messages>,
-    quit_notify: Arc<tokio::sync::Notify>,
+    job_queue: RunnerJobQueue,
     is_paused: bool,
     /// How often we should check
     check_rate: Duration,
+    recv: UnboundedReceiver<Messages>,
+    quit_notify: Arc<tokio::sync::Notify>,
+    main_ref: JobScheduler,
 }
 
 impl RunnerState {
@@ -45,8 +44,7 @@ impl RunnerState {
         is_paused: bool,
     ) -> Self {
         Self {
-            jobs: Default::default(),
-            job_queue: Default::default(),
+            job_queue: RunnerJobQueue::new(),
             main_ref,
             recv,
             quit_notify: quitter,
@@ -71,7 +69,7 @@ impl RunnerState {
                 }
                 Some(joined) = pipelines.next() => {
                     if let Ok(joined_result) = joined {
-                        self.rejoin_job(joined_result)
+                        self.requeue_job(joined_result)
                     } else {
                         #[cfg(feature = "tracing")]
                         tracing::error!("Job was cancelled before being joined!");
@@ -86,31 +84,19 @@ impl RunnerState {
     async fn handle_msg(&mut self, msg: Messages) -> anyhow::Result<()> {
         match msg {
             Messages::AddJob(id, job) => {
-                self.job_queue.push(id, Reverse(job.next_run()));
-                self.jobs.insert(id, JobWrapper::new(job));
-                println!("{:#?}", self.job_queue);
+                self.job_queue.push(id, job);
             }
             Messages::RemoveJob(id, response) => {
-                self.job_queue.remove(&id);
-                let job = self.jobs.remove(&id).and_then(JobWrapper::into_job_or_none);
+                let job = self.job_queue.remove(id);
                 let _ = response.send(job);
             }
             Messages::PauseScheduler => self.is_paused = true,
             Messages::ResumeScheduler => self.is_paused = false,
             Messages::PauseJob(id) => {
-                if let Some(job) = self.jobs.get_mut(&id) {
-                    let _ = self.job_queue.remove(&id);
-                    job.set_paused(true);
-                }
+                self.job_queue.pause_job(id);
             }
             Messages::ResumeJob(id) => {
-                if let Some(job) = self.jobs.get_mut(&id) {
-                    if let JobWrapper::Available { job, .. } = job {
-                        self.job_queue.push(job.id, Reverse(job.next_run()));
-                    }
-
-                    job.set_paused(false);
-                }
+                self.job_queue.unpause_job(id);
             }
         }
 
@@ -122,14 +108,8 @@ impl RunnerState {
         #[cfg(feature = "tracing")]
         tracing::trace!(?now, "Scheduler checking jobs...");
 
-        if matches!(self.job_queue.peek(), Some((_, when)) if now >= when.0) {
-            let (id, _) = self.job_queue.pop().unwrap();
-            let mut taken_job = self
-                .jobs
-                .get_mut(&id)
-                .and_then(JobWrapper::make_busy)
-                .ok_or_else(|| ScheduleError::JobAlreadyBusy(id))?;
-
+        while let Some(mut taken_job) = self.job_queue.take_ready_job(now) {
+            let id = taken_job.id;
             let main_ref = self.main_ref.clone();
             let future = async move {
                 #[cfg(feature = "tracing")]
@@ -151,8 +131,8 @@ impl RunnerState {
         Ok(())
     }
 
-    fn rejoin_job(&mut self, runner_result: RunnerResult) {
-        let job = match runner_result {
+    fn requeue_job(&mut self, joined_result: RunnerResult) {
+        let job = match joined_result {
             Ok(job) => job,
             Err((job, error)) => {
                 #[cfg(feature = "tracing")]
@@ -161,15 +141,83 @@ impl RunnerState {
             }
         };
 
+        self.job_queue.requeue_job(job);
+    }
+}
+
+struct RunnerJobQueue {
+    jobs: HashMap<JobId, JobWrapper>,
+    job_queue: KeyedPriorityQueue<JobId, Reverse<DateTime<Utc>>>,
+}
+
+impl RunnerJobQueue {
+    pub fn new() -> Self {
+        Self {
+            jobs: Default::default(),
+            job_queue: Default::default(),
+        }
+    }
+
+    /// Take a job which is at or past the time it should be ran.
+    ///
+    /// # Returns
+    ///
+    /// `None` whenever there is no job, or no job is ready to be ran yet.
+    pub fn take_ready_job(&mut self, now: DateTime<Utc>) -> Option<Job> {
+        if matches!(self.job_queue.peek(), Some((_, when)) if now >= when.0) {
+            let (id, _) = self.job_queue.pop().unwrap();
+            self.jobs.get_mut(&id).and_then(JobWrapper::make_busy)
+        } else {
+            None
+        }
+    }
+
+    /// After a [Job] is done running this method can be used to re-queue it.
+    ///
+    /// If the [Job] was removed from the internal record in the mean-time (between the calls of [take_ready_job](Self::take_ready_job) and [requeue_job](Self::requeue_job))
+    /// then the [Job] is returned.
+    pub fn requeue_job(&mut self, job: Job) -> Option<Job> {
         // If the job was removed in the meantime we don't want to re-add it, hence the `get_mut`!
         let Some(wrapper) = self.jobs.get_mut(&job.id) else {
-            return
+            return Some(job);
         };
 
         if !wrapper.is_paused() {
             self.job_queue.push(job.id, Reverse(job.next_run()));
         }
         wrapper.make_available(job);
+
+        None
+    }
+
+    /// Push the given [Job] to the queue.
+    ///
+    /// If the job was already past due for an execution then it will be instantly available at [take_ready_job](Self::take_ready_job).
+    pub fn push(&mut self, id: JobId, job: Job) {
+        self.job_queue.push(id, Reverse(job.next_run()));
+        self.jobs.insert(id, JobWrapper::new(job));
+    }
+
+    pub fn remove(&mut self, id: JobId) -> Option<Job> {
+        self.job_queue.remove(&id);
+        self.jobs.remove(&id).and_then(JobWrapper::into_job_or_none)
+    }
+
+    pub fn pause_job(&mut self, id: JobId) {
+        if let Some(job) = self.jobs.get_mut(&id) {
+            let _ = self.job_queue.remove(&id);
+            job.set_paused(true);
+        }
+    }
+
+    pub fn unpause_job(&mut self, id: JobId) {
+        if let Some(job) = self.jobs.get_mut(&id) {
+            if let JobWrapper::Available { job, .. } = job {
+                self.job_queue.push(job.id, Reverse(job.next_run()));
+            }
+
+            job.set_paused(false);
+        }
     }
 }
 
@@ -191,7 +239,6 @@ impl JobWrapper {
         }
     }
 
-    #[allow(dead_code)]
     pub fn is_paused(&self) -> bool {
         match self {
             JobWrapper::Available { paused, .. } => *paused,
@@ -202,6 +249,7 @@ impl JobWrapper {
     /// Check whether this job is pending by comparing it to `now`.
     ///
     /// Will automatically check if this job is paused or not.
+    #[allow(dead_code)]
     pub fn is_pending(&self, now: DateTime<Utc>) -> bool {
         match self {
             JobWrapper::Available { job, paused } => !*paused && job.is_pending(now),
