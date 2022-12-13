@@ -1,6 +1,5 @@
 use crate::sale_resolver::refresh_promotions;
 use crate::WggProvider;
-use futures::FutureExt;
 use std::sync::Arc;
 use wgg_scheduler::schedule::Schedule;
 use wgg_scheduler::Job;
@@ -19,7 +18,6 @@ pub fn get_promotions_refresh_job(schedule: Schedule, providers: Arc<WggProvider
             }
             Ok(())
         }
-        .boxed()
     })
     .expect("Invalid schedule provided")
 }

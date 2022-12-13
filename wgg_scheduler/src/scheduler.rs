@@ -56,7 +56,7 @@ impl JobScheduler {
     ///     // Stop self after the first execution
     ///     scheduler.remove(job_id);
     ///     Ok(())
-    /// }.boxed())?;
+    /// })?;
     ///
     /// let job_id = scheduler.push(job);
     /// // Start executing the above job
@@ -151,13 +151,7 @@ impl JobScheduler {
         let notify = Arc::new(tokio::sync::Notify::new());
         let (snd, recv) = tokio::sync::mpsc::unbounded_channel();
 
-        let runner = RunnerState::new(
-            self.clone(),
-            recv,
-            notify.clone(),
-            checking_frequency,
-            true,
-        );
+        let runner = RunnerState::new(self.clone(), recv, notify.clone(), checking_frequency, true);
         // Since we're spawning a future here best ensure we're running in a run-time!
         // This is why the function is marked as `async`.
         let handle = tokio::task::spawn(runner.run());

@@ -101,7 +101,6 @@ mod tests {
                 snd.send(()).unwrap();
                 Ok(())
             }
-            .boxed()
         })
         .unwrap();
 

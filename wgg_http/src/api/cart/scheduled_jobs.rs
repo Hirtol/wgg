@@ -7,7 +7,6 @@ use wgg_scheduler::schedule::Schedule;
 use wgg_scheduler::Job;
 
 pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: State) -> Job {
-    use futures::future::FutureExt;
     use futures::stream::StreamExt;
     Job::new(schedule, move |_, _| {
         let state = state.clone();
@@ -27,7 +26,6 @@ pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: State) -> Job 
 
             Ok(())
         }
-        .boxed()
     })
     .unwrap()
 }
