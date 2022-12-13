@@ -4,6 +4,8 @@ use crate::{error, JobScheduler};
 use chrono::{DateTime, Utc};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use keyed_priority_queue::KeyedPriorityQueue;
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,6 +27,7 @@ pub enum Messages {
 
 pub struct RunnerState {
     jobs: HashMap<JobId, JobWrapper>,
+    job_queue: KeyedPriorityQueue<JobId, Reverse<DateTime<Utc>>>,
     main_ref: JobScheduler,
     recv: UnboundedReceiver<Messages>,
     quit_notify: Arc<tokio::sync::Notify>,
@@ -43,6 +46,7 @@ impl RunnerState {
     ) -> Self {
         Self {
             jobs: Default::default(),
+            job_queue: Default::default(),
             main_ref,
             recv,
             quit_notify: quitter,
@@ -82,21 +86,29 @@ impl RunnerState {
     async fn handle_msg(&mut self, msg: Messages) -> anyhow::Result<()> {
         match msg {
             Messages::AddJob(id, job) => {
+                self.job_queue.push(id, Reverse(job.next_run()));
                 self.jobs.insert(id, JobWrapper::new(job));
+                println!("{:#?}", self.job_queue);
             }
             Messages::RemoveJob(id, response) => {
-                let job = self.jobs.remove(&id);
-                let _ = response.send(job.and_then(JobWrapper::into_job_or_none));
+                self.job_queue.remove(&id);
+                let job = self.jobs.remove(&id).and_then(JobWrapper::into_job_or_none);
+                let _ = response.send(job);
             }
             Messages::PauseScheduler => self.is_paused = true,
             Messages::ResumeScheduler => self.is_paused = false,
             Messages::PauseJob(id) => {
                 if let Some(job) = self.jobs.get_mut(&id) {
+                    let _ = self.job_queue.remove(&id);
                     job.set_paused(true);
                 }
             }
             Messages::ResumeJob(id) => {
                 if let Some(job) = self.jobs.get_mut(&id) {
+                    if let JobWrapper::Available { job, .. } = job {
+                        self.job_queue.push(job.id, Reverse(job.next_run()));
+                    }
+
                     job.set_paused(false);
                 }
             }
@@ -110,27 +122,30 @@ impl RunnerState {
         #[cfg(feature = "tracing")]
         tracing::trace!(?now, "Scheduler checking jobs...");
 
-        for (id, job) in self.jobs.iter_mut() {
-            if job.is_pending(now) {
-                let mut taken_job = job.make_busy().ok_or_else(|| ScheduleError::JobAlreadyBusy(*id))?;
-                let main_ref = self.main_ref.clone();
-                let id = *id;
-                let future = async move {
+        if matches!(self.job_queue.peek(), Some((_, when)) if now >= when.0) {
+            let (id, _) = self.job_queue.pop().unwrap();
+            let mut taken_job = self
+                .jobs
+                .get_mut(&id)
+                .and_then(JobWrapper::make_busy)
+                .ok_or_else(|| ScheduleError::JobAlreadyBusy(id))?;
+
+            let main_ref = self.main_ref.clone();
+            let future = async move {
+                #[cfg(feature = "tracing")]
+                tracing::trace!(?id, "Starting job: {:?}", id);
+
+                if let Err(e) = taken_job.run(id, main_ref).await {
+                    Err((taken_job, e))
+                } else {
                     #[cfg(feature = "tracing")]
-                    tracing::trace!(?id, "Starting job: {:?}", id);
+                    tracing::trace!(?id, "Done running job: {:?}", id);
 
-                    if let Err(e) = taken_job.run(id, main_ref).await {
-                        Err((taken_job, e))
-                    } else {
-                        #[cfg(feature = "tracing")]
-                        tracing::trace!(?id, "Done running job: {:?}", id);
+                    Ok(taken_job)
+                }
+            };
 
-                        Ok(taken_job)
-                    }
-                };
-
-                pipelines.push(tokio::task::spawn(future));
-            }
+            pipelines.push(tokio::task::spawn(future));
         }
 
         Ok(())
@@ -151,6 +166,9 @@ impl RunnerState {
             return
         };
 
+        if !wrapper.is_paused() {
+            self.job_queue.push(job.id, Reverse(job.next_run()));
+        }
         wrapper.make_available(job);
     }
 }
