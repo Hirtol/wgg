@@ -1,6 +1,7 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import logo from '$lib/assets/logo.svg';
+    import { aggregatePageRootUrl, cartPageRootUrl, productPageRootUrl, salesPageRootUrl } from '$lib/routing';
     import { UserData } from '$lib/state';
     import { isMobileScreen } from '$lib/state';
     import { Logout } from 'carbon-icons-svelte';
@@ -18,7 +19,7 @@
     }
 
     function linkProps(route: string, currentPage: string) {
-        let isActive = currentPage == route;
+        let isActive = (currentPage.includes(route) && route != '/') || currentPage == route;
         return {
             href: route,
             active: isActive,
@@ -37,9 +38,10 @@
     <NavHamburger on:click={toggle} />
     <NavUl {hidden} class="!bg-surface-200 dark:!bg-surface-900">
         <NavLi {...linkProps('/', currentPage)}>Home</NavLi>
-        <NavLi {...linkProps('/products', currentPage)}>Products</NavLi>
-        <NavLi {...linkProps('/sales', currentPage)}>Sales</NavLi>
-        <NavLi {...linkProps('/cart', currentPage)}>Cart</NavLi>
+        <NavLi {...linkProps(productPageRootUrl, currentPage)}>Products</NavLi>
+        <NavLi {...linkProps(aggregatePageRootUrl, currentPage)}>Aggregates</NavLi>
+        <NavLi {...linkProps(salesPageRootUrl, currentPage)}>Sales</NavLi>
+        <NavLi {...linkProps(cartPageRootUrl, currentPage)}>Cart</NavLi>
         <a
             class="unstyled inline-flex h-5 items-center py-2 pl-3  hover:dark:!bg-surface-700 md:justify-center md:pl-0"
             aria-label="Logout"
