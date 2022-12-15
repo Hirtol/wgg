@@ -1,10 +1,10 @@
 import { derived, type Readable, writable, type Writable } from 'svelte/store';
-import { type ViewerContextFragment, SubmitLoginDocument, LogoutMutationDocument } from '$lib/api/graphql_types';
+import { SubmitLoginDocument, LogoutMutationDocument, ViewerInfoFragment } from '$lib/api/graphql_types';
 import { asyncMutationStore, Client } from '$lib/api/urql';
 
 type isAuthenticated = boolean;
 // Current cart is an implementation detail for the GraphQL fetching in one round-trip, not relevant on actual user.
-export type UserData = Omit<ViewerContextFragment, 'currentCart'>;
+export type UserData = ViewerInfoFragment;
 export type UserStore = Writable<UserData | undefined>;
 
 /**
@@ -28,7 +28,8 @@ export async function loginUser(
         console.log('Failed to log-in user', item.error);
     }
 
-    authSession.set(item.data?.login.user);
+    // We explicitly do not set the session here as that is done in the load of the main app.
+    // authSession.set(item.data?.login.user);
 
     return {
         item: item.data?.login.user

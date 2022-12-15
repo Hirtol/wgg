@@ -120,7 +120,7 @@ impl<B: Send> FromRequest<B> for AuthContext {
     }
 }
 
-/// Verify whether the provided session token is still valid, and if so, returns the
+/// Verify whether the provided session token is still valid, and if so, returns the user.
 async fn verify_login_status(db: &DatabaseConnection, session_token: &str) -> GraphqlResult<AuthContext> {
     let user = db::users::find_user_by_token(session_token)
         .one(db)

@@ -3,11 +3,10 @@
     import { globalLoading } from '$lib/components/global_progress/global_loading';
     import { loginUser, UserData } from '$lib/state';
     import { Email, Password } from 'carbon-icons-svelte';
-    import classNames from 'classnames';
     import { Button, Card, Helper, Input, Label } from 'flowbite-svelte';
     import { createEventDispatcher } from 'svelte';
 
-    export { clasz as class };
+    export { _class as class };
 
     const client = getContextClient();
     const dispatch = createEventDispatcher<{
@@ -15,7 +14,7 @@
         loginFailed: any;
     }>();
 
-    let clasz: string = '';
+    let _class: string = '';
 
     let email: string;
     let password: string;
@@ -41,7 +40,7 @@
     }
 </script>
 
-<Card class={classNames('w-full dark:!bg-surface-900', clasz)} size="md">
+<Card class="w-full dark:!bg-surface-900 {_class}" size="md">
     <form on:submit|preventDefault={submitLogin} class="flex max-w-full flex-col space-y-6">
         <h2 class="p-0 text-xl font-medium text-gray-900 dark:text-white">Please sign in</h2>
         <Label class="space-y-2">
