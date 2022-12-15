@@ -146,7 +146,7 @@ pub enum Decorator {
     FreshLabel {
         period: String,
     },
-    Label {
+    Promo {
         text: String,
     },
     Price {

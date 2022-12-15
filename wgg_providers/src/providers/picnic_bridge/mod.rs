@@ -699,7 +699,7 @@ fn parse_decorators_for_sale(decorators: &[Decorator]) -> (Option<String>, Optio
 
     for dec in decorators {
         match dec {
-            Decorator::Label { text } => {
+            Decorator::Promo { text } => {
                 sale_label = Some(text.clone());
             }
             Decorator::ValidityLabel { valid_until } => {

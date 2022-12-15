@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Add, Subtract } from 'carbon-icons-svelte';
     import { createEventDispatcher } from 'svelte';
-    import { fade, fly } from 'svelte/transition';
+    import { fly } from 'svelte/transition';
 
     export let normalButton: boolean = false;
 

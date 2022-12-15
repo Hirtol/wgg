@@ -14,7 +14,7 @@
     let _class: string = '';
 
     $: classes = classNames(
-        'card card-body !bg-surface-50 dark:!bg-surface-700/75 h-full flex flex-col w-full',
+        'card p-4 !bg-surface-50 dark:!bg-surface-700/75 h-full flex flex-col w-full',
         pulse && 'animate-pulse',
         _class
     );

@@ -35,7 +35,7 @@
     <main class="container mx-auto">
         <section class="card">
             <header class="grid grid-cols-1 px-4 md:grid-cols-2">
-                <ImageCarousal class="card-body" {images} showThumbs={false} />
+                <ImageCarousal class="p-4" {images} showThumbs={false} />
 
                 <div class="flex flex-col justify-center gap-1">
                     <h2>{product.name}</h2>
@@ -56,13 +56,19 @@
                             product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
 
                     {#if product.saleInformation}
-                        <SaleLabel textSize="!text-base" text={product.saleInformation.label} saleType={product.saleInformation.saleType}/>
+                        <SaleLabel
+                            textSize="!text-base"
+                            text={product.saleInformation.label}
+                            saleType={product.saleInformation.saleType} />
                     {/if}
 
                     {#if product.unavailableDetails}
                         <span
                             use:tooltip={{
-                                content: product.unavailableDetails.explanationLong ?? product.unavailableDetails.explanationShort ?? '',
+                                content:
+                                    product.unavailableDetails.explanationLong ??
+                                    product.unavailableDetails.explanationShort ??
+                                    '',
                                 background: '!bg-accent-500',
                                 regionContainer: 'max-w-fit'
                             }}
