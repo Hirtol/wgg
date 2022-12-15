@@ -4,7 +4,7 @@
     import { asyncQueryStore, getContextClient } from '$lib/api/urql';
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import ProductList from '$lib/components/products/ProductList.svelte';
-    import { LightSwitch } from '@brainandbones/skeleton';
+    import { LightSwitch } from '@skeletonlabs/skeleton';
     import type { PageData } from './$types';
 
     const client = getContextClient();

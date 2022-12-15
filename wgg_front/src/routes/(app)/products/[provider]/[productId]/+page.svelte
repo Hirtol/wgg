@@ -3,7 +3,7 @@
     import { Provider, TextType } from '$lib/api/graphql_types';
     import AddComponent from '$lib/components/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
-    import { AccordionGroup, Divider, tooltip } from '@brainandbones/skeleton';
+    import { AccordionGroup, Divider, tooltip } from '@skeletonlabs/skeleton';
     import ImageCarousal from '$lib/components/ImageCarousal.svelte';
     import PriceComponent from '$lib/components/products/PriceComponent.svelte';
     import ShortDecorator from './ShortDecorator.svelte';

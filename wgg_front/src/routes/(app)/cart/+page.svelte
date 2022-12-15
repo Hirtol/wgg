@@ -1,8 +1,7 @@
 <script lang="ts">
-    import { Provider } from '$lib/api/graphql_types';
     import PageRoot from '$lib/components/PageRoot.svelte';
     import { getProviders } from '$lib/state';
-    import { AccordionGroup, AccordionItem } from '@brainandbones/skeleton';
+    import { AccordionGroup, AccordionItem } from '@skeletonlabs/skeleton';
     import { get } from 'svelte/store';
     import type { PageData } from './$types';
     import CartOverview from './CartOverview.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { centsToTextPrice } from '$lib/utils';
-    import { Divider } from '@brainandbones/skeleton';
+    import { Divider } from '@skeletonlabs/skeleton';
 
     export let data: { fullPriceCents: number; discountCents: number; priceCents: number };
 </script>

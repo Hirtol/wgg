@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
     import { FullProductFragment, ItemType, TextType } from '$lib/api/graphql_types';
-    import { AccordionGroup, AccordionItem } from '@brainandbones/skeleton';
+    import { AccordionGroup, AccordionItem } from '@skeletonlabs/skeleton';
     import { Apple, Information, ListDropdown, Restaurant, ToolBox } from 'carbon-icons-svelte';
     import { marked } from 'marked';
 
@@ -76,10 +76,10 @@
                 <h3>Nutritional Info</h3>
             </svelte:fragment>
 
-            <div class="table-container " slot="content">
+            <div class="table-container" slot="content">
                 <table class="table-hover table w-full">
                     <thead>
-                        <th />
+                        <th></th>
                         <th class="text-start">{product.nutritional.infoUnit}</th>
                     </thead>
                     <tbody>
