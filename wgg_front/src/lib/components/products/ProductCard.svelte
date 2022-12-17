@@ -43,10 +43,9 @@
     <header class="relative mx-auto">
         <ProductImage {data} blurImage={data.unavailableDetails != undefined} />
 
-        {#if data.unavailableDetails}
-            <p class="absolute bottom-0 left-0 w-full !text-warning-600 line-clamp-2 dark:!text-warning-300">
-                {data.unavailableDetails.explanationShort}
-            </p>
+        <!-- Sale Label -->
+        {#if saleInfo}
+            <SaleLabel class="absolute bottom-0 left-0 w-full" text={saleInfo.label} saleType={saleInfo.saleType} />
         {/if}
 
         <img
@@ -70,9 +69,11 @@
                 on:setQuantity={(e) => updateCartContent(data.id, data.providerInfo.provider, e.detail)} />
         </div>
 
-        <!-- Sale Label -->
-        {#if saleInfo}
-            <SaleLabel text={saleInfo.label} saleType={saleInfo.saleType} />
+        <!-- Unavailable Reason -->
+        {#if data.unavailableDetails}
+            <p class="w-full !text-warning-600 line-clamp-2 dark:!text-warning-300">
+                {data.unavailableDetails.explanationShort}
+            </p>
         {/if}
     </div>
 
