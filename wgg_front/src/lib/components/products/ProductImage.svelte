@@ -1,5 +1,5 @@
 <script lang="ts">
-    import classNames from 'classnames';
+    import ProductImageUnknownSvg from './ProductImageUnknownSvg.svelte';
 
     export { _class as class };
 
@@ -10,18 +10,18 @@
     export let data: { imageUrl?: string; name: string };
 
     let _class: string = '';
-
-    $: classes = classNames(
-        'aspect-video h-24 cursor-pointer object-contain hover:object-scale-down md:h-32',
-        _class
-    );
 </script>
 
-<img
-    src={data.imageUrl}
-    draggable="false"
-    loading="lazy"
-    class={classes}
-    class:opacity-20={blurImage}
-    {title}
-    alt={data.name} />
+{#if data.imageUrl}
+    <img
+        src={data.imageUrl}
+        draggable="false"
+        loading="lazy"
+        class="aspect-video h-24 cursor-pointer object-contain hover:object-scale-down md:h-32 {_class}"
+        class:opacity-20={blurImage}
+        {title}
+        alt={data.name} />
+{:else}
+    <ProductImageUnknownSvg
+        class="aspect-video h-24 cursor-pointer object-contain hover:object-scale-down md:h-32 {_class}" />
+{/if}

@@ -12,6 +12,8 @@ export const productPageItemUrl = (provider: Provider, productId: string) =>
 
 export const salesPageItemUrl = (provider: Provider, listId: string) => `${salesPageRootUrl}/${provider}/${listId}`;
 
+export const aggregatePageItemUrl = (aggregateId: number) => `${aggregatePageRootUrl}/${aggregateId}`;
+
 /**
  * Update a query parameter, and goto the new page to update browser history.
  */

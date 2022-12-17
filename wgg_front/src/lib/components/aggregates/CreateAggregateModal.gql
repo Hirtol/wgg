@@ -1,0 +1,14 @@
+mutation createAggregateProduct($input: AggregateCreateInput!) {
+    aggregateIngredientCreate(input: $input) {
+        data {
+            id
+            name
+            imageUrl
+            createdAt
+            ingredients {
+                ...ProductCardFragment
+            }
+            price(format: AVERAGE)
+        }
+    }
+}

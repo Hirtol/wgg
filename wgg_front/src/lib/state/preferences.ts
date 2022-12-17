@@ -1,4 +1,4 @@
-import { Provider } from '$lib/api/graphql_types';
+import { PriceFilter, Provider } from '$lib/api/graphql_types';
 import { notifications } from '$lib/components/notifications/notification';
 import { get, Writable } from 'svelte/store';
 import { getProviders, ProviderMap } from './providers';
@@ -14,6 +14,11 @@ export interface Preferences {
      * a general price to look at.
      */
     displayPrice: DisplayPriceOptions;
+
+    /**
+     * The price to display by default for aggregate ingredients
+     */
+    aggregateDisplayPrice: PriceFilter;
 
     /**
      * The provider which is selected by default when entering new pages.
@@ -60,7 +65,8 @@ export function verifyPreferenceIntegrity(preferences: Writable<Preferences>, av
 export function createPreferenceStore(): Writable<Preferences> {
     const defaultItem: Preferences = {
         displayPrice: 'AVERAGE',
-        favouriteProvider: Provider.Picnic
+        aggregateDisplayPrice: PriceFilter.Average,
+        favouriteProvider: Provider.Picnic,
     };
 
     const store = createPersistentWritable('wggPreferences', defaultItem);

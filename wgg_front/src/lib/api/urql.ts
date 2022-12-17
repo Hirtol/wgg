@@ -69,7 +69,7 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     WggSaleCategory: (x) => {
                         const data = x as WggSaleCategory;
                         const id = data.providerInfo.provider + data.name + data.id;
-                        
+
                         return id;
                     }
                 },
@@ -136,6 +136,8 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
 /**
  * Same as the {@link mutationStore} function, except that it returns a `Promise`, which resolves when the store has fetched its first data, or errored out.
  *
+ * Will *not* throw an exception on failure, so one has to check `item.error` for failure.
+ *
  * # Example
  *
  * ```ts
@@ -149,31 +151,35 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
     const result = mutationStore(args, handler);
 
     let resolver: (value: any) => void;
-    let rejector: (reason: any) => void;
+    let _rejector: (reason: any) => void;
 
     const finalPromise: Promise<{
         store: OperationResultStore<Data, Variables>;
         item: OperationResultState<Data, Variables>;
     }> = new Promise((accept, reject) => {
         resolver = accept;
-        rejector = reject;
+        _rejector = reject;
     });
 
     const unsubscribe = result.subscribe(async (x) => {
-        if (x.data != undefined) {
+        // if (x.data != undefined) {
+        //     resolver({ store: result, item: x });
+        //     // Hacky way to get around the situation where `x` has data immediately available.
+        //     // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
+        //     setTimeout(() => unsubscribe(), 1);
+        // }
+
+        if (!x.fetching) {
             resolver({ store: result, item: x });
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
             setTimeout(() => unsubscribe(), 1);
-        }
-
-        if (!x.fetching) {
-            if (x.error) {
-                rejector(result);
-                // Hacky way to get around the situation where `x` has data immediately available.
-                // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-                setTimeout(() => unsubscribe(), 1);
-            }
+            // if (x.error) {
+            //     rejector(result);
+            //     // Hacky way to get around the situation where `x` has data immediately available.
+            //     // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
+            //     setTimeout(() => unsubscribe(), 1);
+            // }
         }
     });
 

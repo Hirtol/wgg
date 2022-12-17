@@ -8,6 +8,7 @@
     import Notifier from '$lib/components/notifications/Notifiers.svelte';
     import type { LayoutData } from './$types';
     import { cartPageRootUrl } from '$lib/routing';
+    import { Modal } from '@skeletonlabs/skeleton';
 
     export let data: LayoutData;
 
@@ -32,5 +33,7 @@
 <GlobalLoading />
 <!-- Shows notifications for the user -->
 <Notifier />
+<!-- Shows modals -->
+<Modal />
 
 <slot />
