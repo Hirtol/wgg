@@ -107,7 +107,7 @@ pub struct PartialProduct {
     pub prices: Prices,
     pub available: bool,
     pub product_type: ProductType,
-    pub image_info: ImageInfo,
+    pub image_info: Option<ImageInfo>,
     /// Contains the information regarding the category of this product.
     ///
     /// Only available when queried from the `/products` endpoint.

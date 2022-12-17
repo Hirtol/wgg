@@ -374,7 +374,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
 }
 
 /// Parse a full picnic [wgg_jumbo::models::SingleArticle] to our normalised [SearchItem]
-fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -> WggSearchProduct {
+fn parse_jumbo_item_to_search_item(mut article: wgg_jumbo::models::PartialProduct) -> WggSearchProduct {
     let mut result = WggSearchProduct {
         id: article.id.into(),
         name: article.title,
@@ -383,7 +383,11 @@ fn parse_jumbo_item_to_search_item(article: wgg_jumbo::models::PartialProduct) -
             .as_deref()
             .and_then(common_bridge::parse_quantity)
             .unwrap_or_default(),
-        image_url: article.image_info.primary_view.first().map(|i| i.url.clone()),
+        image_url: article
+            .image_info
+            .take()
+            .map(|info| info.primary_view.into_iter())
+            .and_then(|it| it.map(|i| i.url).next()),
         decorators: Vec::new(),
         sale_information: None,
         provider: Provider::Jumbo,
