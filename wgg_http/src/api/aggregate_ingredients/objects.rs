@@ -45,7 +45,7 @@ impl AggregateIngredient {
 
         let result = match format {
             PriceFilter::Minimum => price_iter.min().unwrap_or_default(),
-            PriceFilter::Average => price_iter.sum::<CentPrice>() / products.len() as CentPrice,
+            PriceFilter::Average => price_iter.sum::<CentPrice>() / products.len().max(1) as CentPrice,
             PriceFilter::Maximum => price_iter.max().unwrap_or_default(),
         };
 

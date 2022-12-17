@@ -37,17 +37,16 @@ impl AggregateMutation {
     ) -> GraphqlResult<AggregateCreatePayload> {
         let state = ctx.wgg_state();
         let current_user = ctx.wgg_user()?;
-
         let product_image = if let Some(ingredient) = input.ingredients.first() {
-            state
-                .providers
-                .search_product(ingredient.provider, &ingredient.id)
-                .await?
-                .image_url
+            Some(
+                state
+                    .providers
+                    .search_product(ingredient.provider, &ingredient.id)
+                    .await?
+                    .image_url,
+            )
         } else {
-            return Err(GraphqlError::InvalidInput(
-                "Need at least one sub-ingredient to create an aggregate ingredient".to_string(),
-            ));
+            None
         };
 
         let tx = state.db.begin().await?;
@@ -60,18 +59,20 @@ impl AggregateMutation {
         };
         let model = new_aggregate.insert(&tx).await?;
 
-        let new_ingredients = input
-            .ingredients
-            .into_iter()
-            .map(|item| db::agg_ingredients_links::ActiveModel {
-                id: Default::default(),
-                aggregate_id: model.id.into_active_value(),
-                provider_id: state.provider_id_from_provider(&item.provider).into_active_value(),
-                provider_ingr_id: item.id.into_active_value(),
-            });
-        let _ = db::agg_ingredients_links::Entity::insert_many(new_ingredients)
-            .exec(&tx)
-            .await?;
+        if !input.ingredients.is_empty() {
+            let new_ingredients = input
+                .ingredients
+                .into_iter()
+                .map(|item| db::agg_ingredients_links::ActiveModel {
+                    id: Default::default(),
+                    aggregate_id: model.id.into_active_value(),
+                    provider_id: state.provider_id_from_provider(&item.provider).into_active_value(),
+                    provider_ingr_id: item.id.into_active_value(),
+                });
+            let _ = db::agg_ingredients_links::Entity::insert_many(new_ingredients)
+                .exec(&tx)
+                .await?;
+        }
 
         tx.commit().await?;
 
@@ -84,7 +85,6 @@ impl AggregateMutation {
     }
 
     /// Update an aggregate ingredient.
-    /// The sub-ingredients list should have at least one ingredient inside.
     ///
     /// # Returns
     ///
@@ -121,34 +121,30 @@ impl AggregateMutation {
         let model = update.update(&tx).await?;
 
         if let Some(ingredients) = input.ingredients.take() {
-            if ingredients.is_empty() {
-                return Err(GraphqlError::InvalidInput(
-                    "Need at least one sub-ingredient to create an aggregate ingredient".to_string(),
-                ));
-            }
-
             // Delete existing ingredients associated with this ID
             let _ = db::agg_ingredients_links::Entity::delete_many()
                 .filter(db::agg_ingredients_links::Column::AggregateId.eq(id))
                 .exec(&tx)
                 .await?;
 
-            // (Re)create the ingredients
-            let new_ingredients = ingredients
-                .into_iter()
-                .map(|item| db::agg_ingredients_links::ActiveModel {
-                    id: Default::default(),
-                    aggregate_id: id.into_active_value(),
-                    provider_id: state
-                        .db_providers
-                        .get(&item.provider)
-                        .copied()
-                        .into_flattened_active_value(),
-                    provider_ingr_id: item.id.into_active_value(),
-                });
-            let _ = db::agg_ingredients_links::Entity::insert_many(new_ingredients)
-                .exec(&tx)
-                .await?;
+            if !ingredients.is_empty() {
+                // (Re)create the ingredients
+                let new_ingredients = ingredients
+                    .into_iter()
+                    .map(|item| db::agg_ingredients_links::ActiveModel {
+                        id: Default::default(),
+                        aggregate_id: id.into_active_value(),
+                        provider_id: state
+                            .db_providers
+                            .get(&item.provider)
+                            .copied()
+                            .into_flattened_active_value(),
+                        provider_ingr_id: item.id.into_active_value(),
+                    });
+                let _ = db::agg_ingredients_links::Entity::insert_many(new_ingredients)
+                    .exec(&tx)
+                    .await?;
+            }
         }
 
         tx.commit().await?;
