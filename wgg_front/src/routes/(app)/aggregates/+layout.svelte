@@ -7,3 +7,5 @@
 <svelte:head>
     <title>Wgg - Aggregates</title>
 </svelte:head>
+
+<slot />
