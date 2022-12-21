@@ -41,8 +41,7 @@
         <div id="product-list-section" class="order-2 md:order-1 md:col-span-3">
             <SalesList
                 {cart}
-                data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []}
-                totalCount={$result.data?.proPromotions.totalCount ?? 0} />
+                data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []} />
         </div>
 
         <div class="order-1 flex justify-center md:order-2">
