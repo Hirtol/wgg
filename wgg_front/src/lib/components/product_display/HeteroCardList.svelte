@@ -32,7 +32,10 @@
             {:else if card.__typename === 'WggSaleGroupLimited'}
                 <SaleGroupCard data={card} />
             {:else if card.__typename === 'AggregateIngredient'}
-                <AggregateCard data={card} />
+                <AggregateCard
+                    data={card}
+                    quantity={$cartStore.getAggregateQuantity(card.id)?.quantity ?? 0}
+                    on:updateCartContent={updateCartContent} />
             {/if}
         {/each}
 

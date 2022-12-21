@@ -1,4 +1,4 @@
-query ViewerInfoQuery {
+query ViewerInfoQuery($price: PriceFilter!) {
     viewer {
         ...ViewerContext
     }

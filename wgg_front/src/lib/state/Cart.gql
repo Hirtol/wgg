@@ -1,10 +1,10 @@
-query CartCurrentQuery {
+query CartCurrentQuery($price: PriceFilter!) {
     cartCurrent {
         ...CartFragment
     }
 }
 
-mutation setProductToCart($input: CartAddProductInput!) {
+mutation setProductToCart($input: CartAddProductInput!, $price: PriceFilter!) {
     cartCurrentSetProduct(input: $input) {
         data {
             ...CartFragment
@@ -12,7 +12,7 @@ mutation setProductToCart($input: CartAddProductInput!) {
     }
 }
 
-mutation removeProductFromCart($input: CartRemoveProductInput!) {
+mutation removeProductFromCart($input: CartRemoveProductInput!, $price: PriceFilter!) {
     cartCurrentRemoveProduct(input: $input) {
         data {
             ...CartFragment
@@ -52,7 +52,7 @@ fragment CartContentFragment on CartContent {
             name
             imageUrl
             createdAt
-            price(format: MINIMUM)
+            price(format: $price)
             ingredients {
                 ...ProductCardFragment
             }

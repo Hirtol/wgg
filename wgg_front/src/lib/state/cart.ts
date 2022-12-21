@@ -3,13 +3,15 @@ import {
     CartCurrentQueryDocument,
     CartFragment,
     NoteProductInput,
+    PriceFilter,
     Provider,
     RawProductInput,
     RemoveProductFromCartDocument,
     SetProductToCartDocument
 } from '$lib/api/graphql_types';
 import { asyncMutationStore, Client } from '$lib/api/urql';
-import { Readable, writable } from 'svelte/store';
+import { derived, get, Readable, writable } from 'svelte/store';
+import { PreferenceStore } from './preferences';
 
 export type ProductId = string;
 
@@ -37,20 +39,36 @@ export interface CartData {
      */
     getProductQuantity(provider: Provider, productId: ProductId): QuantityInfo[];
 
+    /**
+     * Returns the quantity of this aggregate product that is present in this cart.
+     */
+    getAggregateQuantity(aggregateId: number): QuantityInfo | undefined;
+
     data: CartFragment | undefined;
 }
 
-export async function initialiseRealCart(client: Client, cartData?: CartFragment): Promise<CartStore> {
+export async function initialiseRealCart(
+    client: Client,
+    pricePreference: PreferenceStore,
+    cartData?: CartFragment
+): Promise<CartStore> {
+    let prefs = get(pricePreference);
     const cartInfo = cartData
         ? cartData
-        : (await client.query(CartCurrentQueryDocument, {}).toPromise()).data?.cartCurrent;
+        : (await client.query(CartCurrentQueryDocument, { price: prefs.aggregateDisplayPrice }).toPromise()).data
+              ?.cartCurrent;
 
-    const { subscribe, set } = writable(createCartData(cartInfo));
+    const backingStore = writable(createCartData(cartInfo));
+    const { set } = backingStore;
+    const resultStore: Readable<CartData> = derived([backingStore, pricePreference], (values, set_derived) => {
+        prefs = values[1];
+        set_derived(values[0]);
+    });
 
     return {
-        subscribe,
+        subscribe: resultStore.subscribe,
         setCartContent: async (productInput, client) => {
-            const data = await setCartContent(productInput, client);
+            const data = await setCartContent(productInput, prefs.aggregateDisplayPrice, client);
 
             if (data) {
                 set(createCartData(data));
@@ -58,7 +76,11 @@ export async function initialiseRealCart(client: Client, cartData?: CartFragment
         },
         refreshContent: async () => {
             const item = await client
-                .query(CartCurrentQueryDocument, {}, { requestPolicy: 'cache-and-network' })
+                .query(
+                    CartCurrentQueryDocument,
+                    { price: prefs.aggregateDisplayPrice },
+                    { requestPolicy: 'cache-and-network' }
+                )
                 .toPromise();
 
             if (item.data) {
@@ -72,6 +94,7 @@ function createCartData(cart: CartFragment | undefined): CartData {
     return {
         getProductQuantity: (provider: Provider, productId: string) =>
             cart ? getProductQuantityImpl(cart, provider, productId) : [],
+        getAggregateQuantity: (aggregateId) => (cart ? getAggregateQuantityImpl(cart, aggregateId) : undefined),
         data: cart
     };
 }
@@ -84,6 +107,7 @@ async function setCartContent(
         | (RawProductInput & { __typename: 'RawProduct' })
         | (AggregateProductInput & { __typename: 'Aggregate' })
         | (NoteProductInput & { __typename: 'Note' }),
+    priceFilter: PriceFilter,
     client: Client
 ): Promise<CartFragment | undefined> {
     if (productInput.quantity != 0) {
@@ -117,7 +141,8 @@ async function setCartContent(
         const { item } = await asyncMutationStore({
             query: SetProductToCartDocument,
             variables: {
-                input
+                input,
+                price: priceFilter
             },
             client
         });
@@ -140,7 +165,8 @@ async function setCartContent(
         const { item } = await asyncMutationStore({
             query: RemoveProductFromCartDocument,
             variables: {
-                input
+                input,
+                price: priceFilter
             },
             client
         });
@@ -152,6 +178,11 @@ async function setCartContent(
 export interface QuantityInfo {
     quantity: number;
     origin: 'Indirect' | 'Direct';
+}
+
+function getAggregateQuantityImpl(cart: CartFragment, aggregateId: number): QuantityInfo | undefined {
+    const item = cart.contents.find((x) => x.__typename == 'CartAggregateProduct' && x.aggregate.id == aggregateId);
+    return item ? { quantity: item.quantity, origin: 'Direct' } : undefined;
 }
 
 function getProductQuantityImpl(cart: CartFragment, provider: Provider, productId: ProductId): QuantityInfo[] {

@@ -4,6 +4,7 @@ import { get, Writable } from 'svelte/store';
 import { getProviders, ProviderMap } from './providers';
 import { createPersistentWritable } from './stores';
 
+export type PreferenceStore = Writable<Preferences>;
 export type DisplayPriceOptions = Provider | 'AVERAGE' | 'MAX' | 'MIN';
 
 export interface Preferences {

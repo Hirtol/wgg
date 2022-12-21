@@ -1,13 +1,15 @@
 <script lang="ts">
+    import PageRoot from '$lib/components/PageRoot.svelte';
     import AggregateCard from '$lib/components/product_display/aggregates/AggregateCard.svelte';
-import CreateAggregateModal from '$lib/components/product_display/aggregates/CreateAggregateModal.svelte';
+    import CreateAggregateModal from '$lib/components/product_display/aggregates/CreateAggregateModal.svelte';
+    import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
     import { ModalComponent, ModalSettings, modalStore } from '@skeletonlabs/skeleton';
     import type { PageData } from './$types';
 
     export let data: PageData;
 
-    $: ({store} = data);
-    $: ingredientList = $store.data?.aggregateIngredients.edges ?? []
+    $: ({ store, cart } = data);
+    $: ingredientList = $store.data?.aggregateIngredients.edges.map((x) => x.node) ?? [];
 
     function triggerCreateAggregateModal(): void {
         const modalComponent: ModalComponent = {
@@ -28,6 +30,6 @@ import CreateAggregateModal from '$lib/components/product_display/aggregates/Cre
     triggerCreateAggregateModal();
 </script>
 
-{#each ingredientList as aggregate(aggregate.cursor)}
-    <AggregateCard data={aggregate.node}></AggregateCard>
-{/each}
+<PageRoot>
+    <HeteroCardList data={ingredientList} cartStore={cart} />
+</PageRoot>

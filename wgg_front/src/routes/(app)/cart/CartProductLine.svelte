@@ -28,7 +28,7 @@
     $: priceData = getPriceData(data);
 
     $: saleInfo = data.__typename == 'CartProviderProduct' && data.product.saleInformation;
-    $: unavailableReason = data.__typename == 'CartProviderProduct' && data.product.unavailableDetails;
+    $: unavailableReason = data.__typename == 'CartProviderProduct' ? data.product.unavailableDetails : undefined;
 
     function getProductUrl(data: CartContentFragment): string | undefined {
         if (data.__typename == 'CartAggregateProduct') {
