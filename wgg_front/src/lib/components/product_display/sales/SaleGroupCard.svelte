@@ -4,15 +4,14 @@
 -->
 <script lang="ts">
     import { Provider, SaleGroupFragment } from '$lib/api/graphql_types';
-    import ProductCardSkeleton from '$lib/components/product_display/products/ProductCardSkeleton.svelte';
-    import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
-    import SaleLabel from '$lib/components/product_display/products/SaleLabel.svelte';
+    import ProductCardSkeleton from '../products/ProductCardSkeleton.svelte';
+    import ProductImage from '../products/ProductImage.svelte';
+    import SaleLabel from '../products/SaleLabel.svelte';
     import { salesPageItemUrl } from '$lib/routing';
 
-    export let provider: Provider;
     export let data: SaleGroupFragment;
 
-    $: listUrl = salesPageItemUrl(provider, data.id);
+    $: listUrl = salesPageItemUrl(data.providerInfo.provider, data.id);
 </script>
 
 <ProductCardSkeleton>

@@ -2,8 +2,8 @@
     import { page } from '$app/stores';
     import { GetAllPromotionsDocument } from '$lib/api/graphql_types';
     import { asyncQueryStore, getContextClient } from '$lib/api/urql';
+    import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
     import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
-    import ProductList from '$lib/components/product_display/products/ProductList.svelte';
     import { LightSwitch } from '@skeletonlabs/skeleton';
     import type { PageData } from './$types';
 
@@ -50,10 +50,6 @@
 <main class="container mx-auto px-0.5 md:px-0">
     <AddComponent normalButton permanentlyExpanded quantity={0} class="max-w-full" />
     {#if $cart && searchItems}
-        <!-- <ProductList cart={$cart} data={firstItem} cartStore={cart} /> -->
-        <!-- {#if firstItem}
-                <ProductCard class="max-w-[15rem]" data={firstItem} />
-            {/if} -->
-        <ProductList data={searchItems} cartStore={cart} />
+        <HeteroCardList data={searchItems} cartStore={cart} />
     {/if}
 </main>

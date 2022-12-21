@@ -4,23 +4,21 @@
 -->
 <script lang="ts">
     import { SaleCategoryFragment } from '$lib/api/graphql_types';
+    import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
     import ProductCardSkeleton from '$lib/components/product_display/products/ProductCardSkeleton.svelte';
     import { salesPageItemUrl } from '$lib/routing';
     import { CartStore } from '$lib/state';
     import { ChevronRight } from 'carbon-icons-svelte';
-    import HeteroCardList from './HeteroCardList.svelte';
 
     export let cart: CartStore;
     export let data: SaleCategoryFragment[];
-
-    export let totalCount: number;
 </script>
 
 <ul>
     {#each data as sale (sale.name)}
         <li>
             <h5>{sale.name}</h5>
-            <HeteroCardList cartStore={cart} data={sale}>
+            <HeteroCardList cartStore={cart} data={sale.items}>
                 <!-- More button to get full list. -->
                 <svelte:fragment slot="last-grid">
                     {#if !sale.complete && sale.id}

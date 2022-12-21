@@ -1,6 +1,6 @@
 <script lang="ts">
     import PageRoot from '$lib/components/PageRoot.svelte';
-    import ProductList from '$lib/components/product_display/products/ProductList.svelte';
+    import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
     import type { PageData } from './$types';
 
     export let data: PageData;
@@ -9,5 +9,5 @@
 </script>
 
 <PageRoot>
-    <ProductList cartStore={cart} data={$listStore.data?.proPromotionsSublist.items ?? []} />
+    <HeteroCardList cartStore={cart} data={$listStore.data?.proPromotionsSublist.items ?? []} />
 </PageRoot>

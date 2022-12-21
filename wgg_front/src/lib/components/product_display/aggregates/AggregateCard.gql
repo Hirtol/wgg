@@ -3,6 +3,7 @@ fragment AggregateCardFragment on AggregateIngredient {
     name
     imageUrl
     createdAt
+    price(format: $price)
     ingredients {
         ...ProductCardFragment
     }
