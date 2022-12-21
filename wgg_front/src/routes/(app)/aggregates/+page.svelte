@@ -1,6 +1,6 @@
 <script lang="ts">
-    import AggregateCard from '$lib/components/aggregates/AggregateCard.svelte';
-import CreateAggregateModal from '$lib/components/aggregates/CreateAggregateModal.svelte';
+    import AggregateCard from '$lib/components/product_display/aggregates/AggregateCard.svelte';
+import CreateAggregateModal from '$lib/components/product_display/aggregates/CreateAggregateModal.svelte';
     import { ModalComponent, ModalSettings, modalStore } from '@skeletonlabs/skeleton';
     import type { PageData } from './$types';
 

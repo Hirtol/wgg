@@ -3,20 +3,19 @@
     A partial Product card dedicated for displaying an aggregate ingredient
 -->
 <script lang="ts">
-    import { AggregateFragment, Provider } from '$lib/api/graphql_types';
-    import ProductCardSkeleton from '$lib/components/products/ProductCardSkeleton.svelte';
-    import ProductImage from '$lib/components/products/ProductImage.svelte';
-    import SaleLabel from '$lib/components/products/SaleLabel.svelte';
-    import { aggregatePageItemUrl, salesPageItemUrl } from '$lib/routing';
+    import {AggregateCardFragment} from '$lib/api/graphql_types';
+    import ProductCardSkeleton from '$lib/components/product_display/products/ProductCardSkeleton.svelte';
+    import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
+    import {aggregatePageItemUrl} from '$lib/routing';
 
-    export let data: AggregateFragment;
+    export let data: AggregateCardFragment;
 
     $: listUrl = aggregatePageItemUrl(data.id);
 </script>
 
 <ProductCardSkeleton>
     <header class="relative mx-auto">
-        <ProductImage data={{ name: data.name, imageUrl: data.imageUrl }} />
+        <ProductImage data={{ name: data.name, imageUrl: data.imageUrl }}/>
     </header>
 
     <div class="body">

@@ -3,20 +3,10 @@ query getAggregateIngredients($first: Int, $after: String, $filters: IngredientQ
         edges {
             cursor
             node {
-                ...AggregateFragment
+                ...AggregateCardFragment
                 price(format: $price)
             }
         }
         totalCount
-    }
-}
-
-fragment AggregateFragment on AggregateIngredient{
-    id
-    name
-    imageUrl
-    createdAt
-    ingredients {
-        ...ProductCardFragment
     }
 }

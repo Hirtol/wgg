@@ -2,8 +2,8 @@
     import { page } from '$app/stores';
     import { GetAllPromotionsDocument } from '$lib/api/graphql_types';
     import { asyncQueryStore, getContextClient } from '$lib/api/urql';
-    import AddComponent from '$lib/components/products/AddComponent.svelte';
-    import ProductList from '$lib/components/products/ProductList.svelte';
+    import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
+    import ProductList from '$lib/components/product_display/products/ProductList.svelte';
     import { LightSwitch } from '@skeletonlabs/skeleton';
     import type { PageData } from './$types';
 

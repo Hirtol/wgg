@@ -4,8 +4,8 @@
 -->
 <script lang="ts">
     import { SaleCategoryFragment } from '$lib/api/graphql_types';
-    import ProductCard from '$lib/components/products/ProductCard.svelte';
-    import ProductListSkeleton from '$lib/components/products/ProductListSkeleton.svelte';
+    import ProductCard from '$lib/components/product_display/products/ProductCard.svelte';
+    import ProductListSkeleton from '$lib/components/product_display/products/ProductListSkeleton.svelte';
     import { CartStore } from '$lib/state';
     import SaleGroupCard from './SaleGroupCard.svelte';
 

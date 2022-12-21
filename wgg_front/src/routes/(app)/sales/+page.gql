@@ -41,6 +41,10 @@ fragment SaleCategoryFragment on WggSaleCategory {
                     __typename
                 }
             }
+            providerInfo {
+                provider
+                logoUrl
+            }
         }
         ... on WggSearchProduct {
             ...ProductCardFragment
@@ -63,5 +67,9 @@ fragment SaleGroupFragment on WggSaleGroupLimited {
         saleType {
             __typename
         }
+    }
+    providerInfo {
+        provider
+        logoUrl
     }
 }

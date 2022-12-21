@@ -1,10 +1,10 @@
 <script lang="ts">
     import { CartContentFragment } from '$lib/api/graphql_types';
     import { getContextClient } from '$lib/api/urql';
-    import AddComponent from '$lib/components/products/AddComponent.svelte';
-    import PriceComponent from '$lib/components/products/PriceComponent.svelte';
-    import ProductImage from '$lib/components/products/ProductImage.svelte';
-    import SaleLabel from '$lib/components/products/SaleLabel.svelte';
+    import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
+    import PriceComponent from '$lib/components/product_display/products/PriceComponent.svelte';
+    import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
+    import SaleLabel from '$lib/components/product_display/products/SaleLabel.svelte';
     import { CartStore } from '$lib/state';
     import { Pen } from 'carbon-icons-svelte';
     import classNames from 'classnames';

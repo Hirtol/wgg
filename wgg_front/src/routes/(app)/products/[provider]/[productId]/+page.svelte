@@ -1,15 +1,15 @@
 <script lang="ts">
     import type { PageData } from './$types';
     import { Provider, TextType } from '$lib/api/graphql_types';
-    import AddComponent from '$lib/components/products/AddComponent.svelte';
+    import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
     import { AccordionGroup, Divider, tooltip } from '@skeletonlabs/skeleton';
     import ImageCarousal from '$lib/components/ImageCarousal.svelte';
-    import PriceComponent from '$lib/components/products/PriceComponent.svelte';
+    import PriceComponent from '$lib/components/product_display/products/PriceComponent.svelte';
     import ShortDecorator from './ShortDecorator.svelte';
-    import PriceQuantityComponent from '$lib/components/products/PriceQuantityComponent.svelte';
+    import PriceQuantityComponent from '$lib/components/product_display/products/PriceQuantityComponent.svelte';
     import ExtendedDescription from './ExtendedDescription.svelte';
-    import SaleLabel from '$lib/components/products/SaleLabel.svelte';
+    import SaleLabel from '$lib/components/product_display/products/SaleLabel.svelte';
 
     export let data: PageData;
 

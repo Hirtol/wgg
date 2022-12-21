@@ -4,9 +4,9 @@
 -->
 <script lang="ts">
     import { Provider, SaleGroupFragment } from '$lib/api/graphql_types';
-    import ProductCardSkeleton from '$lib/components/products/ProductCardSkeleton.svelte';
-    import ProductImage from '$lib/components/products/ProductImage.svelte';
-    import SaleLabel from '$lib/components/products/SaleLabel.svelte';
+    import ProductCardSkeleton from '$lib/components/product_display/products/ProductCardSkeleton.svelte';
+    import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
+    import SaleLabel from '$lib/components/product_display/products/SaleLabel.svelte';
     import { salesPageItemUrl } from '$lib/routing';
 
     export let provider: Provider;

@@ -1,0 +1,9 @@
+fragment AggregateCardFragment on AggregateIngredient {
+    id
+    name
+    imageUrl
+    createdAt
+    ingredients {
+        ...ProductCardFragment
+    }
+}

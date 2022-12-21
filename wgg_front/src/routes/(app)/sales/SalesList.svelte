@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
     import { SaleCategoryFragment } from '$lib/api/graphql_types';
-    import ProductCardSkeleton from '$lib/components/products/ProductCardSkeleton.svelte';
+    import ProductCardSkeleton from '$lib/components/product_display/products/ProductCardSkeleton.svelte';
     import { salesPageItemUrl } from '$lib/routing';
     import { CartStore } from '$lib/state';
     import { ChevronRight } from 'carbon-icons-svelte';
