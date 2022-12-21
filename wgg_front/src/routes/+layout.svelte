@@ -9,6 +9,7 @@
     import type { LayoutData } from './$types';
     import { cartPageRootUrl } from '$lib/routing';
     import { Modal } from '@skeletonlabs/skeleton';
+    import { page } from '$app/stores';
 
     export let data: LayoutData;
 
@@ -23,10 +24,11 @@
     afterNavigate((nav) => {
         globalLoading.stop();
     });
+    
 </script>
 
 <svelte:head>
-    <title>Wgg</title>
+    <title>{$page.data.title}</title>
 </svelte:head>
 
 <!-- Shows a loader bar at the top of the page similar to Github -->

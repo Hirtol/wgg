@@ -15,5 +15,6 @@ export const load: LayoutLoad = async (event) => {
     return {
         client,
         preferences,
+        title: "Wgg"
     };
 };

@@ -14,6 +14,7 @@ export const load: PageLoad = async (event) => {
     });
 
     return {
-        store
+        store,
+        title: "Wgg - Aggregates"
     };
 };

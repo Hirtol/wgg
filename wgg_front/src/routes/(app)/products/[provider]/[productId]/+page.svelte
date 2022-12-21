@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { PageData } from './$types';
-    import { Provider, TextType } from '$lib/api/graphql_types';
+    import { Provider } from '$lib/api/graphql_types';
     import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
     import { AccordionGroup, Divider, tooltip } from '@skeletonlabs/skeleton';
@@ -91,6 +91,3 @@
         <h6>Failed to gather product information, please refresh the page.</h6>
     </main>
 {/if}
-
-<style>
-</style>

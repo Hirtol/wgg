@@ -32,16 +32,10 @@
     }
 </script>
 
-<svelte:head>
-    <title>Wgg - Sales - {capitaliseFirst(currentProvider)}</title>
-</svelte:head>
-
 <PageRoot>
     <div class="grid grid-cols-1 gap-y-4 md:grid-cols-4 md:gap-4">
         <div id="product-list-section" class="order-2 md:order-1 md:col-span-3">
-            <SalesList
-                {cart}
-                data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []} />
+            <SalesList {cart} data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []} />
         </div>
 
         <div class="order-1 flex justify-center md:order-2">

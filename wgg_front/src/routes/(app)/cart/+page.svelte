@@ -23,10 +23,6 @@
     $: tallies.sort((a, b) => a.providerInfo.provider.localeCompare(b.providerInfo.provider));
 </script>
 
-<svelte:head>
-    <title>Wgg - Cart</title>
-</svelte:head>
-
 <PageRoot>
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <CartProductList columns={['grid-cols-1', '2xl:grid-cols-2']} data={$cart.data?.contents ?? []} {cart} />

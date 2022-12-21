@@ -13,18 +13,16 @@ export const load: LayoutLoad = async (event) => {
     let cartContents = undefined;
     let providers = undefined;
 
-    if (get(authSession) == undefined) {
-        const { isAuthenticated, user, remoteProviders } = await authenticateUser(client, concPrefs.aggregateDisplayPrice);
+    const { isAuthenticated, user, remoteProviders } = await authenticateUser(client, concPrefs.aggregateDisplayPrice);
 
-        // Perform authentication check
-        if (!isAuthenticated) {
-            const loginUrl = event.url.href.length > 0 ? `/login?redirect=${event.url.pathname}` : '/login';
+    // Perform authentication check
+    if (!isAuthenticated) {
+        const loginUrl = event.url.href.length > 0 ? `/login?redirect=${event.url.pathname}` : '/login';
 
-            throw redirect(302, loginUrl);
-        } else {
-            cartContents = user?.currentCart;
-            providers = remoteProviders;
-        }
+        throw redirect(302, loginUrl);
+    } else {
+        cartContents = user?.currentCart;
+        providers = remoteProviders;
     }
 
     // Verify preference integrity

@@ -1,6 +1,7 @@
 import { GetFilteredPromotionsDocument, Provider } from '$lib/api/graphql_types';
 import { asyncQueryStore } from '$lib/api/urql';
 import { verifyProviderOrError } from '$lib/loading';
+import { capitaliseFirst } from '$lib/utils';
 import { get } from 'svelte/store';
 import type { PageLoad } from './$types';
 
@@ -20,6 +21,7 @@ export const load: PageLoad = async (event) => {
 
     return {
         result: store,
-        initialProvider
+        initialProvider,
+        title: `Wgg - Sales - ${capitaliseFirst(initialProvider)}`
     };
 };
