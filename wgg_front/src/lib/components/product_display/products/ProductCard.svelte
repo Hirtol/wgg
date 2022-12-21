@@ -34,7 +34,6 @@
     $: productUrl = productPageItemUrl(data.providerInfo.provider, data.id);
 
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
-        quantity = newQuantity;
         dispatch('updateCartContent', { productId, provider, newQuantity });
     }
 </script>
@@ -60,8 +59,7 @@
 
         <!-- Quantity and Add/Remove -->
         <div class="text-s flex text-gray-500 dark:text-gray-400">
-            <PriceQuantityComponent
-                data={{ unitQuantity: data.unitQuantity, priceInfo: data.priceInfo }} />
+            <PriceQuantityComponent data={{ unitQuantity: data.unitQuantity, priceInfo: data.priceInfo }} />
 
             <AddComponent
                 class="ml-auto inline-block !h-6"

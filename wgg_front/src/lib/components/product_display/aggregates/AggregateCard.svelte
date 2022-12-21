@@ -25,7 +25,6 @@
     let _class: string = '';
 
     async function updateCartContent(aggregateId: number, newQuantity: number) {
-        quantity = newQuantity;
         dispatch('updateCartContent', { aggregateId, newQuantity });
     }
 
