@@ -1,11 +1,11 @@
 <script lang="ts">
     import classNames from "classnames";
 
-    export {clasz as class};
+    export {_class as class};
 
-    let clasz: string = ''
+    let _class: string = '';
 </script>
 
-<main class={classNames("container mx-auto px-0.5 md:px-0", clasz)}>
+<main class={classNames("container mx-auto px-0.5 md:px-0", _class)}>
     <slot/>
 </main>

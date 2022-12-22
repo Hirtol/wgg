@@ -10,6 +10,7 @@
     import PriceQuantityComponent from '$lib/components/product_display/products/PriceQuantityComponent.svelte';
     import ExtendedDescription from './ExtendedDescription.svelte';
     import SaleLabel from '$lib/components/product_display/products/SaleLabel.svelte';
+    import PageRoot from '$lib/components/PageRoot.svelte';
 
     export let data: PageData;
 
@@ -32,7 +33,7 @@
 </script>
 
 {#if product}
-    <main class="container mx-auto">
+    <PageRoot class="px-0">
         <section class="card">
             <header class="grid grid-cols-1 px-4 md:grid-cols-2">
                 <ImageCarousal class="p-4" {images} showThumbs={false} />
@@ -85,7 +86,7 @@
                 <ExtendedDescription {product} />
             </div>
         </section>
-    </main>
+    </PageRoot>
 {:else}
     <main class="text-center">
         <h6>Failed to gather product information, please refresh the page.</h6>

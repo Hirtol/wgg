@@ -1,8 +1,8 @@
 use crate::api::aggregate_ingredients::objects::AggregateIngredient;
 use crate::api::pagination::{ConnectionResult, QueryResult};
-use crate::api::{self, ContextExt};
+use crate::api::{self, ContextExt, GraphqlResult};
 use crate::cross_system::{self, Filter};
-use crate::db::{self, SelectExt};
+use crate::db::{self, Id, SelectExt};
 use async_graphql::{Context, Object};
 use sea_orm::{EntityTrait, QueryFilter};
 
@@ -49,6 +49,22 @@ impl AggregateQuery {
             })
         })
         .await
+    }
+
+    /// Returns the specific aggregate ingredient, if it is owned by the current user and exists.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone.
+    #[tracing::instrument(skip(self, ctx))]
+    async fn aggregate_ingredient(&self, ctx: &Context<'_>, id: Id) -> GraphqlResult<AggregateIngredient> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        Ok(db::agg_ingredients::Entity::find_by_id(id)
+            .filter(db::agg_ingredients::created_by(user.id))
+            .one_or_err(&state.db)
+            .await?
+            .into())
     }
 }
 

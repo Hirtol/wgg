@@ -57,21 +57,19 @@
             <div class="flex flex-nowrap justify-between gap-0.5" in:fly>
                 <button
                     title="Subtract Quantity"
-                    class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
+                    class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                     on:click={() => setQuantity(--quantity)}>
                     <Subtract size={24} />
                 </button>
                 <button
                     title="Hide"
-                    class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
+                    class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                     on:click={() => (isExpanded = permanentlyExpanded)}>
-                    <p class="w-full rounded-full bg-primary-500 text-center text-surface-50">
-                        {quantity}
-                    </p>
+                    {quantity}
                 </button>
                 <button
                     title="Add Quantity"
-                    class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
+                    class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                     on:click={() => setQuantity(++quantity)}>
                     <Add size={24} />
                 </button>
@@ -79,18 +77,16 @@
         {:else}
             <button
                 title="Show Controls"
-                class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
+                class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                 on:click={setExpanded}
                 in:fly>
-                <p class="w-full rounded-full bg-primary-500 text-center text-surface-50">
-                    {quantity}
-                </p>
+                {quantity}
             </button>
         {/if}
     {:else if normalButton}
         <button
             title="Add Quantity"
-            class="btn btn-sm rounded bg-primary-500"
+            class="btn btn-sm btn-filled-primary"
             in:fly
             on:click={() => setQuantity(++quantity)}>
             Add to cart
@@ -98,7 +94,7 @@
     {:else}
         <button
             title="Add Quantity"
-            class="btn-icon !w-6 rounded-full bg-primary-500 !p-0 text-surface-50"
+            class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
             in:fly
             on:click={() => setQuantity(++quantity)}>
             <Add size={24} />

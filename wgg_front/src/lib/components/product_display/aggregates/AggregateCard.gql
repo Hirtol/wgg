@@ -5,7 +5,4 @@ fragment AggregateCardFragment on AggregateIngredient {
     imageUrl
     createdAt
     price(format: $price)
-    ingredients {
-        ...ProductCardFragment
-    }
 }

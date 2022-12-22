@@ -1,0 +1,8 @@
+query getAggregateIngredient($id: Int!, $price: PriceFilter!) {
+    aggregateIngredient(id: $id) {
+        ...AggregateCardFragment
+        ingredients {
+            ...ProductCardFragment
+        }
+    }
+}
