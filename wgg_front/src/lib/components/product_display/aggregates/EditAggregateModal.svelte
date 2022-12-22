@@ -1,9 +1,9 @@
 <!--
     @component
-    The modal which allows one to create a new Aggregate product
+    The modal which allows one to edit an existing Aggregate product
 -->
 <script lang="ts">
-    import { CreateAggregateProductDocument } from '$lib/api/graphql_types';
+    import { AggregateCardFragment, UpdateAggregateProductDocument } from '$lib/api/graphql_types';
     import { asyncMutationStore } from '$lib/api/urql';
     import { getContextPreferences } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
@@ -12,21 +12,29 @@
 
     /** Exposes parent props to this component. */
     export let parent: any;
+    /**
+     * The current aggregate ingredient.
+     */
+    export let aggregate: AggregateCardFragment;
 
     const client = getContextClient();
     const preferences = getContextPreferences();
     const formData = {
-        name: ''
+        name: aggregate.name,
+        imageUrl: aggregate.imageUrl
     };
 
     async function onFormSubmit() {
+        if (disableSubmit) return;
+
         let { item } = await globalLoading.submit(
             asyncMutationStore({
-                query: CreateAggregateProductDocument,
+                query: UpdateAggregateProductDocument,
                 variables: {
+                    id: aggregate.id,
                     input: {
                         name: formData.name,
-                        ingredients: []
+                        imageUrl: formData.imageUrl
                     },
                     price: $preferences.aggregateDisplayPrice
                 },
@@ -53,6 +61,11 @@
             <span>Name</span>
             <input type="text" bind:value={formData.name} placeholder="Enter name..." />
         </label>
+        <label>
+            <span>Image url</span>
+            <input type="url" bind:value={formData.imageUrl} placeholder="Enter image url..." />
+        </label>
+        <input type="submit" class="hidden" aria-hidden="true" />
     </form>
     <!-- prettier-ignore -->
     <footer class="modal-footer {parent.regionFooter}">

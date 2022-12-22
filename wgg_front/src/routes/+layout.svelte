@@ -10,10 +10,12 @@
     import { cartPageRootUrl } from '$lib/routing';
     import { Modal } from '@skeletonlabs/skeleton';
     import { page } from '$app/stores';
+    import { setContextPreference } from '$lib/state';
 
     export let data: LayoutData;
 
     setContextClient(data.client);
+    setContextPreference(data.preferences);
 
     preloadCode(cartPageRootUrl);
 
@@ -24,7 +26,6 @@
     afterNavigate((nav) => {
         globalLoading.stop();
     });
-    
 </script>
 
 <svelte:head>

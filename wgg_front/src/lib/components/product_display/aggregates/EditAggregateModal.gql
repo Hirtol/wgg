@@ -1,0 +1,7 @@
+mutation updateAggregateProduct($id: Int!, $input: AggregateUpdateChangeSet!, $price: PriceFilter!) {
+    aggregateIngredientUpdate(id: $id, input: $input) {
+        data {
+            ...AggregateFullFragment
+        }
+    }
+}

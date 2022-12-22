@@ -6,3 +6,10 @@ fragment AggregateCardFragment on AggregateIngredient {
     createdAt
     price(format: $price)
 }
+
+fragment AggregateFullFragment on AggregateIngredient {
+    ... AggregateCardFragment
+    ingredients {
+        ...ProductCardFragment
+    }
+}

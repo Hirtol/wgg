@@ -1,5 +1,6 @@
 import { PriceFilter, Provider } from '$lib/api/graphql_types';
 import { notifications } from '$lib/components/notifications/notification';
+import { getContext, setContext } from 'svelte';
 import { get, Writable } from 'svelte/store';
 import { getProviders, ProviderMap } from './providers';
 import { createPersistentWritable } from './stores';
@@ -30,7 +31,10 @@ export interface Preferences {
 /**
  * Whenever the web-app is started we should verify whether our previous favorites are still valid in the current server config!
  */
-export function verifyPreferenceIntegrity(preferences: Writable<Preferences>, availableProviders: ProviderMap): boolean {
+export function verifyPreferenceIntegrity(
+    preferences: Writable<Preferences>,
+    availableProviders: ProviderMap
+): boolean {
     let isUnmodified = true;
     const globalProviders = getProviders();
     const currentPrefs = get(preferences);
@@ -67,10 +71,18 @@ export function createPreferenceStore(): Writable<Preferences> {
     const defaultItem: Preferences = {
         displayPrice: 'AVERAGE',
         aggregateDisplayPrice: PriceFilter.Average,
-        favouriteProvider: Provider.Picnic,
+        favouriteProvider: Provider.Picnic
     };
 
     const store = createPersistentWritable('wggPreferences', defaultItem);
 
     return store;
+}
+
+export function setContextPreference(preferenceStore: PreferenceStore) {
+    setContext('wgg_preference', preferenceStore);
+}
+
+export function getContextPreferences(): PreferenceStore {
+    return getContext('wgg_preference');
 }

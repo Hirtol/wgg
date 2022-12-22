@@ -2,12 +2,13 @@
     import type { PageData } from './$types';
     import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
-    import { Divider } from '@skeletonlabs/skeleton';
+    import { Divider, ModalComponent, ModalSettings, modalStore } from '@skeletonlabs/skeleton';
     import PriceComponent from '$lib/components/product_display/products/PriceComponent.svelte';
     import PageRoot from '$lib/components/PageRoot.svelte';
     import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
     import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
     import { Pen } from 'carbon-icons-svelte';
+    import EditAggregateModal from '$lib/components/product_display/aggregates/EditAggregateModal.svelte';
 
     export let data: PageData;
 
@@ -20,6 +21,22 @@
 
     async function updateCartContent(aggregateId: number, newQuantity: number) {
         await cart.setCartContent({ __typename: 'Aggregate', aggregateId, quantity: newQuantity }, client);
+    }
+
+    function triggerCreateAggregateModal(): void {
+        const modalComponent: ModalComponent = {
+            ref: EditAggregateModal,
+            props: {
+                aggregate
+            }
+        };
+        const modal: ModalSettings = {
+            type: 'component',
+            component: modalComponent,
+            title: 'Edit Aggregate Product'
+        };
+
+        modalStore.trigger(modal);
     }
 </script>
 
@@ -43,7 +60,7 @@
                             {quantity}
                             on:setQuantity={(e) => aggregate && updateCartContent(aggregate.id, e.detail)} />
                         <div class="pt-2">
-                            <button class="btn btn-filled-primary btn-sm !h-[2rem] py-0" title="Edit aggregate ingredient">
+                            <button class="btn btn-filled-primary btn-sm !h-[2rem] py-0" title="Edit aggregate ingredient" on:click={triggerCreateAggregateModal}>
                                 <Pen size={24} />
                             </button>
                         </div>
