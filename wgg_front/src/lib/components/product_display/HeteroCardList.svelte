@@ -15,13 +15,15 @@
     import SaleGroupCard from './sales/SaleGroupCard.svelte';
     import AggregateCard from '$lib/components/product_display/aggregates/AggregateCard.svelte';
 
+    export {_class as class};
     export let data: HeteroCardData[];
     export let cartStore: CartStore;
-
     export let columns = ['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'xl:grid-cols-5', '2xl:grid-cols-6'];
+
+    let _class: string = ''
 </script>
 
-<CardListSkeleton {cartStore} {columns}>
+<CardListSkeleton class={_class} {cartStore} {columns}>
     <svelte:fragment let:updateCartContent>
         {#each data as card (card.id + (card.__typename ?? ''))}
             {#if card.__typename === 'WggSearchProduct'}

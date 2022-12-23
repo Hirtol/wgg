@@ -10,11 +10,14 @@
     import { getContextClient } from '$lib/api/urql';
     import { CartStore } from '$lib/state';
 
+    export {_class as class};
     export let cartStore: CartStore;
 
     export let columns = ['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'xl:grid-cols-5', '2xl:grid-cols-6'];
 
     const client = getContextClient();
+
+    let _class: string = '';
 
     /**
      * Update the given productId to be the new quantity.
@@ -51,6 +54,6 @@
     }
 </script>
 
-<div class="grid gap-0.5 md:gap-2 {columns.join(' ')}">
+<div class="grid gap-0.5 md:gap-2 {columns.join(' ')} {_class}">
     <slot {updateCartContent} />
 </div>

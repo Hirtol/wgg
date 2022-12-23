@@ -17,11 +17,10 @@
         src={data.imageUrl}
         draggable="false"
         loading="lazy"
-        class="aspect-video h-24 cursor-pointer object-contain md:h-32 {_class}"
+        class="aspect-video h-24 w-full cursor-pointer object-contain md:h-32 {_class}"
         class:opacity-20={blurImage}
         {title}
         alt={data.name} />
 {:else}
-    <ProductImageUnknownSvg
-        class="aspect-video h-24 cursor-pointer object-contain md:h-32 {_class}" />
+    <ProductImageUnknownSvg class="aspect-video h-24 w-full cursor-pointer object-contain md:h-32 {_class}" />
 {/if}

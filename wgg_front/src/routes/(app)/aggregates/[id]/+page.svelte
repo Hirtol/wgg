@@ -68,7 +68,7 @@
 </script>
 
 {#if aggregate}
-    <PageRoot class="px-0">
+    <PageRoot class="px-0 pt-0">
         <section class="card">
             <header class="grid grid-cols-1 px-4 md:grid-cols-2">
                 <ProductImage
