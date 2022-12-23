@@ -24,10 +24,8 @@
 </script>
 
 <PageRoot>
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <CartProductList columns={['grid-cols-1', '2xl:grid-cols-2']} data={$cart.data?.contents ?? []} {cart} />
-
-        <div class="card h-min p-4">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="card order-2 h-min p-4 md:order-1">
             <h4 class="text-center">Overview</h4>
 
             <AccordionGroup>
@@ -49,5 +47,11 @@
                 {/each}
             </AccordionGroup>
         </div>
+
+        <CartProductList
+            class="order-1 md:order-2 md:col-span-2"
+            columns={['grid-cols-1', 'xl:grid-cols-2']}
+            data={$cart.data?.contents ?? []}
+            {cart} />
     </div>
 </PageRoot>

@@ -33,12 +33,8 @@
 </script>
 
 <PageRoot>
-    <div class="grid grid-cols-1 gap-y-4 md:grid-cols-4 md:gap-4">
-        <div id="product-list-section" class="order-2 md:order-1 md:col-span-3">
-            <SalesList {cart} data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []} />
-        </div>
-
-        <div class="order-1 flex justify-center md:order-2">
+    <div class="grid grid-cols-1 gap-y-4 md:grid-cols-5 md:gap-4">
+        <div class="flex justify-center">
             <label class="w-full">
                 <span>Current Provider Sales</span>
                 <select bind:value={currentProvider} on:change={updateHistory}>
@@ -47,6 +43,9 @@
                     {/each}
                 </select>
             </label>
+        </div>
+        <div id="product-list-section" class="md:col-span-4">
+            <SalesList {cart} data={$result.data?.proPromotions.edges.map((i) => i.node) ?? []} />
         </div>
     </div>
 </PageRoot>
