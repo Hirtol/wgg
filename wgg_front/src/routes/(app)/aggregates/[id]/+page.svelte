@@ -7,8 +7,12 @@
     import PageRoot from '$lib/components/PageRoot.svelte';
     import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
     import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
-    import { Pen } from 'carbon-icons-svelte';
+    import { Pen, TrashCan } from 'carbon-icons-svelte';
     import EditAggregateModal from '$lib/components/product_display/aggregates/EditAggregateModal.svelte';
+    import { asyncMutationStore } from '$lib/api/urql';
+    import { DeleteAggregateIngredientDocument } from '$lib/api/graphql_types';
+    import { goto } from '$app/navigation';
+    import { aggregatePageRootUrl } from '$lib/routing';
 
     export let data: PageData;
 
@@ -23,7 +27,7 @@
         await cart.setCartContent({ __typename: 'Aggregate', aggregateId, quantity: newQuantity }, client);
     }
 
-    function triggerCreateAggregateModal(): void {
+    function triggerCreateAggregateModal() {
         const modalComponent: ModalComponent = {
             ref: EditAggregateModal,
             props: {
@@ -34,6 +38,29 @@
             type: 'component',
             component: modalComponent,
             title: 'Edit Aggregate Product'
+        };
+
+        modalStore.trigger(modal);
+    }
+
+    function triggerConfirmDeleteModal() {
+        if (aggregate == undefined) return;
+
+        const modal: ModalSettings = {
+            type: 'confirm',
+            title: 'Please confirm deletion',
+            body: `Are you sure you wish to delete ${aggregate.name}?`,
+            response: async (response: boolean) => {
+                if (!aggregate || !response) return;
+
+                await goto(aggregatePageRootUrl);
+
+                let _ = await asyncMutationStore({
+                    query: DeleteAggregateIngredientDocument,
+                    variables: { id: aggregate.id },
+                    client
+                });
+            }
         };
 
         modalStore.trigger(modal);
@@ -60,8 +87,17 @@
                             {quantity}
                             on:setQuantity={(e) => aggregate && updateCartContent(aggregate.id, e.detail)} />
                         <div class="pt-2">
-                            <button class="btn btn-filled-primary btn-sm !h-[2rem] py-0" title="Edit aggregate ingredient" on:click={triggerCreateAggregateModal}>
+                            <button
+                                class="btn btn-filled-primary btn-sm !h-[2rem] py-0"
+                                title="Edit aggregate ingredient"
+                                on:click={triggerCreateAggregateModal}>
                                 <Pen size={24} />
+                            </button>
+                            <button
+                                class="btn btn-filled-primary btn-sm !h-[2rem] py-0"
+                                title="Delete aggregate ingredient"
+                                on:click={triggerConfirmDeleteModal}>
+                                <TrashCan size={24} />
                             </button>
                         </div>
                     </div>

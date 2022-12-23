@@ -6,3 +6,9 @@ query getAggregateIngredient($id: Int!, $price: PriceFilter!) {
         }
     }
 }
+
+mutation deleteAggregateIngredient($id: Int!) {
+    aggregateIngredientDelete(ids: [$id]) {
+        deleted
+    }
+}

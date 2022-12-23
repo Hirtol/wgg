@@ -27,20 +27,18 @@
     async function onFormSubmit() {
         if (disableSubmit) return;
 
-        let { item } = await globalLoading.submit(
-            asyncMutationStore({
-                query: UpdateAggregateProductDocument,
-                variables: {
-                    id: aggregate.id,
-                    input: {
-                        name: formData.name,
-                        imageUrl: formData.imageUrl
-                    },
-                    price: $preferences.aggregateDisplayPrice
+        let { item } = await asyncMutationStore({
+            query: UpdateAggregateProductDocument,
+            variables: {
+                id: aggregate.id,
+                input: {
+                    name: formData.name,
+                    imageUrl: formData.imageUrl
                 },
-                client
-            })
-        );
+                price: $preferences.aggregateDisplayPrice
+            },
+            client
+        });
 
         if (!item.error) {
             if ($modalStore[0].response) $modalStore[0].response(formData);

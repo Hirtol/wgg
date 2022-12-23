@@ -28,7 +28,7 @@
         awaitingLogin = true;
 
         try {
-            const { item } = await globalLoading.submit(loginUser(email, password, client));
+            const { item } = await loginUser(email, password, client);
 
             dispatch('loginSuccess', item);
         } catch (error) {

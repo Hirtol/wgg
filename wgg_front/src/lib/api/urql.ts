@@ -19,6 +19,7 @@ import {
 } from '@urql/svelte';
 import type { Readable } from 'svelte/store';
 import { ProviderInfo, WggSaleCategory } from './graphql_types';
+import { globalLoading } from '$lib/components/global_progress/global_loading';
 
 export * from '@urql/svelte';
 
@@ -77,6 +78,16 @@ export function createUrqlClient(opts?: ClientOptions): Client {
                     Mutation: {
                         logout(result, _variables, cache, _info) {
                             cache.invalidate({ __typename: 'AuthContext', id: result.logout as unknown as number });
+                        },
+                        aggregateIngredientDelete(_result, variables, cache, _info) {
+                            const args = numberOrArray(variables.ids);
+
+                            for (const id in args) {
+                                cache.invalidate({
+                                    __typename: 'AggregateIngredient',
+                                    id: args[id]
+                                });
+                            }
                         }
                     }
                 }
@@ -130,6 +141,8 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
         }
     });
 
+    const _ = globalLoading.submit(finalPromise);
+
     return finalPromise;
 }
 
@@ -162,26 +175,16 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
     });
 
     const unsubscribe = result.subscribe(async (x) => {
-        // if (x.data != undefined) {
-        //     resolver({ store: result, item: x });
-        //     // Hacky way to get around the situation where `x` has data immediately available.
-        //     // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-        //     setTimeout(() => unsubscribe(), 1);
-        // }
-
         if (!x.fetching) {
             resolver({ store: result, item: x });
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
             setTimeout(() => unsubscribe(), 1);
-            // if (x.error) {
-            //     rejector(result);
-            //     // Hacky way to get around the situation where `x` has data immediately available.
-            //     // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-            //     setTimeout(() => unsubscribe(), 1);
-            // }
         }
     });
+
+    // Make progress visible for the user.
+    const _ = globalLoading.submit(finalPromise);
 
     return finalPromise;
 }
@@ -204,7 +207,7 @@ export type OperationResultStore<Data = any, Variables extends AnyVariables = An
  * @param ids Ids in the form of a single number or an array.
  * @returns An array form of the provided ids
  */
-function _numberOrArray(ids: any): number[] {
+function numberOrArray(ids: any): number[] {
     if (Array.isArray(ids)) {
         return ids;
     } else {
