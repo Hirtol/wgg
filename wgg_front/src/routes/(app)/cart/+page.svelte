@@ -1,24 +1,22 @@
 <script lang="ts">
     import PageRoot from '$lib/components/PageRoot.svelte';
-    import { getProviders } from '$lib/state';
     import { AccordionGroup, AccordionItem } from '@skeletonlabs/skeleton';
-    import { get } from 'svelte/store';
     import type { PageData } from './$types';
     import CartOverview from './CartOverview.svelte';
     import CartProductList from './CartProductList.svelte';
 
     export let data: PageData;
 
+    let { preferences, cart } = data;
+
     /**
      * Contains all providers and whether their Tally accordion is expanded.
      */
-    let talliesExpanded: { [key: string]: boolean } = getProviders().reduce((result, key) => {
-        const preference = get(data.preferences);
-        (result as any)[key] = preference.displayPrice == key;
+    let talliesExpanded: { [key: string]: boolean } = [...data.availableProviders.keys()].reduce((result, key) => {
+        (result as any)[key] = $preferences.favouriteProvider == key;
         return result;
     }, {});
 
-    $: cart = data.cart;
     $: tallies = $cart.data?.tallies ?? [];
     $: tallies.sort((a, b) => a.providerInfo.provider.localeCompare(b.providerInfo.provider));
 </script>

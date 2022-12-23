@@ -6,7 +6,9 @@ import { getProviders, ProviderMap } from './providers';
 import { createPersistentWritable } from './stores';
 
 export type PreferenceStore = Writable<Preferences>;
-export type DisplayPriceOptions = Provider | 'AVERAGE' | 'MAX' | 'MIN';
+export type DisplayPriceOptions = typeof DisplayPriceOptionsConcrete;
+
+export const DisplayPriceOptionsConcrete = ['FAVORITE PROVIDER', 'AVERAGE', 'MAX', 'MIN'] as const;
 
 export interface Preferences {
     /**

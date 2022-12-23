@@ -4,7 +4,7 @@
     import { aggregatePageRootUrl, cartPageRootUrl, productPageRootUrl, salesPageRootUrl } from '$lib/routing';
     import { UserData } from '$lib/state';
     import { isMobileScreen } from '$lib/state';
-    import { Logout } from 'carbon-icons-svelte';
+    import { Logout, Settings } from 'carbon-icons-svelte';
     import { Navbar, NavBrand, NavHamburger, NavLi, NavUl } from 'flowbite-svelte';
     import { createEventDispatcher } from 'svelte';
 
@@ -51,6 +51,13 @@
             {#if $isMobileScreen}
                 <p class="inline-block">Logout</p>
             {/if}
+        </a>
+
+        <a
+            class="unstyled inline-flex h-5 items-center py-2 pl-3  hover:dark:!bg-surface-700 md:justify-center md:pl-0"
+            aria-label="Settings"
+            href="/settings">
+            <Settings title="Settings" class="text-primary-900 dark:text-primary-200 hover:dark:text-primary-50" />
         </a>
 
         <li>
