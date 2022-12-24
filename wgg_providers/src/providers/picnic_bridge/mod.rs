@@ -1,9 +1,9 @@
 use crate::error::ProviderError;
 use crate::models::{
-    AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType,
-    NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation,
-    SaleResolutionStrategy, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete,
-    WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+    AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo,
+    NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation, SaleResolutionStrategy,
+    SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct,
+    WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
@@ -322,7 +322,7 @@ fn parse_picnic_promotion(promotion: SubCategory) -> Option<WggSaleCategory> {
 
             result.complete = false;
         } else {
-            tracing::debug!(?dec, "Unknown decorator encountered in parsing Picnic sale")
+            tracing::trace!(?dec, "Unknown decorator encountered in parsing Picnic sale")
         }
     }
 

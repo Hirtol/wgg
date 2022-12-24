@@ -9,6 +9,7 @@ use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
+use std::borrow::Cow;
 use wgg_providers::models::{CentPrice, Provider, ProviderInfo};
 
 #[derive(Clone, Debug, SimpleObject)]
@@ -110,17 +111,19 @@ impl UserCart {
     /// # Accessible by
     ///
     /// Everyone. If the current cart is not owned by the current user then the current user needs to be an admin.
-    pub async fn owner(&self, ctx: &Context<'_>) -> GraphqlResult<AuthContext> {
+    pub async fn owner<'a>(&self, ctx: &'a Context<'a>) -> GraphqlResult<Cow<'a, AuthContext>> {
         let state = ctx.wgg_state();
         let current_user = ctx.wgg_user()?;
 
         if current_user.id == self.model.user_id {
-            Ok(current_user.clone())
+            Ok(Cow::Borrowed(current_user))
         } else if current_user.is_admin {
-            Ok(db::users::Entity::find_by_id(self.model.user_id)
-                .one_or_err(&state.db)
-                .await?
-                .into())
+            Ok(Cow::Owned(
+                db::users::Entity::find_by_id(self.model.user_id)
+                    .one_or_err(&state.db)
+                    .await?
+                    .into(),
+            ))
         } else {
             Err(GraphqlError::Unauthorized)
         }
@@ -199,7 +202,7 @@ pub struct CartAggregateProduct {
     #[graphql(skip)]
     pub cart_id: Id,
     #[graphql(skip)]
-    pub aggregate_model: db::agg_ingredients::Model,
+    pub aggregate_model: AggregateIngredient,
     pub quantity: u32,
     pub created_at: DateTime<Utc>,
 }
@@ -211,8 +214,8 @@ impl CartAggregateProduct {
     /// # Accessible by
     ///
     /// Everyone.
-    pub async fn aggregate(&self, _ctx: &Context<'_>) -> GraphqlResult<AggregateIngredient> {
-        Ok(self.aggregate_model.clone().into())
+    pub async fn aggregate(&self, _ctx: &Context<'_>) -> &AggregateIngredient {
+        &self.aggregate_model
     }
 }
 
@@ -295,7 +298,7 @@ impl From<(db::cart_contents::aggregate::Model, db::agg_ingredients::Model)> for
         Self {
             id: model.id,
             cart_id: model.cart_id,
-            aggregate_model: agg,
+            aggregate_model: agg.into(),
             quantity: model.quantity as u32,
             created_at: model.created_at,
         }
