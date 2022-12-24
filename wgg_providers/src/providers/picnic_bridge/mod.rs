@@ -1,6 +1,6 @@
 use crate::error::ProviderError;
 use crate::models::{
-    AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, MoreButton,
+    AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType,
     NutritionalInfo, NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation,
     SaleResolutionStrategy, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete,
     WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
@@ -761,16 +761,6 @@ pub fn parse_decorator(
                 replacements: replacements.into_iter().map(parse_picnic_item_to_search_item).collect(),
             }
             .into();
-        }
-        Decorator::MoreButton { images, .. } => {
-            let more_button = MoreButton {
-                images: images
-                    .into_iter()
-                    .map(|id| wgg_picnic::images::image_url(id, ImageSize::Medium))
-                    .collect(),
-            };
-
-            result.push(WggDecorator::MoreButton(more_button))
         }
         _ => {}
     }

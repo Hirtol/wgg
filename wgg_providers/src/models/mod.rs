@@ -58,7 +58,6 @@ pub enum WggDecorator {
     FreshLabel(FreshLabel),
     PrepTime(PrepTime),
     NumberOfServings(NumberOfServings),
-    MoreButton(MoreButton),
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -101,11 +100,6 @@ pub struct PrepTime {
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NumberOfServings {
     pub amount: u32,
-}
-
-#[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MoreButton {
-    pub images: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Enum, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
