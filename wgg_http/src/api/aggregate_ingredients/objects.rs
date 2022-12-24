@@ -52,6 +52,15 @@ impl AggregateIngredient {
 
         Ok(result)
     }
+
+    /// Retrieve the direct quantity of this product within the given `cart_id`.
+    ///
+    /// If `cart_id` is not given then the current cart of the user is assumed.
+    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        crate::api::cart::get_aggregate_product_quantity(&state.db, cart_id, user.id, self.id).await
+    }
 }
 
 impl From<db::agg_ingredients::Model> for AggregateIngredient {

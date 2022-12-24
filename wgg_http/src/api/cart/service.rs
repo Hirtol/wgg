@@ -12,24 +12,35 @@ use wgg_providers::models::{
 /// Get the direct quantity (ignoring Aggregate products) of the given product in the given cart.
 ///
 /// For bulk queries please refer to [get_products_quantity].
-pub async fn get_product_quantity(
+pub async fn get_direct_product_quantity(
     db: &impl ConnectionTrait,
     cart_id: Option<Id>,
     user_id: Id,
     provider_id: Id,
     product_id: &str,
 ) -> GraphqlResult<Option<u32>> {
-    let condition = if let Some(cart_id) = cart_id {
-        db::cart::has_user(user_id).add(db::cart::has_id(cart_id))
-    } else {
-        db::cart::is_active_for_user(user_id)
-    };
-
     let cart_content = db::cart_contents::raw_product::Entity::find()
         .filter(db::cart_contents::raw_product::Column::ProviderId.eq(provider_id))
         .filter(db::cart_contents::raw_product::Column::ProviderProduct.eq(product_id))
         .left_join(db::cart::Entity)
-        .filter(condition)
+        .filter(db::cart::is_cart_or_active_cart(cart_id, user_id))
+        .one(db)
+        .await?;
+
+    Ok(cart_content.map(|i| i.quantity as u32))
+}
+
+pub async fn get_aggregate_product_quantity(
+    db: &impl ConnectionTrait,
+    cart_id: Option<Id>,
+    user_id: Id,
+    aggregate_id: Id,
+) -> GraphqlResult<Option<u32>> {
+    let cart_content = db::cart_contents::aggregate::Entity::find()
+        .left_join(db::agg_ingredients_links::Entity)
+        .left_join(db::cart::Entity)
+        .filter(db::cart::is_cart_or_active_cart(cart_id, user_id))
+        .filter(db::agg_ingredients_links::related_aggregate(aggregate_id))
         .one(db)
         .await?;
 
@@ -44,16 +55,10 @@ pub async fn get_products_quantity(
     user_id: Id,
     product_ids: impl IntoIterator<Item = &str>,
 ) -> GraphqlResult<HashMap<String, u32>> {
-    let condition = if let Some(cart_id) = cart_id {
-        db::cart::has_user(user_id).add(db::cart::has_id(cart_id))
-    } else {
-        db::cart::is_active_for_user(user_id)
-    };
-
     let cart_content = db::cart_contents::raw_product::Entity::find()
         .filter(db::cart_contents::raw_product::Column::ProviderProduct.is_in(product_ids))
         .left_join(db::cart::Entity)
-        .filter(condition)
+        .filter(db::cart::is_cart_or_active_cart(cart_id, user_id))
         .all(db)
         .await?;
 

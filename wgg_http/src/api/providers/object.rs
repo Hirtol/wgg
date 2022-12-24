@@ -18,14 +18,16 @@ pub struct ProductAppInfo<'a> {
 
 #[async_graphql::Object]
 impl<'a> ProductAppInfo<'a> {
-    /// Retrieve the quantity of this product within the given `cart_id`.
+    /// Retrieve the direct quantity of this product within the given `cart_id`.
     ///
     /// If `cart_id` is not given then the current cart of the user is assumed.
-    pub async fn quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+    ///
+    /// For indirect quantities please refer to [associated_aggregates].
+    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
         let state = ctx.wgg_state();
         let user = ctx.wgg_user()?;
         let provider_id = state.provider_id_from_provider(&self.provider);
-        crate::api::cart::get_product_quantity(&state.db, cart_id, user.id, provider_id, self.product_id).await
+        crate::api::cart::get_direct_product_quantity(&state.db, cart_id, user.id, provider_id, self.product_id).await
     }
 
     /// Retrieve all associated [AggregateIngredient]s for this given product.

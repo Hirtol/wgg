@@ -11,6 +11,15 @@ pub async fn get_active_cart_for_user(user_id: Id, db: &impl ConnectionTrait) ->
         .await
 }
 
+pub fn is_cart_or_active_cart(cart_id: Option<Id>, user_id: Id) -> Condition {
+    if let Some(cart_id) = cart_id {
+        has_user(user_id).add(has_id(cart_id))
+    } else {
+        is_active_for_user(user_id)
+    }
+    .into_condition()
+}
+
 pub fn is_active_for_user(user_id: Id) -> Condition {
     has_user(user_id).add(is_completed().not())
 }
