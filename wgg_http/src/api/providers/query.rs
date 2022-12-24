@@ -1,9 +1,9 @@
 use crate::api::pagination::{ConnectionResult, QueryResult};
+use crate::api::providers::object::{WggProductWrapper, WggSaleCategoryWrapper, WggSaleGroupCompleteWrapper};
+use crate::api::providers::WggSearchProductWrapper;
 use crate::api::{ContextExt, GraphqlResult};
 use async_graphql::{Context, Object};
-use wgg_providers::models::{
-    Provider, ProviderInfo, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSearchProduct,
-};
+use wgg_providers::models::{Provider, ProviderInfo, WggAutocomplete};
 
 #[derive(Default)]
 pub struct ProviderQuery;
@@ -30,7 +30,7 @@ impl ProviderQuery {
         after: Option<String>,
         first: Option<i32>,
         #[graphql(desc = "Filters for the collection")] filters: SearchFilter,
-    ) -> ConnectionResult<WggSearchProduct> {
+    ) -> ConnectionResult<WggSearchProductWrapper> {
         // Assert that the user is logged in.
         let _ = ctx.wgg_user()?;
         let state = ctx.wgg_state();
@@ -43,7 +43,7 @@ impl ProviderQuery {
             let total_count = response.total_items as u64;
 
             Ok(QueryResult {
-                iter: response.items.into_iter().take(limit),
+                iter: response.items.into_iter().take(limit).map(|i| i.into()),
                 total_count,
             })
         })
@@ -55,11 +55,11 @@ impl ProviderQuery {
         &self,
         ctx: &Context<'_>,
         #[graphql(desc = "The product query")] query: String,
-    ) -> GraphqlResult<Vec<WggSearchProduct>> {
+    ) -> GraphqlResult<Vec<WggSearchProductWrapper>> {
         let state = ctx.wgg_state();
         let response = state.providers.search_all(query).await?;
 
-        Ok(response.items)
+        Ok(response.items.into_iter().map(|i| i.into()).collect())
     }
 
     #[tracing::instrument(skip(self, ctx))]
@@ -68,11 +68,11 @@ impl ProviderQuery {
         ctx: &Context<'_>,
         #[graphql(desc = "The product vendor/provider", default_with = "Provider::Picnic")] provider: Provider,
         #[graphql(desc = "The product id")] product_id: String,
-    ) -> GraphqlResult<WggProduct> {
+    ) -> GraphqlResult<WggProductWrapper> {
         let state = ctx.wgg_state();
         let response = state.providers.product(provider, product_id).await?;
 
-        Ok(response)
+        Ok(response.into())
     }
 
     #[tracing::instrument(skip(self, ctx))]
@@ -82,7 +82,7 @@ impl ProviderQuery {
         after: Option<String>,
         first: Option<i32>,
         #[graphql(desc = "Filters for the collection, defaults to Picnic filter")] filters: Option<PromotionsFilter>,
-    ) -> ConnectionResult<WggSaleCategory> {
+    ) -> ConnectionResult<WggSaleCategoryWrapper> {
         // Assert that the user is logged in.
         let _ = ctx.wgg_user()?;
         let state = ctx.wgg_state();
@@ -98,7 +98,8 @@ impl ProviderQuery {
                 iter: response
                     .into_iter()
                     .skip(offset.unwrap_or_default().index())
-                    .take(limit),
+                    .take(limit)
+                    .map(|i| i.into()),
                 total_count,
             })
         })
@@ -106,11 +107,11 @@ impl ProviderQuery {
     }
 
     #[tracing::instrument(skip(self, ctx))]
-    async fn pro_promotions_all(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSaleCategory>> {
+    async fn pro_promotions_all(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSaleCategoryWrapper>> {
         let state = ctx.wgg_state();
         let response = state.providers.promotions_all().await?;
 
-        Ok(response)
+        Ok(response.into_iter().map(|i| i.into()).collect())
     }
 
     #[tracing::instrument(skip(self, ctx))]
@@ -119,11 +120,11 @@ impl ProviderQuery {
         ctx: &Context<'_>,
         #[graphql(desc = "The product vendor/provider", default_with = "Provider::Picnic")] provider: Provider,
         #[graphql(desc = "The sublist id")] sublist_id: String,
-    ) -> GraphqlResult<WggSaleGroupComplete> {
+    ) -> GraphqlResult<WggSaleGroupCompleteWrapper> {
         let state = ctx.wgg_state();
         let response = state.providers.promotions_sublist(provider, sublist_id).await?;
 
-        Ok(response)
+        Ok(response.into())
     }
 
     /// Return all providers which are currently active for this server.

@@ -1,6 +1,7 @@
 use crate::api::aggregate_ingredients::AggregateIngredient;
 use crate::api::auth::AuthContext;
 use crate::api::error::GraphqlError;
+use crate::api::providers::WggSearchProductWrapper;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
 use crate::db;
 use crate::db::{Id, SelectExt};
@@ -8,7 +9,7 @@ use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
-use wgg_providers::models::{CentPrice, Provider, ProviderInfo, WggSearchProduct};
+use wgg_providers::models::{CentPrice, Provider, ProviderInfo};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -179,14 +180,15 @@ impl CartProviderProduct {
     /// # Accessible by
     ///
     /// Everyone.
-    pub async fn product(&self, ctx: &Context<'_>) -> GraphqlResult<WggSearchProduct> {
+    pub async fn product(&self, ctx: &Context<'_>) -> GraphqlResult<WggSearchProductWrapper> {
         let state = ctx.wgg_state();
         let provider = state.provider_from_id(self.provider_id);
 
         Ok(state
             .providers
             .search_product(provider, &self.provider_product_id)
-            .await?)
+            .await?
+            .into())
     }
 }
 

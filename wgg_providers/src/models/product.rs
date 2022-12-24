@@ -1,9 +1,10 @@
+use std::borrow::Cow;
 use crate::models::{AllergyTags, IngredientInfo, ItemInfo, NutritionalInfo, PriceInfo, Provider, ProviderInfo, SaleInformation, TextType, UnavailableItem, UnitQuantity, WggDecorator};
 use serde::{Deserialize, Serialize};
 
 // ** Full Product **
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-#[graphql(complex)]
+#[graphql(complex, name_type)]
 pub struct WggProduct {
     /// This service's ID for the current product.
     /// Not transferable between [Provider]s
@@ -19,6 +20,7 @@ pub struct WggProduct {
     /// If this product is currently unavailable this will contain details explaining why.
     ///
     /// If this is `None` then the object is available
+    #[graphql(skip)]
     pub unavailable_details: Option<UnavailableItem>,
     /// Direct URL to product image.
     pub image_urls: Vec<String>,
@@ -43,6 +45,12 @@ pub struct WggProduct {
     /// The grocery store this item is provided from.
     #[graphql(skip)]
     pub provider: Provider,
+}
+
+impl async_graphql::TypeName for WggProduct {
+    fn type_name() -> Cow<'static, str> {
+        Cow::Borrowed("WggProductInternal")
+    }
 }
 
 #[async_graphql::ComplexObject]

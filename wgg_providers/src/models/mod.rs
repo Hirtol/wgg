@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 mod product;
 mod providers;
 mod sale;
@@ -74,6 +75,7 @@ pub struct SaleValidity {
 
 /// If the item is unavailable
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
+#[graphql(name_type)]
 pub struct UnavailableItem {
     pub reason: UnavailableReason,
     pub explanation_short: Option<String>,
@@ -81,7 +83,14 @@ pub struct UnavailableItem {
     /// Lists replacements if the store has suggested any.
     ///
     /// Some stores won't support this functionality, and this would therefore remain empty.
+    #[graphql(skip)]
     pub replacements: Vec<WggSearchProduct>,
+}
+
+impl async_graphql::TypeName for UnavailableItem {
+    fn type_name() -> Cow<'static, str> {
+        Cow::Borrowed("UnavailableItemInternal")
+    }
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

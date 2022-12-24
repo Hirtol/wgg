@@ -1,9 +1,10 @@
+use crate::api::providers::WggSearchProductWrapper;
 use crate::api::{ContextExt, GraphqlResult};
 use crate::{db, db::Id};
 use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use sea_orm::{EntityTrait, QueryFilter};
-use wgg_providers::models::{CentPrice, WggSearchProduct};
+use wgg_providers::models::CentPrice;
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -20,7 +21,7 @@ pub struct AggregateIngredient {
 impl AggregateIngredient {
     /// Return all composite ingredients which are part of this aggregate ingredient.
     #[tracing::instrument(skip(ctx))]
-    pub async fn ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSearchProduct>> {
+    pub async fn ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSearchProductWrapper>> {
         let state = ctx.wgg_state();
 
         let products = db::agg_ingredients_links::Entity::find()
@@ -35,13 +36,13 @@ impl AggregateIngredient {
 
         let results = futures::future::try_join_all(product_futures).await?;
 
-        Ok(results)
+        Ok(results.into_iter().map(|i| i.into()).collect())
     }
 
     /// Returns the average price of all constituent ingredients.
     pub async fn price(&self, ctx: &Context<'_>, format: PriceFilter) -> GraphqlResult<CentPrice> {
         let products = self.ingredients(ctx).await??;
-        let price_iter = products.iter().map(|i| i.price_info.display_price);
+        let price_iter = products.iter().map(|i| i.item.price_info.display_price);
 
         let result = match format {
             PriceFilter::Minimum => price_iter.min().unwrap_or_default(),

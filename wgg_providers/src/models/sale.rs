@@ -1,10 +1,11 @@
+use std::borrow::Cow;
 use crate::models::sale_types::SaleType;
 use crate::models::{Provider, ProviderInfo, SaleValidity, SublistId, WggSearchProduct};
 use serde::{Deserialize, Serialize};
 
 // ** Promotions **
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-#[graphql(complex)]
+#[graphql(complex, name_type)]
 pub struct WggSaleCategory {
     /// If this category has an ID then it usually means more items can be requested for display in the `sublist` function.
     pub id: Option<SublistId>,
@@ -13,6 +14,7 @@ pub struct WggSaleCategory {
     pub name: String,
     /// All groups/products relevant for this category. For certain (Picnic) APIs this will be just `Product` instances.
     /// For others like Jumbo, this might be just `Group`s. For still other's (AH) this can be a mix of both.
+    #[graphql(skip)]
     pub items: Vec<WggSaleItem>,
     /// May contain a image for a 'More' button
     pub image_urls: Vec<String>,
@@ -24,6 +26,12 @@ pub struct WggSaleCategory {
     pub provider: Provider,
 }
 
+impl async_graphql::TypeName for WggSaleCategory {
+    fn type_name() -> Cow<'static, str> {
+        Cow::Borrowed("WggSaleCategoryInternal")
+    }
+}
+
 #[async_graphql::ComplexObject]
 impl WggSaleCategory {
     /// Grocery store information associated with this item
@@ -33,7 +41,7 @@ impl WggSaleCategory {
 }
 
 #[derive(Serialize, Deserialize, async_graphql::Interface, Clone, Debug, PartialEq, PartialOrd)]
-#[graphql(field(name = "id", type = "&String"))]
+#[graphql(field(name = "id", type = "&String"), name = "WggSaleItemInternal")]
 pub enum WggSaleItem {
     Product(WggSearchProduct),
     Group(WggSaleGroupLimited),
@@ -65,7 +73,7 @@ impl WggSaleGroupLimited {
 }
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
-#[graphql(complex)]
+#[graphql(complex, name_type)]
 pub struct WggSaleGroupComplete {
     pub id: SublistId,
     pub name: String,
@@ -78,6 +86,12 @@ pub struct WggSaleGroupComplete {
     pub sale_description: Option<String>,
     #[graphql(skip)]
     pub provider: Provider,
+}
+
+impl async_graphql::TypeName for WggSaleGroupComplete {
+    fn type_name() -> Cow<'static, str> {
+        Cow::Borrowed("WggSaleGroupComplete")
+    }
 }
 
 #[async_graphql::ComplexObject]

@@ -11,6 +11,14 @@ pub async fn get_active_cart_for_user(user_id: Id, db: &impl ConnectionTrait) ->
         .await
 }
 
+pub fn is_active_for_user(user_id: Id) -> Condition {
+    has_user(user_id).add(is_completed().not())
+}
+
+pub fn has_id(cart_id: Id) -> Condition {
+    Column::Id.eq(cart_id).into_condition()
+}
+
 pub fn has_user(user_id: Id) -> Condition {
     Column::UserId.eq(user_id).into_condition()
 }
