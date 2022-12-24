@@ -1,11 +1,9 @@
 use crate::api::{ContextExt, GraphqlResult};
-use crate::db;
 use crate::db::Id;
 use async_graphql::Context;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use std::borrow::Cow;
 use wgg_providers::models::{
-    UnavailableItem, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
+    Provider, UnavailableItem, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
     WggSearchProduct,
 };
 
@@ -66,12 +64,23 @@ pub struct WggSaleGroupCompleteWrapper {
 
 // ** Implementations **
 
-#[derive(Debug, async_graphql::SimpleObject, Clone)]
-pub struct ProductCartInfo {
-    /// Whether this product is part of the current cart or not
-    pub is_part_of_current_cart: bool,
-    /// The quantity of items selected, only present if `is_part_of_current_cart` is `true`.
-    pub quantity: Option<u32>,
+#[derive(Debug, Clone)]
+pub struct ProductAppInfo<'a> {
+    pub product_id: &'a str,
+    pub provider: Provider,
+}
+
+#[async_graphql::Object]
+impl<'a> ProductAppInfo<'a> {
+    /// Retrieve the quantity of this product within the given `cart_id`.
+    ///
+    /// If `cart_id` is not given then the current cart of the user is assumed.
+    pub async fn quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        let provider_id = state.provider_id_from_provider(&self.provider);
+        crate::api::cart::get_product_quantity(&state.db, cart_id, user.id, provider_id, self.product_id).await
+    }
 }
 
 #[async_graphql::ComplexObject]
@@ -80,56 +89,22 @@ impl WggSearchProductWrapper {
         &self.item.id
     }
 
-    /// Return the cart info for the current viewer.
-    pub async fn cart_info(&self, ctx: &Context<'_>) -> GraphqlResult<ProductCartInfo> {
-        let state = ctx.wgg_state();
-        let user = ctx.wgg_user()?;
-
-        let cart_content = db::cart_contents::raw_product::Entity::find()
-            .filter(db::cart_contents::raw_product::Column::ProviderProduct.eq(self.item.id.as_str()))
-            .left_join(db::cart::Entity)
-            .filter(db::cart::has_user(user.id))
-            .one(&state.db)
-            .await?;
-
-        if let Some(content) = cart_content {
-            Ok(ProductCartInfo {
-                is_part_of_current_cart: true,
-                quantity: Some(content.quantity as u32),
-            })
-        } else {
-            Ok(ProductCartInfo {
-                is_part_of_current_cart: false,
-                quantity: None,
-            })
+    /// Return `Wgg` specific information for this product
+    pub async fn app_info(&self) -> ProductAppInfo<'_> {
+        ProductAppInfo {
+            product_id: &self.item.id,
+            provider: self.item.provider,
         }
     }
 }
 
 #[async_graphql::ComplexObject]
 impl WggProductWrapper {
-    /// Return the cart info for the current viewer.
-    pub async fn cart_info(&self, ctx: &Context<'_>) -> GraphqlResult<ProductCartInfo> {
-        let state = ctx.wgg_state();
-        let user = ctx.wgg_user()?;
-
-        let cart_content = db::cart_contents::raw_product::Entity::find()
-            .filter(db::cart_contents::raw_product::Column::ProviderProduct.eq(self.item.id.as_str()))
-            .left_join(db::cart::Entity)
-            .filter(db::cart::has_user(user.id))
-            .one(&state.db)
-            .await?;
-
-        if let Some(content) = cart_content {
-            Ok(ProductCartInfo {
-                is_part_of_current_cart: true,
-                quantity: Some(content.quantity as u32),
-            })
-        } else {
-            Ok(ProductCartInfo {
-                is_part_of_current_cart: false,
-                quantity: None,
-            })
+    /// Return `Wgg` specific information for this product
+    pub async fn app_info(&self) -> ProductAppInfo<'_> {
+        ProductAppInfo {
+            product_id: &self.item.id,
+            provider: self.item.provider,
         }
     }
 }

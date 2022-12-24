@@ -182,7 +182,7 @@ fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate:
         crate::api::MutationRoot::default(),
         EmptySubscription,
     )
-    .data(DataLoaders::new())
+    .data(DataLoaders::new(state.db.clone()))
     .data(state)
     .data(secret_key)
     .extension(crate::api::ErrorTraceExtension)

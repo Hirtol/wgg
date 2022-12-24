@@ -9,6 +9,60 @@ use wgg_providers::models::{
     CentPrice, PriceInfo, Provider, SaleInformation, SaleResolutionStrategy, SublistId, WggSearchProduct,
 };
 
+/// Get the direct quantity (ignoring Aggregate products) of the given product in the given cart.
+///
+/// For bulk queries please refer to [get_products_quantity].
+pub async fn get_product_quantity(
+    db: &impl ConnectionTrait,
+    cart_id: Option<Id>,
+    user_id: Id,
+    provider_id: Id,
+    product_id: &str,
+) -> GraphqlResult<Option<u32>> {
+    let condition = if let Some(cart_id) = cart_id {
+        db::cart::has_user(user_id).add(db::cart::has_id(cart_id))
+    } else {
+        db::cart::is_active_for_user(user_id)
+    };
+
+    let cart_content = db::cart_contents::raw_product::Entity::find()
+        .filter(db::cart_contents::raw_product::Column::ProviderId.eq(provider_id))
+        .filter(db::cart_contents::raw_product::Column::ProviderProduct.eq(product_id))
+        .left_join(db::cart::Entity)
+        .filter(condition)
+        .one(db)
+        .await?;
+
+    Ok(cart_content.map(|i| i.quantity as u32))
+}
+
+/// Get the direct quantity (ignoring Aggregate products) of the given product(s) in the given cart.
+#[allow(dead_code)]
+pub async fn get_products_quantity(
+    db: &impl ConnectionTrait,
+    cart_id: Option<Id>,
+    user_id: Id,
+    product_ids: impl IntoIterator<Item = &str>,
+) -> GraphqlResult<HashMap<String, u32>> {
+    let condition = if let Some(cart_id) = cart_id {
+        db::cart::has_user(user_id).add(db::cart::has_id(cart_id))
+    } else {
+        db::cart::is_active_for_user(user_id)
+    };
+
+    let cart_content = db::cart_contents::raw_product::Entity::find()
+        .filter(db::cart_contents::raw_product::Column::ProviderProduct.is_in(product_ids))
+        .left_join(db::cart::Entity)
+        .filter(condition)
+        .all(db)
+        .await?;
+
+    Ok(cart_content
+        .into_iter()
+        .map(|item| (item.provider_product, item.quantity as u32))
+        .collect())
+}
+
 /// Calculate the total tally of the given cart for all providers that are part of that cart.
 #[tracing::instrument(skip(db, state))]
 pub async fn calculate_tallies(
