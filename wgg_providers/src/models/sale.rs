@@ -1,7 +1,7 @@
-use std::borrow::Cow;
 use crate::models::sale_types::SaleType;
 use crate::models::{Provider, ProviderInfo, SaleValidity, SublistId, WggSearchProduct};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 // ** Promotions **
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
@@ -79,6 +79,7 @@ pub struct WggSaleGroupComplete {
     pub name: String,
     pub image_urls: Vec<String>,
     /// All items that are part of this promotion.
+    #[graphql(skip)]
     pub items: Vec<WggSearchProduct>,
     /// Contains all info related to the sale
     pub sale_info: SaleInformation,
@@ -90,7 +91,7 @@ pub struct WggSaleGroupComplete {
 
 impl async_graphql::TypeName for WggSaleGroupComplete {
     fn type_name() -> Cow<'static, str> {
-        Cow::Borrowed("WggSaleGroupComplete")
+        Cow::Borrowed("WggSaleGroupCompleteInternal")
     }
 }
 
