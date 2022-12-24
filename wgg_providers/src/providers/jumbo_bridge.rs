@@ -480,8 +480,7 @@ fn parse_promotion_to_sale_info(tags: &[impl AsRef<str>], sale_validity: SaleVal
         // Try and avoid the `Online only` and `Voor bezorging` tags.
         let label = tags
             .iter()
-            .filter(|tag| !tag.as_ref().contains("online") && !tag.as_ref().contains("bezorg"))
-            .next()
+            .find(|tag| !tag.as_ref().contains("online") && !tag.as_ref().contains("bezorg"))
             .or_else(|| tags.first());
 
         label.map(|label| to_sale(None, label.as_ref()))
