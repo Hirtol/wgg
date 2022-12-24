@@ -1,3 +1,4 @@
+use crate::api::aggregate_ingredients::AggregateIngredient;
 use crate::api::{ContextExt, GraphqlResult};
 use crate::db::Id;
 use async_graphql::Context;
@@ -6,6 +7,67 @@ use wgg_providers::models::{
     Provider, UnavailableItem, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
     WggSearchProduct,
 };
+
+// ** Implementations **
+
+#[derive(Debug, Clone)]
+pub struct ProductAppInfo<'a> {
+    pub product_id: &'a str,
+    pub provider: Provider,
+}
+
+#[async_graphql::Object]
+impl<'a> ProductAppInfo<'a> {
+    /// Retrieve the quantity of this product within the given `cart_id`.
+    ///
+    /// If `cart_id` is not given then the current cart of the user is assumed.
+    pub async fn quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        let provider_id = state.provider_id_from_provider(&self.provider);
+        crate::api::cart::get_product_quantity(&state.db, cart_id, user.id, provider_id, self.product_id).await
+    }
+
+    /// Retrieve all associated [AggregateIngredient]s for this given product.
+    pub async fn associated_aggregates(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<AggregateIngredient>> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        let provider_id = state.provider_id_from_provider(&self.provider);
+        crate::api::aggregate_ingredients::get_associated_aggregate_for_product(
+            &state.db,
+            user.id,
+            provider_id,
+            self.product_id,
+        )
+        .await
+    }
+}
+
+#[async_graphql::ComplexObject]
+impl WggSearchProductWrapper {
+    pub async fn id(&self) -> &String {
+        &self.item.id
+    }
+
+    /// Return `Wgg` specific information for this product
+    pub async fn app_info(&self) -> ProductAppInfo<'_> {
+        ProductAppInfo {
+            product_id: &self.item.id,
+            provider: self.item.provider,
+        }
+    }
+}
+
+#[async_graphql::ComplexObject]
+impl WggProductWrapper {
+    /// Return `Wgg` specific information for this product
+    pub async fn app_info(&self) -> ProductAppInfo<'_> {
+        ProductAppInfo {
+            product_id: &self.item.id,
+            provider: self.item.provider,
+        }
+    }
+}
 
 // ** Wrapper Objects **
 /// If the item is unavailable
@@ -60,53 +122,6 @@ pub struct WggSaleGroupCompleteWrapper {
     pub item: WggSaleGroupComplete,
     /// All items that are part of this promotion.
     pub items: Vec<WggSearchProductWrapper>,
-}
-
-// ** Implementations **
-
-#[derive(Debug, Clone)]
-pub struct ProductAppInfo<'a> {
-    pub product_id: &'a str,
-    pub provider: Provider,
-}
-
-#[async_graphql::Object]
-impl<'a> ProductAppInfo<'a> {
-    /// Retrieve the quantity of this product within the given `cart_id`.
-    ///
-    /// If `cart_id` is not given then the current cart of the user is assumed.
-    pub async fn quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
-        let state = ctx.wgg_state();
-        let user = ctx.wgg_user()?;
-        let provider_id = state.provider_id_from_provider(&self.provider);
-        crate::api::cart::get_product_quantity(&state.db, cart_id, user.id, provider_id, self.product_id).await
-    }
-}
-
-#[async_graphql::ComplexObject]
-impl WggSearchProductWrapper {
-    pub async fn id(&self) -> &String {
-        &self.item.id
-    }
-
-    /// Return `Wgg` specific information for this product
-    pub async fn app_info(&self) -> ProductAppInfo<'_> {
-        ProductAppInfo {
-            product_id: &self.item.id,
-            provider: self.item.provider,
-        }
-    }
-}
-
-#[async_graphql::ComplexObject]
-impl WggProductWrapper {
-    /// Return `Wgg` specific information for this product
-    pub async fn app_info(&self) -> ProductAppInfo<'_> {
-        ProductAppInfo {
-            product_id: &self.item.id,
-            provider: self.item.provider,
-        }
-    }
 }
 
 impl async_graphql::TypeName for UnavailableItemWrapper {

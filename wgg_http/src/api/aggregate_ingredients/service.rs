@@ -1,8 +1,21 @@
 use crate::api::{GraphqlResult, State};
 use crate::db;
 use crate::db::Id;
-use sea_orm::{EntityTrait, QueryFilter, TransactionTrait};
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
 use wgg_providers::models::CentPrice;
+use crate::api::aggregate_ingredients::AggregateIngredient;
+
+/// Perform a reverse-lookup for all aggregate ingredients associated with the given `product_id`.
+pub async fn get_associated_aggregate_for_product(db: &impl ConnectionTrait, user_id: Id, provider_id: Id, product_id: &str) -> GraphqlResult<Vec<AggregateIngredient>> {
+    let aggregate = db::agg_ingredients::Entity::find()
+        .filter(db::agg_ingredients::created_by(user_id))
+        .left_join(db::agg_ingredients_links::Entity)
+        .filter(db::agg_ingredients_links::Column::ProviderId.eq(provider_id))
+        .filter(db::agg_ingredients_links::Column::ProviderIngrId.eq(product_id))
+        .all(db).await?;
+    
+    Ok(aggregate.into_iter().map(|i| i.into()).collect())
+}
 
 /// Calculate the total price of the given aggregate ingredient.
 ///
