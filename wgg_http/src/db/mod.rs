@@ -15,6 +15,7 @@ pub mod cart;
 pub mod cart_contents;
 pub mod cart_tally;
 pub mod providers;
+pub mod search_utils;
 pub mod users;
 pub mod users_tokens;
 
