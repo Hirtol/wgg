@@ -6,6 +6,16 @@ use chrono::{DateTime, Utc};
 use sea_orm::{EntityTrait, QueryFilter};
 use wgg_providers::models::CentPrice;
 
+/// An aggregate ingredient is a collection of concrete, provider specific, products.
+///
+/// This addresses the problem of name-matching, by allowing the user to define product categories themselves.
+/// For example, one might define an 'Eggs' aggregate ingredient. This is then composed of one egg product from 'Jumbo',
+/// and another from 'Picnic'. On sale resolution the prices of these respective providers are used for the final calculation.
+///
+/// When an aggregate ingredient is in the cart it will always *resolve* to at most one concrete product for each specific provider.
+///
+/// This does not mean one ingredient can't have multiple products of a single provider, just that the sale resolution would only pick one of them.
+/// TODO: Implement this sale resolution (Note, depends on more fine grained quantities within aggregate products).
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
 pub struct AggregateIngredient {

@@ -73,6 +73,12 @@ fragment FullProductFragment on WggProduct {
         provider
         logoUrl
     }
+    appInfo {
+        associatedAggregates {
+            id
+            name
+        }
+    }
 }
 
 fragment FullDecorator on WggDecorator {
@@ -85,8 +91,5 @@ fragment FullDecorator on WggDecorator {
     }
     ... on NumberOfServings {
         amount
-    }
-    ... on MoreButton {
-        images
     }
 }

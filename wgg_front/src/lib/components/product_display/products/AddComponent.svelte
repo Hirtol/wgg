@@ -6,7 +6,7 @@
     export let normalButton: boolean = false;
 
     /**
-     * Bind-able property which declares the current quantity available
+     * Non-Bindable property which declares the current quantity available
      */
     export let quantity: number;
 
@@ -20,6 +20,11 @@
      * How long the buttons should stay expanded when pressed.
      */
     export let expandedDuration: number = 2000;
+
+    /**
+     * The title of the product, used as a title for the controls.
+    */
+    export let productTitle: string = '';
 
     /**
      * Whether the current set of buttons should be expanded to have both the add and subtract buttons,
@@ -46,7 +51,6 @@
             setExpanded();
         }
 
-        // quantity = quantityNew;
         dispatch('setQuantity', quantityNew);
     }
 </script>
@@ -56,7 +60,7 @@
         {#if isExpanded}
             <div class="flex flex-nowrap justify-between gap-0.5" in:fly>
                 <button
-                    title="Subtract Quantity"
+                    title="Subtract Quantity {productTitle}"
                     class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                     on:click={() => setQuantity(--quantity)}>
                     <Subtract size={24} />
@@ -68,7 +72,7 @@
                     {quantity}
                 </button>
                 <button
-                    title="Add Quantity"
+                    title="Add Quantity {productTitle}"
                     class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                     on:click={() => setQuantity(++quantity)}>
                     <Add size={24} />
@@ -76,7 +80,7 @@
             </div>
         {:else}
             <button
-                title="Show Controls"
+                title="Show Controls {productTitle}"
                 class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
                 on:click={setExpanded}
                 in:fly>
@@ -85,7 +89,7 @@
         {/if}
     {:else if normalButton}
         <button
-            title="Add Quantity"
+            title="Add Quantity {productTitle}"
             class="btn btn-sm btn-filled-primary"
             in:fly
             on:click={() => setQuantity(++quantity)}>
@@ -93,7 +97,7 @@
         </button>
     {:else}
         <button
-            title="Add Quantity"
+            title="Add Quantity {productTitle}"
             class="btn-icon btn-filled-primary !w-6 rounded-full !p-0"
             in:fly
             on:click={() => setQuantity(++quantity)}>

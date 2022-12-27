@@ -11,6 +11,7 @@
     import ExtendedDescription from './ExtendedDescription.svelte';
     import SaleLabel from '$lib/components/product_display/products/SaleLabel.svelte';
     import PageRoot from '$lib/components/PageRoot.svelte';
+    import { Add } from 'carbon-icons-svelte';
 
     export let data: PageData;
 
@@ -18,17 +19,26 @@
 
     $: ({ store, cart } = data);
     $: product = $store.data?.proProduct;
-
+    $: quantity = product
+        ? $cart.getProductQuantity(product.providerInfo.provider, product.id).find((x) => x.origin === 'Direct')
+              ?.quantity ?? 0
+        : 0;
+    $: aggregateQuantities = product
+        ? $cart.getProductQuantity(product.providerInfo.provider, product.id).filter((x) => x.origin === 'Indirect') ??
+          []
+        : [];
+    $: aggregates = product?.appInfo.associatedAggregates ?? [];
     $: images =
         product?.imageUrls.map((url, i) => ({
             id: i,
             imgurl: url
         })) ?? [];
 
-    $: quantity = product ? $cart.getProductQuantity(product.providerInfo.provider, product.id)[0]?.quantity ?? 0 : 0;
-
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
         await cart.setCartContent({ productId, provider, quantity: newQuantity, __typename: 'RawProduct' }, client);
+    }
+    async function updateCartContentAggregate(aggregateId: number, newQuantity: number) {
+        await cart.setCartContent({ __typename: 'Aggregate', aggregateId: aggregateId, quantity: newQuantity }, client);
     }
 </script>
 
@@ -49,12 +59,28 @@
 
                     <PriceComponent data={product.priceInfo} />
 
-                    <AddComponent
-                        class="min-h-[2.5rem] max-w-[8rem] pt-2"
-                        normalButton
-                        {quantity}
-                        on:setQuantity={(e) =>
-                            product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
+                    <div class="flex flex-row gap-2">
+                        <AddComponent
+                            class="min-h-[2.5rem] max-w-[8rem] pt-2"
+                            normalButton
+                            {quantity}
+                            on:setQuantity={(e) =>
+                                product && updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
+
+                        {#each aggregates as agg, i (agg.id)}
+                            <AddComponent
+                                class="min-h-[2.5rem] max-w-[8rem] pt-2"
+                                productTitle={agg.name}
+                                normalButton
+                                quantity={aggregateQuantities[i].quantity ?? 0}
+                                on:setQuantity={(e) => updateCartContentAggregate(agg.id, e.detail)} />
+                        {/each}
+
+                        <button class="btn btn-filled-accent btn-sm ml-auto" title="Add to aggregate product">
+                            <Add size={24} />
+                            Add to aggregate
+                        </button>
+                    </div>
 
                     {#if product.saleInformation}
                         <SaleLabel
