@@ -8,7 +8,6 @@
     import { getContextPreferences } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
     import { getContextClient } from '@urql/svelte';
-    import { globalLoading } from '../../global_progress/global_loading';
 
     /** Exposes parent props to this component. */
     export let parent: any;

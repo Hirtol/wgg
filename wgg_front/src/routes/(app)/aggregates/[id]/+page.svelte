@@ -13,6 +13,7 @@
     import { DeleteAggregateIngredientDocument } from '$lib/api/graphql_types';
     import { goto } from '$app/navigation';
     import { aggregatePageRootUrl } from '$lib/routing';
+    import { triggerEditAggregateModal } from '$lib/components/product_display/aggregates';
 
     export let data: PageData;
 
@@ -27,20 +28,10 @@
         await cart.setCartContent({ __typename: 'Aggregate', aggregateId, quantity: newQuantity }, client);
     }
 
-    function triggerCreateAggregateModal() {
-        const modalComponent: ModalComponent = {
-            ref: EditAggregateModal,
-            props: {
-                aggregate
-            }
-        };
-        const modal: ModalSettings = {
-            type: 'component',
-            component: modalComponent,
-            title: 'Edit Aggregate Product'
-        };
+    function triggerEditModal() {
+        if (aggregate == undefined) return;
 
-        modalStore.trigger(modal);
+        triggerEditAggregateModal(aggregate);
     }
 
     function triggerConfirmDeleteModal() {
@@ -90,7 +81,7 @@
                             <button
                                 class="btn btn-filled-primary btn-sm !h-[2rem] py-0"
                                 title="Edit aggregate ingredient"
-                                on:click={triggerCreateAggregateModal}>
+                                on:click={triggerEditModal}>
                                 <Pen size={24} />
                             </button>
                             <button
