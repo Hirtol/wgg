@@ -1,10 +1,11 @@
 use crate::api::aggregate_ingredients::objects::AggregateIngredient;
 use crate::api::pagination::{ConnectionResult, QueryResult};
-use crate::api::{self, ContextExt, GraphqlResult};
+use crate::api::{self, ContextExt, GraphqlResult, ProductId};
 use crate::cross_system::{self, Filter};
 use crate::db::{self, Id, SelectExt};
 use async_graphql::{Context, Object};
-use sea_orm::{EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, EntityTrait, IntoSimpleExpr, QueryFilter};
+use wgg_providers::models::Provider;
 
 #[derive(Default)]
 pub struct AggregateQuery;
@@ -31,6 +32,27 @@ impl AggregateQuery {
             let conditions = cross_system::recursive_filter(filters, |mut cond, fields| {
                 if let Some(name) = fields.has_name {
                     cond = cond.add(db::agg_ingredients::has_name_like(&name))
+                }
+                if let Some(combo) = fields.has_product {
+                    use sea_orm::sea_query::*;
+                    let provider_id = state.provider_id_from_provider(&combo.provider);
+                    let subquery = Query::select()
+                        .expr(db::agg_ingredients::Column::Id.into_simple_expr())
+                        .from(db::agg_ingredients::Entity)
+                        .left_join(
+                            db::agg_ingredients_links::Entity,
+                            Expr::tbl(db::agg_ingredients::Entity, db::agg_ingredients::Column::Id).equals(
+                                db::agg_ingredients_links::Entity,
+                                db::agg_ingredients_links::Column::AggregateId,
+                            ),
+                        )
+                        .cond_where(db::agg_ingredients_links::related_product(
+                            &combo.product_id,
+                            provider_id,
+                        ))
+                        .to_owned();
+
+                    cond = cond.add(db::agg_ingredients::Column::Id.in_subquery(subquery))
                 }
 
                 cond
@@ -72,4 +94,12 @@ impl AggregateQuery {
 pub struct IngredientQuery {
     /// Return all aggregate ingredients which share (part) of the given name
     has_name: Option<String>,
+    /// Return all aggregate ingredients which have the following product id as part of their ingredients
+    has_product: Option<ProductProvider>,
+}
+
+#[derive(async_graphql::InputObject, Debug)]
+pub struct ProductProvider {
+    product_id: ProductId,
+    provider: Provider,
 }
