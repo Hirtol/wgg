@@ -113,12 +113,15 @@ impl AggregateMutation {
 
         tracing::debug!(current=?current_aggregate, "Updating aggregate ingredient");
 
-        let mut update = current_aggregate.into_active_model();
+        let model = if input.name.is_value() || input.image_url.is_value() {
+            let mut update = current_aggregate.into_active_model();
 
-        update.name = input.name.into_flattened_active_value();
-        update.image_url = input.image_url.into_flattened_active_value();
-
-        let model = update.update(&tx).await?;
+            update.name = input.name.into_flattened_active_value();
+            update.image_url = input.image_url.into_flattened_active_value();
+            update.update(&tx).await?
+        } else {
+            current_aggregate
+        };
 
         if let Some(ingredients) = input.ingredients.take() {
             // Delete existing ingredients associated with this ID
