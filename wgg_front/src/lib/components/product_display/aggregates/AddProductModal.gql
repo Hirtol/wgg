@@ -1,0 +1,21 @@
+query getAggregateIngredientsModal($first: Int, $after: String, $filters: IngredientQueryFilter, $price: PriceFilter!) {
+    aggregateIngredients(first: $first, after: $after, filters: $filters) {
+        edges {
+            cursor
+            node {
+                ...AggregateCardFragment
+                ingredients {
+                    id
+                    providerInfo {
+                        provider
+                    }
+                }
+            }
+        }
+        pageInfo {
+            hasPreviousPage
+            hasNextPage
+        }
+        totalCount
+    }
+}
