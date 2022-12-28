@@ -106,7 +106,8 @@ export function createUrqlClient(opts?: ClientOptions): Client {
  * ```
  */
 export async function asyncQueryStore<Data = any, Variables extends AnyVariables = AnyVariables>(
-    args: QueryArgs<Data, Variables>
+    args: QueryArgs<Data, Variables>,
+    withGlobalLoading: boolean = true
 ): Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> {
     const result = queryStore(args);
 
@@ -140,7 +141,9 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
         }
     });
 
-    const _ = globalLoading.submit(finalPromise);
+    if (withGlobalLoading) {
+        const _ = globalLoading.submit(finalPromise);
+    }
 
     return finalPromise;
 }
@@ -158,7 +161,8 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
  */
 export async function asyncMutationStore<Data = any, Variables extends AnyVariables = AnyVariables>(
     args: MutationArgs<Data, Variables>,
-    handler?: SubscriptionHandler<Data, Data>
+    handler?: SubscriptionHandler<Data, Data>,
+    withGlobalLoading: boolean = true
 ): Promise<{ store: OperationResultStore<Data, Variables>; item: OperationResultState<Data, Variables> }> {
     const result = mutationStore(args, handler);
 
@@ -183,7 +187,9 @@ export async function asyncMutationStore<Data = any, Variables extends AnyVariab
     });
 
     // Make progress visible for the user.
-    const _ = globalLoading.submit(finalPromise);
+    if (withGlobalLoading) {
+        const _ = globalLoading.submit(finalPromise);
+    }
 
     return finalPromise;
 }

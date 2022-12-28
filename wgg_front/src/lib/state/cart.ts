@@ -138,14 +138,18 @@ async function setCartContent(
                     : undefined
         };
 
-        const { item } = await asyncMutationStore({
-            query: SetProductToCartDocument,
-            variables: {
-                input,
-                price: priceFilter
+        const { item } = await asyncMutationStore(
+            {
+                query: SetProductToCartDocument,
+                variables: {
+                    input,
+                    price: priceFilter
+                },
+                client
             },
-            client
-        });
+            undefined,
+            false
+        );
 
         return item.data?.cartCurrentSetProduct.data;
     } else {
@@ -162,14 +166,18 @@ async function setCartContent(
             notes: productInput.__typename == 'Note' && productInput.id ? productInput.id : undefined
         };
 
-        const { item } = await asyncMutationStore({
-            query: RemoveProductFromCartDocument,
-            variables: {
-                input,
-                price: priceFilter
+        const { item } = await asyncMutationStore(
+            {
+                query: RemoveProductFromCartDocument,
+                variables: {
+                    input,
+                    price: priceFilter
+                },
+                client
             },
-            client
-        });
+            undefined,
+            false
+        );
 
         return item.data?.cartCurrentRemoveProduct.data;
     }

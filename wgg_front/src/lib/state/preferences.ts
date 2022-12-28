@@ -38,7 +38,6 @@ export function verifyPreferenceIntegrity(
     availableProviders: ProviderMap
 ): boolean {
     let isUnmodified = true;
-    const globalProviders = getProviders();
     const currentPrefs = get(preferences);
 
     if (!availableProviders.has(currentPrefs.favouriteProvider)) {
@@ -51,19 +50,6 @@ export function verifyPreferenceIntegrity(
         isUnmodified = false;
     }
 
-    // Check if the displayPrice is for a specific Provider, and if so, whether that Provider is available.
-    if (
-        globalProviders.includes(currentPrefs.displayPrice as Provider) &&
-        !availableProviders.has(currentPrefs.displayPrice as Provider)
-    ) {
-        notifications.warning(
-            `Display Price '${currentPrefs.displayPrice}' is no longer available on the server, resetting!`,
-            'Preference Update'
-        );
-        currentPrefs.displayPrice = 'AVERAGE';
-        isUnmodified = false;
-    }
-
     preferences.set(currentPrefs);
 
     return isUnmodified;
@@ -71,7 +57,7 @@ export function verifyPreferenceIntegrity(
 
 export function createPreferenceStore(): Writable<Preferences> {
     const defaultItem: Preferences = {
-        displayPrice: 'AVERAGE',
+        displayPrice: "AVERAGE",
         aggregateDisplayPrice: PriceFilter.Average,
         favouriteProvider: Provider.Picnic
     };
