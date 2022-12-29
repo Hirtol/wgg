@@ -8,10 +8,12 @@
         AggregateFullFragment,
         AggregateUpdateChangeSet,
         GetAggregateIngredientsModalDocument,
+        GetAggregateIngredientsModalQueryVariables,
         UpdateAggregateProductDocument
     } from '$lib/api/graphql_types';
     import { asyncMutationStore } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
+    import Paginator from '$lib/components/pagination/Paginator.svelte';
     import SimpleSelectableTable, { TableData, TableRow } from '$lib/components/tables/SimpleSelectableTable.svelte';
     import { getContextPreferences } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
@@ -45,20 +47,30 @@
         head: ['Name', 'Image'],
         bodyData: []
     };
-
-    $: query = {
-        query: GetAggregateIngredientsModalDocument,
-        variables: {
-            first: 10,
-            filters: {
-                hasName: searchText.length > 0 ? searchText : undefined
-            },
-            price: $preferences.aggregateDisplayPrice
+    let vars: GetAggregateIngredientsModalQueryVariables = {
+        first: 10,
+        filters: {
+            hasName: searchText.length > 0 ? searchText : undefined
         },
+        price: $preferences.aggregateDisplayPrice
+    };
+    let query = {
+        query: GetAggregateIngredientsModalDocument,
+        variables: vars,
         client
     };
-    $: list = queryStore(query);
+    let list = queryStore(query);
+    let paginatorSettings = {
+        offset: 0,
+        limit: 5
+    };
 
+    // Refresh query when updating the search text.
+    $: {
+        query.variables.filters.hasName = searchText.length > 0 ? searchText : undefined;
+
+        queryStore(query);
+    }
     $: tableRows =
         $list.data?.aggregateIngredients.edges.map((x) => {
             return {
@@ -105,6 +117,22 @@
 
         if ($modalStore[0].response) $modalStore[0].response(responses);
         modalStore.close();
+    }
+
+    function handleLimitChange(event: CustomEvent<number>) {
+        // paginatorSettings.limit = event.detail;
+        query.variables.first = paginatorSettings.limit;
+        query.variables.after = undefined;
+    }
+
+    function handlePageChange(event: CustomEvent<number>) {
+        console.log(event);
+        paginatorSettings.offset = event.detail;
+
+        query.variables.after =
+            paginatorSettings.offset == 0
+                ? undefined
+                : (paginatorSettings.offset * paginatorSettings.limit - 1).toString();
     }
 
     /**
@@ -161,7 +189,7 @@
     {#if $list.data}
         {$list.data.aggregateIngredients.totalCount}
         <form id="changeForm" on:submit|preventDefault={handleSubmit} class="overflow-auto overscroll-none">
-            <SimpleSelectableTable data={tableStuff} rowClass="h-8" on:selected={handleSelect}>
+            <SimpleSelectableTable data={tableStuff} rowClass="h-8" on:selected={handleSelect} withSelectAll={false}>
                 <svelte:fragment let:item>
                     <td>{item.data.name}</td>
                     <td>
@@ -170,6 +198,12 @@
                 </svelte:fragment>
             </SimpleSelectableTable>
         </form>
+        <Paginator
+            bind:settings={paginatorSettings}
+            on:amount={handleLimitChange}
+            on:page={handlePageChange}
+            amounts={[1, 2, 5, 10]}
+            totalCount={$list.data?.aggregateIngredients.totalCount ?? 0} />
     {:else}
         Fetching...
     {/if}
