@@ -4,8 +4,8 @@ use crate::db::Id;
 use async_graphql::Context;
 use std::borrow::Cow;
 use wgg_providers::models::{
-    Provider, UnavailableItem, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
-    WggSearchProduct,
+    Provider, SublistId, UnavailableItem, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited,
+    WggSaleItem, WggSearchProduct,
 };
 
 // ** Implementations **
@@ -58,6 +58,13 @@ impl WggSearchProductWrapper {
             provider: self.item.provider,
         }
     }
+
+    /// Return, if there is a sale, the sale's id
+    #[tracing::instrument(skip(ctx))]
+    pub async fn sale_id(&self, ctx: &Context<'_>) -> Option<SublistId> {
+        let state = ctx.wgg_state();
+        state.providers.product_sale_id(self.item.provider, &self.item.id)
+    }
 }
 
 #[async_graphql::ComplexObject]
@@ -68,6 +75,13 @@ impl WggProductWrapper {
             product_id: &self.item.id,
             provider: self.item.provider,
         }
+    }
+
+    /// Return, if there is a sale, the sale's id
+    #[tracing::instrument(skip(ctx))]
+    pub async fn sale_id(&self, ctx: &Context<'_>) -> Option<SublistId> {
+        let state = ctx.wgg_state();
+        state.providers.product_sale_id(self.item.provider, &self.item.id)
     }
 }
 

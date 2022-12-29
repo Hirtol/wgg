@@ -25,13 +25,53 @@ pub struct AggregateIngredient {
     #[graphql(skip)]
     pub created_by: Id,
     pub created_at: DateTime<Utc>,
+    /// Lazily initialised as it is shared between multiple resolvers
+    #[graphql(skip)]
+    pub ingredients: tokio::sync::OnceCell<Vec<WggSearchProductWrapper>>,
 }
 
 #[ComplexObject]
 impl AggregateIngredient {
     /// Return all composite ingredients which are part of this aggregate ingredient.
     #[tracing::instrument(skip(ctx))]
-    pub async fn ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSearchProductWrapper>> {
+    pub async fn ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<&Vec<WggSearchProductWrapper>> {
+        self.get_ingredients(ctx).await
+    }
+
+    /// Returns the average price of all constituent ingredients.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn price(&self, ctx: &Context<'_>, format: PriceFilter) -> GraphqlResult<CentPrice> {
+        let products = self.get_ingredients(ctx).await?;
+        let price_iter = products.iter().map(|i| i.item.price_info.display_price);
+
+        let result = match format {
+            PriceFilter::Minimum => price_iter.min().unwrap_or_default(),
+            PriceFilter::Average => price_iter.sum::<CentPrice>() / products.len().max(1) as CentPrice,
+            PriceFilter::Maximum => price_iter.max().unwrap_or_default(),
+        };
+
+        Ok(result)
+    }
+
+    /// Retrieve the direct quantity of this product within the given `cart_id`.
+    ///
+    /// If `cart_id` is not given then the current cart of the user is assumed.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        crate::api::cart::get_aggregate_product_quantity(&state.db, cart_id, user.id, self.id).await
+    }
+}
+
+impl AggregateIngredient {
+    async fn get_ingredients(&self, ctx: &Context<'_>) -> GraphqlResult<&Vec<WggSearchProductWrapper>> {
+        self.ingredients
+            .get_or_try_init(move || self.get_ingredients_initialisation(ctx))
+            .await
+    }
+
+    async fn get_ingredients_initialisation(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<WggSearchProductWrapper>> {
         let state = ctx.wgg_state();
 
         let products = db::agg_ingredients_links::Entity::find()
@@ -48,29 +88,6 @@ impl AggregateIngredient {
 
         Ok(results.into_iter().map(|i| i.into()).collect())
     }
-
-    /// Returns the average price of all constituent ingredients.
-    pub async fn price(&self, ctx: &Context<'_>, format: PriceFilter) -> GraphqlResult<CentPrice> {
-        let products = self.ingredients(ctx).await??;
-        let price_iter = products.iter().map(|i| i.item.price_info.display_price);
-
-        let result = match format {
-            PriceFilter::Minimum => price_iter.min().unwrap_or_default(),
-            PriceFilter::Average => price_iter.sum::<CentPrice>() / products.len().max(1) as CentPrice,
-            PriceFilter::Maximum => price_iter.max().unwrap_or_default(),
-        };
-
-        Ok(result)
-    }
-
-    /// Retrieve the direct quantity of this product within the given `cart_id`.
-    ///
-    /// If `cart_id` is not given then the current cart of the user is assumed.
-    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
-        let state = ctx.wgg_state();
-        let user = ctx.wgg_user()?;
-        crate::api::cart::get_aggregate_product_quantity(&state.db, cart_id, user.id, self.id).await
-    }
 }
 
 impl From<db::agg_ingredients::Model> for AggregateIngredient {
@@ -81,6 +98,7 @@ impl From<db::agg_ingredients::Model> for AggregateIngredient {
             image_url: model.image_url,
             created_by: model.created_by,
             created_at: model.created_at,
+            ingredients: Default::default(),
         }
     }
 }
