@@ -218,7 +218,7 @@ async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {
         .busy_timeout(Duration::from_secs(10));
 
     let pool = SqlitePoolOptions::new()
-        .max_connections(std::thread::available_parallelism()?.get() as u32)
+        .max_connections(db_cfg.max_connections)
         .connect_with(options)
         .await?;
 
