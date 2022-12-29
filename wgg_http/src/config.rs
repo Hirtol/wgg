@@ -92,7 +92,7 @@ pub struct DbConfig {
     /// The amount of connections to the database.
     /// In theory Sqlx should've fixed 'database locked' errors, but those still seem to occur with multiple mutations.
     /// Hence why we use just a single connection by default.
-    pub max_connections: u32,
+    pub max_connections: NonZeroU32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug)]
@@ -159,8 +159,9 @@ impl Default for DbConfig {
             db_path: crate::utils::get_app_dirs().config_dir.join("wgg.db"),
             in_memory: false,
             max_connections: std::thread::available_parallelism()
-                .map(|x| x.get() as u32)
-                .unwrap_or(1),
+                .ok()
+                .and_then(|x| x.try_into().ok())
+                .unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
         }
     }
 }
