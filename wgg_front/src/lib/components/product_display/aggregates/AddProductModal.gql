@@ -3,13 +3,7 @@ query getAggregateIngredientsModal($first: Int, $after: String, $filters: Ingred
         edges {
             cursor
             node {
-                ...AggregateCardFragment
-                ingredients {
-                    id
-                    providerInfo {
-                        provider
-                    }
-                }
+                ...PartialFullAggregateFragment
             }
         }
         pageInfo {
@@ -17,6 +11,16 @@ query getAggregateIngredientsModal($first: Int, $after: String, $filters: Ingred
             hasNextPage
         }
         totalCount
+    }
+}
+
+fragment PartialFullAggregateFragment on AggregateIngredient {
+    ...AggregateCardFragment
+    ingredients {
+        id
+        providerInfo {
+            provider
+        }
     }
 }
 

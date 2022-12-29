@@ -7,17 +7,15 @@
         AddProductModalFragment,
         AggregateFullFragment,
         AggregateUpdateChangeSet,
-        GetAggregateIngredientsModalDocument,
-        GetAggregateIngredientsModalQueryVariables,
-        UpdateAggregateProductDocument
+        GetAggregateIngredientsModalDocument, PartialFullAggregateFragment, UpdateAggregateProductDocument
     } from '$lib/api/graphql_types';
     import { asyncMutationStore } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
-    import Paginator from '$lib/components/pagination/Paginator.svelte';
+    import PaginatorAfter, { PaginationSettings } from '$lib/components/misc/pagination/PaginatorAfter.svelte';
     import SimpleSelectableTable, { TableData, TableRow } from '$lib/components/tables/SimpleSelectableTable.svelte';
     import { getContextPreferences } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
-    import { getContextClient, queryStore } from '@urql/svelte';
+    import { getContextClient, queryStore, RequestPolicy } from '@urql/svelte';
     import { triggerCreateAggregateModal } from '.';
 
     /** Exposes parent props to this component. */
@@ -29,13 +27,14 @@
 
     const client = getContextClient();
     const preferences = getContextPreferences();
+    const paginationLimits = [2, 5, 10];
 
     /**
      * The items to update in the final mutation on 'Submit'
      */
     let toUpdate: {
         changes: AggregateUpdateChangeSet;
-        source: AggregateFullFragment;
+        sourceId: number;
         cursor: string;
     }[] = [];
     /**
@@ -47,38 +46,31 @@
         head: ['Name', 'Image'],
         bodyData: []
     };
-    let vars: GetAggregateIngredientsModalQueryVariables = {
-        first: 10,
-        filters: {
-            hasName: searchText.length > 0 ? searchText : undefined
-        },
-        price: $preferences.aggregateDisplayPrice
+    let paginatorSettings: PaginationSettings = {
+        after: undefined,
+        limit: paginationLimits[1]
     };
-    let query = {
+
+    $: query = {
         query: GetAggregateIngredientsModalDocument,
-        variables: vars,
-        client
+        variables: {
+            first: paginatorSettings.limit,
+            after: paginatorSettings.after?.toString(),
+            filters: {
+                hasName: searchText.length > 0 ? searchText : undefined
+            },
+            price: $preferences.aggregateDisplayPrice
+        },
+        client,
+        requestPolicy: 'cache-first' as RequestPolicy
     };
-    let list = queryStore(query);
-    let paginatorSettings = {
-        offset: 0,
-        limit: 5
-    };
+    $: list = queryStore(query);
 
-    // Refresh query when updating the search text.
-    $: {
-        query.variables.filters.hasName = searchText.length > 0 ? searchText : undefined;
-
-        queryStore(query);
-    }
     $: tableRows =
         $list.data?.aggregateIngredients.edges.map((x) => {
             return {
                 index: x.cursor,
-                checked:
-                    x.node.ingredients.find(
-                        (x) => x.id == product.id && x.providerInfo.provider == product.providerInfo.provider
-                    ) != undefined,
+                checked: shouldBeChecked(x.node),
                 data: x.node
             };
         }) ?? [];
@@ -86,6 +78,24 @@
         ...tableStuff,
         bodyData: tableRows
     };
+
+    function shouldBeChecked(agg: PartialFullAggregateFragment): boolean {
+        const alreadyOwned =
+            agg.ingredients.find(
+                (x) => x.id == product.id && x.providerInfo.provider == product.providerInfo.provider
+            ) != undefined;
+
+        const willUpdate =
+            toUpdate
+                .filter((y) => agg.id == y.sourceId)
+                .find((x) =>
+                    x.changes.ingredients?.find(
+                        (x) => x.id == product.id && x.provider == product.providerInfo.provider
+                    )
+                ) != undefined;
+
+        return alreadyOwned || willUpdate;
+    }
 
     function triggerCreateModal(): void {
         triggerCreateAggregateModal(async (resp) => {
@@ -102,7 +112,7 @@
                 {
                     query: UpdateAggregateProductDocument,
                     variables: {
-                        id: x.source.id,
+                        id: x.sourceId,
                         input: x.changes,
                         price: $preferences.aggregateDisplayPrice
                     },
@@ -117,22 +127,6 @@
 
         if ($modalStore[0].response) $modalStore[0].response(responses);
         modalStore.close();
-    }
-
-    function handleLimitChange(event: CustomEvent<number>) {
-        // paginatorSettings.limit = event.detail;
-        query.variables.first = paginatorSettings.limit;
-        query.variables.after = undefined;
-    }
-
-    function handlePageChange(event: CustomEvent<number>) {
-        console.log(event);
-        paginatorSettings.offset = event.detail;
-
-        query.variables.after =
-            paginatorSettings.offset == 0
-                ? undefined
-                : (paginatorSettings.offset * paginatorSettings.limit - 1).toString();
     }
 
     /**
@@ -163,7 +157,7 @@
 
             toUpdate.push({
                 cursor: row.index,
-                source: dats,
+                sourceId: dats.id,
                 changes: update
             });
         }
@@ -198,11 +192,9 @@
                 </svelte:fragment>
             </SimpleSelectableTable>
         </form>
-        <Paginator
+        <PaginatorAfter
             bind:settings={paginatorSettings}
-            on:amount={handleLimitChange}
-            on:page={handlePageChange}
-            amounts={[1, 2, 5, 10]}
+            amounts={paginationLimits}
             totalCount={$list.data?.aggregateIngredients.totalCount ?? 0} />
     {:else}
         Fetching...
