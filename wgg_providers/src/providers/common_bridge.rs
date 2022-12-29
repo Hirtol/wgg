@@ -220,10 +220,14 @@ pub(crate) fn parse_int_fract_price(integer_part: CentPrice, fractional_part: Ce
 /// week (Sunday 23:59:59).
 pub(crate) fn get_guessed_sale_validity(now: DateTime<Utc>) -> SaleValidity {
     // We assume a sale is valid until the very end of this week
-    let monday =
-        chrono::NaiveDate::from_isoywd(now.iso_week().year(), now.iso_week().week(), Weekday::Mon).and_hms(0, 0, 0);
-    let sunday =
-        chrono::NaiveDate::from_isoywd(now.iso_week().year(), now.iso_week().week(), Weekday::Sun).and_hms(23, 59, 59);
+    let monday = chrono::NaiveDate::from_isoywd_opt(now.iso_week().year(), now.iso_week().week(), Weekday::Mon)
+        .unwrap()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
+    let sunday = chrono::NaiveDate::from_isoywd_opt(now.iso_week().year(), now.iso_week().week(), Weekday::Sun)
+        .unwrap()
+        .and_hms_opt(23, 59, 59)
+        .unwrap();
 
     let valid_from: DateTime<Utc> = DateTime::from_local(monday, Utc);
     let valid_until: DateTime<Utc> = DateTime::from_local(sunday, Utc);
