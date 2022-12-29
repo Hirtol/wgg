@@ -61,21 +61,14 @@
     }
 
     function triggerAddProductModal() {
-        triggerAddProductToAggregateModal(product, async () => {
-            ({ store } = await asyncQueryStore({
-                query: FullProductQueryDocument,
-                variables: { provider: product.providerInfo.provider, productId: product.id },
-                client
-            }));
+        triggerAddProductToAggregateModal(product, async (responses) => {
+            if (responses)
+                ({ store } = await asyncQueryStore({
+                    query: FullProductQueryDocument,
+                    variables: { provider: product.providerInfo.provider, productId: product.id },
+                    client
+                }));
         });
-    }
-    let once = false;
-    $: {
-        if (product && !once) {
-            modalStore.clear();
-            triggerAddProductModal();
-            once = true;
-        }
     }
 </script>
 

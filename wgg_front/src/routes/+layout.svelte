@@ -8,7 +8,7 @@
     import Notifier from '$lib/components/notifications/Notifiers.svelte';
     import type { LayoutData } from './$types';
     import { cartPageRootUrl } from '$lib/routing';
-    import { Modal } from '@skeletonlabs/skeleton';
+    import { Modal, modalStore } from '@skeletonlabs/skeleton';
     import { page } from '$app/stores';
     import { setContextPreference } from '$lib/state';
 
@@ -20,7 +20,13 @@
     preloadCode(cartPageRootUrl);
 
     beforeNavigate((nav) => {
-        globalLoading.start();
+        // First close the modals if there are any.
+        if ($modalStore.length > 0) {
+            modalStore.clear();
+            nav.cancel();
+        } else {
+            globalLoading.start();
+        }
     });
 
     afterNavigate((nav) => {

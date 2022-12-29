@@ -6,8 +6,6 @@
     export interface TableData {
         /** The formatted table heading values. */
         head: string[];
-        /** The formatted table body values. */
-        bodyData: TableRow[];
         /** The data returned when an interactive row is clicked. */
         meta?: string[][];
         /** The formatted table footer values. */
@@ -26,7 +24,9 @@
 
     export { _class as class };
 
-    export let data: TableData;
+    export let settings: TableData;
+    /** The formatted table body values. */
+    export let data: TableRow[];
     export let withSelectAll: boolean = true;
 
     // Props (styles)
@@ -63,14 +63,14 @@
                     <!-- Selection -->
                 </th>
 
-                {#each data.head as item}
+                {#each settings.head as item}
                     <th>{item}</th>
                 {/each}
             </tr>
         </thead>
         <!-- Body -->
         <tbody class={regionBody}>
-            {#each data.bodyData as item, i}
+            {#each data as item, i}
                 <tr class={rowClass} class:table-row-checked={item.checked}>
                     <td role="gridcell">
                         <input
@@ -83,10 +83,10 @@
             {/each}
         </tbody>
         <!-- Foot -->
-        {#if data.foot}
+        {#if settings.foot}
             <tfoot class="table-foot {regionFoot}">
                 <tr>
-                    {#each data.foot as cell}
+                    {#each settings.foot as cell}
                         <td>{@html cell}</td>
                     {/each}
                 </tr>

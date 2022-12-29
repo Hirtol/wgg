@@ -104,7 +104,7 @@
         <button
             class={buttonClasses}
             on:click={onNext}
-            disabled={disabled || (settings.after ?? 0) + settings.limit >= totalCount - 1}>
+            disabled={disabled || (settings.after ?? 0) + settings.limit >= totalCount}>
             {@html buttonTextNext}
         </button>
     </div>

@@ -7,13 +7,15 @@
         AddProductModalFragment,
         AggregateFullFragment,
         AggregateUpdateChangeSet,
-        GetAggregateIngredientsModalDocument, PartialFullAggregateFragment, UpdateAggregateProductDocument
+        GetAggregateIngredientsModalDocument,
+        PartialFullAggregateFragment,
+        UpdateAggregateProductDocument
     } from '$lib/api/graphql_types';
     import { asyncMutationStore } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
     import PaginatorAfter, { PaginationSettings } from '$lib/components/misc/pagination/PaginatorAfter.svelte';
     import SimpleSelectableTable, { TableData, TableRow } from '$lib/components/tables/SimpleSelectableTable.svelte';
-    import { getContextPreferences } from '$lib/state';
+    import { getContextPreferences, isMobileScreen } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
     import { getContextClient, queryStore, RequestPolicy } from '@urql/svelte';
     import { triggerCreateAggregateModal } from '.';
@@ -28,6 +30,9 @@
     const client = getContextClient();
     const preferences = getContextPreferences();
     const paginationLimits = [2, 5, 10];
+    const tableSettings: TableData = {
+        head: ['Name', 'Image'],
+    };
 
     /**
      * The items to update in the final mutation on 'Submit'
@@ -37,18 +42,15 @@
         sourceId: number;
         cursor: string;
     }[] = [];
+
     /**
      * The current search text.
      */
     let searchText: string = '';
 
-    let tableStuff: TableData = {
-        head: ['Name', 'Image'],
-        bodyData: []
-    };
     let paginatorSettings: PaginationSettings = {
         after: undefined,
-        limit: paginationLimits[1]
+        limit: paginationLimits[$isMobileScreen ? 0 : 1]
     };
 
     $: query = {
@@ -66,18 +68,13 @@
     };
     $: list = queryStore(query);
 
-    $: tableRows =
-        $list.data?.aggregateIngredients.edges.map((x) => {
+    $: tableRows = $list.data?.aggregateIngredients.edges.map((x) => {
             return {
                 index: x.cursor,
                 checked: shouldBeChecked(x.node),
                 data: x.node
             };
         }) ?? [];
-    $: tableStuff = {
-        ...tableStuff,
-        bodyData: tableRows
-    };
 
     function shouldBeChecked(agg: PartialFullAggregateFragment): boolean {
         const alreadyOwned =
@@ -181,9 +178,8 @@
     </div>
 
     {#if $list.data}
-        {$list.data.aggregateIngredients.totalCount}
         <form id="changeForm" on:submit|preventDefault={handleSubmit} class="overflow-auto overscroll-none">
-            <SimpleSelectableTable data={tableStuff} rowClass="h-8" on:selected={handleSelect} withSelectAll={false}>
+            <SimpleSelectableTable data={tableRows} settings={tableSettings} rowClass="h-8" on:selected={handleSelect} withSelectAll={false}>
                 <svelte:fragment let:item>
                     <td>{item.data.name}</td>
                     <td>
@@ -192,13 +188,15 @@
                 </svelte:fragment>
             </SimpleSelectableTable>
         </form>
-        <PaginatorAfter
-            bind:settings={paginatorSettings}
-            amounts={paginationLimits}
-            totalCount={$list.data?.aggregateIngredients.totalCount ?? 0} />
     {:else}
         Fetching...
     {/if}
+
+    <PaginatorAfter
+        class="!align-bottom"
+        bind:settings={paginatorSettings}
+        amounts={paginationLimits}
+        totalCount={$list.data?.aggregateIngredients.totalCount ?? 0} />
 
     <footer class="modal-footer !mt-auto pt-4 {parent.regionFooter}">
         <p class="mr-auto">{toUpdate.length} Changes</p>
