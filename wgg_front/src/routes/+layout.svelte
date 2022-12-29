@@ -37,6 +37,6 @@
 <!-- Shows notifications for the user -->
 <Notifier />
 <!-- Shows modals -->
-<Modal width="w-full max-w-2xl md:max-w-5xl overscroll-none overflow-auto" height="h-auto max-h-full" />
+<Modal width="w-full max-w-2xl md:max-w-5xl overscroll-none" height="h-auto max-h-full flex flex-col" />
 
 <slot />

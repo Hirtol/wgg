@@ -4,23 +4,18 @@
 -->
 <script lang="ts">
     import {
-    AddProductModalFragment,
-        AggregateCardFragment,
+        AddProductModalFragment,
         AggregateFullFragment,
         AggregateUpdateChangeSet,
-        GetAggregateIngredientsDocument,
         GetAggregateIngredientsModalDocument,
-        ProductCardFragment,
         UpdateAggregateProductDocument
     } from '$lib/api/graphql_types';
-    import { asyncMutationStore, asyncQueryStore } from '$lib/api/urql';
+    import { asyncMutationStore } from '$lib/api/urql';
     import { globalLoading } from '$lib/components/global_progress/global_loading';
     import SimpleSelectableTable, { TableData, TableRow } from '$lib/components/tables/SimpleSelectableTable.svelte';
     import { getContextPreferences } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
     import { getContextClient, queryStore } from '@urql/svelte';
-    import { Pause } from 'carbon-icons-svelte';
-    import { prevent_default } from 'svelte/internal';
     import { triggerCreateAggregateModal } from '.';
 
     /** Exposes parent props to this component. */
@@ -147,13 +142,9 @@
 
         toUpdate = toUpdate;
     }
-
-    // Base Classes
-    const cBase = 'space-y-4';
-    const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-<div class="modal-main flex h-full flex-col md:h-[60vh] {cBase}">
+<div class="modal-main flex h-full min-h-full flex-col space-y-4 md:h-[60vh]">
     <div class="flex flex-col-reverse gap-2 md:flex-row">
         <label class="w-full">
             <span>Aggregate Ingredient Search</span>
@@ -167,7 +158,7 @@
         </button>
     </div>
 
-    {#if !$list.fetching && $list.data}
+    {#if $list.data}
         {$list.data.aggregateIngredients.totalCount}
         <form id="changeForm" on:submit|preventDefault={handleSubmit} class="overflow-auto overscroll-none">
             <SimpleSelectableTable data={tableStuff} rowClass="h-8" on:selected={handleSelect}>
@@ -184,6 +175,7 @@
     {/if}
 
     <footer class="modal-footer !mt-auto pt-4 {parent.regionFooter}">
+        <p class="mr-auto">{toUpdate.length} Changes</p>
         <button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
         <button type="submit" form="changeForm" class="btn {parent.buttonPositive}">Submit</button>
     </footer>
