@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { PageData } from './$types';
-    import { FullProductFragment, Provider } from '$lib/api/graphql_types';
+    import { FullProductFragment, FullProductQueryDocument, Provider } from '$lib/api/graphql_types';
     import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
     import {
@@ -21,6 +21,8 @@
     import { Add } from 'carbon-icons-svelte';
     import AddProductModal from '$lib/components/product_display/aggregates/AddProductModal.svelte';
     import { error } from '@sveltejs/kit';
+    import { asyncQueryStore } from '$lib/api/urql';
+    import { triggerAddProductToAggregateModal } from '$lib/components/product_display/aggregates';
 
     export let data: PageData;
 
@@ -37,16 +39,17 @@
             product = prod;
         }
     }
-    $: quantity =
-        $cart.getProductQuantity(product.providerInfo.provider, product.id).find((x) => x.origin === 'Direct')
-            ?.quantity ?? 0;
-    $: aggregateQuantities =
-        $cart.getProductQuantity(product.providerInfo.provider, product.id).filter((x) => x.origin === 'Indirect') ??
-        [];
     $: aggregates = product?.appInfo.associatedAggregates ?? [];
     $: images = product.imageUrls.map((url, i) => ({
         id: i,
         imgurl: url
+    }));
+    $: quantity =
+        $cart.getProductQuantity(product.providerInfo.provider, product.id).find((x) => x.origin === 'Direct')
+            ?.quantity ?? 0;
+    $: aggregateQuantities = aggregates.map((x) => ({
+        aggregate: x,
+        quantity: $cart.getAggregateQuantity(x.id)?.quantity ?? 0
     }));
 
     async function updateCartContent(productId: string, provider: Provider, newQuantity: number) {
@@ -57,26 +60,20 @@
         await cart.setCartContent({ __typename: 'Aggregate', aggregateId: aggregateId, quantity: newQuantity }, client);
     }
 
-    function triggerAddProductToAggregateModal() {
-        const modalComponent: ModalComponent = {
-            ref: AddProductModal,
-            props: {
-                product
-            }
-        };
-        const modal: ModalSettings = {
-            type: 'component',
-            component: modalComponent,
-            title: 'Add Product to Aggregate'
-        };
-
-        modalStore.trigger(modal);
+    function triggerAddProductModal() {
+        triggerAddProductToAggregateModal(product, async () => {
+            ({ store } = await asyncQueryStore({
+                    query: FullProductQueryDocument,
+                    variables: { provider: product.providerInfo.provider, productId: product.id },
+                    client
+                }));
+        })
     }
     let once = false;
     $: {
         if (product && !once) {
             modalStore.clear();
-            triggerAddProductToAggregateModal();
+            triggerAddProductModal();
             once = true;
         }
     }
@@ -99,7 +96,7 @@
 
                     <PriceComponent data={product.priceInfo} />
 
-                    <div class="flex flex-row gap-2">
+                    <div class="flex flex-row flex-wrap gap-2">
                         <AddComponent
                             class="min-h-[2.5rem] max-w-[8rem] pt-2"
                             normalButton
@@ -107,19 +104,19 @@
                             on:setQuantity={(e) =>
                                 updateCartContent(product.id, product.providerInfo.provider, e.detail)} />
 
-                        {#each aggregates as agg, i (agg.id)}
+                        {#each aggregateQuantities as agg, i (agg.aggregate.id)}
                             <AddComponent
                                 class="min-h-[2.5rem] max-w-[8rem] pt-2"
-                                productTitle={agg.name}
+                                productTitle={agg.aggregate.name}
                                 normalButton
-                                quantity={aggregateQuantities[i].quantity ?? 0}
-                                on:setQuantity={(e) => updateCartContentAggregate(agg.id, e.detail)} />
+                                quantity={agg.quantity}
+                                on:setQuantity={(e) => updateCartContentAggregate(agg.aggregate.id, e.detail)} />
                         {/each}
 
                         <button
                             class="btn btn-filled-accent btn-sm ml-auto"
                             title="Add to aggregate product"
-                            on:click={triggerAddProductToAggregateModal}>
+                            on:click={triggerAddProductModal}>
                             <Add size={24} />
                             Add to aggregate
                         </button>

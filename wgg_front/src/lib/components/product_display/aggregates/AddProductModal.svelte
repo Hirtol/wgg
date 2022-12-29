@@ -4,18 +4,23 @@
 -->
 <script lang="ts">
     import {
+    AddProductModalFragment,
         AggregateCardFragment,
+        AggregateFullFragment,
+        AggregateUpdateChangeSet,
         GetAggregateIngredientsDocument,
         GetAggregateIngredientsModalDocument,
         ProductCardFragment,
         UpdateAggregateProductDocument
     } from '$lib/api/graphql_types';
     import { asyncMutationStore, asyncQueryStore } from '$lib/api/urql';
+    import { globalLoading } from '$lib/components/global_progress/global_loading';
     import SimpleSelectableTable, { TableData, TableRow } from '$lib/components/tables/SimpleSelectableTable.svelte';
     import { getContextPreferences } from '$lib/state';
     import { modalStore } from '@skeletonlabs/skeleton';
     import { getContextClient, queryStore } from '@urql/svelte';
     import { Pause } from 'carbon-icons-svelte';
+    import { prevent_default } from 'svelte/internal';
     import { triggerCreateAggregateModal } from '.';
 
     /** Exposes parent props to this component. */
@@ -23,7 +28,7 @@
     /**
      * The product to add.
      */
-    export let product: ProductCardFragment;
+    export let product: AddProductModalFragment;
 
     const client = getContextClient();
     const preferences = getContextPreferences();
@@ -31,7 +36,14 @@
     /**
      * The items to update in the final mutation on 'Submit'
      */
-    let toUpdate = [];
+    let toUpdate: {
+        changes: AggregateUpdateChangeSet;
+        source: AggregateFullFragment;
+        cursor: string;
+    }[] = [];
+    /**
+     * The current search text.
+     */
     let searchText: string = '';
 
     let tableStuff: TableData = {
@@ -77,12 +89,71 @@
         });
     }
 
+    async function handleSubmit() {
+        let promises = toUpdate.map((x) => {
+            return asyncMutationStore(
+                {
+                    query: UpdateAggregateProductDocument,
+                    variables: {
+                        id: x.source.id,
+                        input: x.changes,
+                        price: $preferences.aggregateDisplayPrice
+                    },
+                    client
+                },
+                undefined,
+                false
+            );
+        });
+        // Wait for all changes to resolve.
+        let responses = await globalLoading.submit(Promise.all(promises));
+
+        if ($modalStore[0].response) $modalStore[0].response(responses);
+        modalStore.close();
+    }
+
+    /**
+     * Handle an individual item being selected for inclusion
+     */
+    function handleSelect(event: CustomEvent<TableRow>) {
+        let row = event.detail;
+        let dats = row.data as AggregateFullFragment;
+        let index = toUpdate.findIndex((i) => i.cursor == row.index);
+
+        if (index !== -1) {
+            toUpdate.splice(index, 1);
+        } else {
+            let update: AggregateUpdateChangeSet;
+
+            if (row.checked) {
+                let oldIngredients = dats.ingredients.map((x) => ({ id: x.id, provider: x.providerInfo.provider }));
+                update = {
+                    ingredients: oldIngredients.concat({ id: product.id, provider: product.providerInfo.provider })
+                };
+            } else {
+                update = {
+                    ingredients: dats.ingredients
+                        .map((x) => ({ id: x.id, provider: x.providerInfo.provider }))
+                        .filter((x) => x.id !== product.id && x.provider !== product.providerInfo.provider)
+                };
+            }
+
+            toUpdate.push({
+                cursor: row.index,
+                source: dats,
+                changes: update
+            });
+        }
+
+        toUpdate = toUpdate;
+    }
+
     // Base Classes
     const cBase = 'space-y-4';
     const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-<div class="modal-main {cBase}">
+<div class="modal-main flex h-full flex-col md:h-[60vh] {cBase}">
     <div class="flex flex-col-reverse gap-2 md:flex-row">
         <label class="w-full">
             <span>Aggregate Ingredient Search</span>
@@ -98,20 +169,22 @@
 
     {#if !$list.fetching && $list.data}
         {$list.data.aggregateIngredients.totalCount}
-        <SimpleSelectableTable data={tableStuff} rowClass="h-8" on:selected={console.log}>
-            <svelte:fragment let:item>
-                <td>{item.data.name}</td>
-                <td>
-                    <img src={item.data.imageUrl} class="h-8" alt={item.data.name} />
-                </td>
-            </svelte:fragment>
-        </SimpleSelectableTable>
+        <form id="changeForm" on:submit|preventDefault={handleSubmit} class="overflow-auto overscroll-none">
+            <SimpleSelectableTable data={tableStuff} rowClass="h-8" on:selected={handleSelect}>
+                <svelte:fragment let:item>
+                    <td>{item.data.name}</td>
+                    <td>
+                        <img src={item.data.imageUrl} class="h-8" alt={item.data.name} />
+                    </td>
+                </svelte:fragment>
+            </SimpleSelectableTable>
+        </form>
     {:else}
         Fetching...
     {/if}
 
-    <footer class="modal-footer {parent.regionFooter}">
+    <footer class="modal-footer !mt-auto pt-4 {parent.regionFooter}">
         <button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
-        <button type="submit" class="btn {parent.buttonPositive}">Submit</button>
+        <button type="submit" form="changeForm" class="btn {parent.buttonPositive}">Submit</button>
     </footer>
 </div>

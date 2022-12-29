@@ -19,3 +19,10 @@ query getAggregateIngredientsModal($first: Int, $after: String, $filters: Ingred
         totalCount
     }
 }
+
+fragment AddProductModalFragment on WggProduct {
+    id
+    providerInfo {
+        provider
+    }
+}
