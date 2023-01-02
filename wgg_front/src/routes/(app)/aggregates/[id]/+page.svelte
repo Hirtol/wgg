@@ -2,18 +2,18 @@
     import type { PageData } from './$types';
     import AddComponent from '$lib/components/product_display/products/AddComponent.svelte';
     import { getContextClient } from '@urql/svelte';
-    import { Divider, ModalComponent, ModalSettings, modalStore } from '@skeletonlabs/skeleton';
+    import { Divider, ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
     import PriceComponent from '$lib/components/product_display/products/PriceComponent.svelte';
     import PageRoot from '$lib/components/PageRoot.svelte';
     import ProductImage from '$lib/components/product_display/products/ProductImage.svelte';
     import HeteroCardList from '$lib/components/product_display/HeteroCardList.svelte';
     import { Pen, TrashCan } from 'carbon-icons-svelte';
-    import EditAggregateModal from '$lib/components/product_display/aggregates/EditAggregateModal.svelte';
     import { asyncMutationStore } from '$lib/api/urql';
     import { DeleteAggregateIngredientDocument } from '$lib/api/graphql_types';
     import { goto } from '$app/navigation';
     import { aggregatePageRootUrl } from '$lib/routing';
     import { triggerEditAggregateModal } from '$lib/components/product_display/aggregates';
+    import { triggerModal } from '$lib/components/modals';
 
     export let data: PageData;
 
@@ -43,7 +43,8 @@
             body: `Are you sure you wish to delete ${aggregate.name}?`,
             response: async (response: boolean) => {
                 if (!aggregate || !response) return;
-
+                // For some reason a single `goto` call doesn't work... TODO: Remove when no longer necessary
+                goto(aggregatePageRootUrl);
                 await goto(aggregatePageRootUrl);
 
                 let _ = await asyncMutationStore({
@@ -54,7 +55,7 @@
             }
         };
 
-        modalStore.trigger(modal);
+        triggerModal(modal);
     }
 </script>
 
