@@ -4,7 +4,7 @@ use crate::{db, db::Id};
 use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use sea_orm::{EntityTrait, QueryFilter};
-use wgg_providers::models::CentPrice;
+use wgg_providers::models::{CentPrice, SaleInformation};
 
 /// An aggregate ingredient is a collection of concrete, provider specific, products.
 ///
@@ -51,6 +51,20 @@ impl AggregateIngredient {
         };
 
         Ok(result)
+    }
+
+    /// Check whether there are any sales for any constituent ingredients.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn has_sale(&self, ctx: &Context<'_>) -> GraphqlResult<bool> {
+        let products = self.get_ingredients(ctx).await?;
+        Ok(products.iter().any(|x| x.item.sale_information.is_some()))
+    }
+
+    /// Retrieve all sales which currently apply to any of the constituent products of this aggregate ingredient.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn sales(&self, ctx: &Context<'_>) -> GraphqlResult<Vec<&SaleInformation>> {
+        let products = self.get_ingredients(ctx).await?;
+        Ok(products.iter().flat_map(|x| &x.item.sale_information).collect())
     }
 
     /// Retrieve the direct quantity of this product within the given `cart_id`.
