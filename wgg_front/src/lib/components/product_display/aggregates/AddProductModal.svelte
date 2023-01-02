@@ -31,7 +31,7 @@
     const preferences = getContextPreferences();
     const paginationLimits = [2, 5, 10];
     const tableSettings: TableData = {
-        head: ['Name', 'Image'],
+        head: ['Name', 'Image']
     };
 
     /**
@@ -68,7 +68,8 @@
     };
     $: list = queryStore(query);
 
-    $: tableRows = $list.data?.aggregateIngredients.edges.map((x) => {
+    $: tableRows =
+        $list.data?.aggregateIngredients.edges.map((x) => {
             return {
                 index: x.cursor,
                 checked: shouldBeChecked(x.node),
@@ -179,7 +180,12 @@
 
     {#if $list.data}
         <form id="changeForm" on:submit|preventDefault={handleSubmit} class="overflow-auto overscroll-none">
-            <SimpleSelectableTable data={tableRows} settings={tableSettings} rowClass="h-8" on:selected={handleSelect} withSelectAll={false}>
+            <SimpleSelectableTable
+                data={tableRows}
+                settings={tableSettings}
+                rowClass="h-8"
+                on:selected={handleSelect}
+                withSelectAll={false}>
                 <svelte:fragment let:item>
                     <td>{item.data.name}</td>
                     <td>
@@ -201,6 +207,7 @@
     <footer class="modal-footer !mt-auto pt-4 {parent.regionFooter}">
         <p class="mr-auto">{toUpdate.length} Changes</p>
         <button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
-        <button type="submit" form="changeForm" class="btn {parent.buttonPositive}">Submit</button>
+        <button type="submit" form="changeForm" class="btn {parent.buttonPositive}" disabled={toUpdate.length == 0}
+            >Submit</button>
     </footer>
 </div>
