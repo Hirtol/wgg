@@ -4,6 +4,12 @@ fragment AggregateCardFragment on AggregateIngredient {
     name
     imageUrl
     createdAt
+    sales {
+        label
+        saleType {
+            __typename
+        }
+    }
     price(format: $price)
 }
 

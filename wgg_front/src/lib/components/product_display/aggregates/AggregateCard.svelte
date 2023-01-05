@@ -11,6 +11,7 @@
     import { createEventDispatcher } from 'svelte';
     import AddComponent from '../products/AddComponent.svelte';
     import PriceComponent from '../products/PriceComponent.svelte';
+    import SaleLabel from '../products/SaleLabel.svelte';
 
     const dispatch = createEventDispatcher<{
         updateCartContent: { aggregateId: number; newQuantity: number };
@@ -29,11 +30,19 @@
     }
 
     $: listUrl = aggregatePageItemUrl(data.id);
+    $: saleInfo = data.sales
 </script>
 
 <ProductCardSkeleton class={_class}>
     <header class="relative mx-auto">
         <ProductImage data={{ name: data.name, imageUrl: data.imageUrl }}/>
+
+        <!-- Sale Label -->
+        {#if saleInfo.length > 0}
+            {#each saleInfo as sale}
+                <SaleLabel class="absolute bottom-0 left-0 w-full" text={sale.label} saleType={sale.saleType} />
+            {/each}
+        {/if}
     </header>
 
     <div class="body">

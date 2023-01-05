@@ -27,7 +27,9 @@ pub struct Runtime {
     pub id: RuntimeId,
     pub title: String,
     pub short_title: String,
+    #[serde(with = "crate::utils::date_format_parser")]
     pub start: DateTime<Utc>,
+    #[serde(with = "crate::utils::date_format_parser")]
     pub end: DateTime<Utc>,
 }
 
@@ -62,7 +64,9 @@ pub struct Promotion {
     pub tags: Vec<String>,
     pub subtitle: Option<String>,
     pub image: PromotionImage,
+    #[serde(with = "crate::utils::date_format_parser")]
     pub start_date: DateTime<Utc>,
+    #[serde(with = "crate::utils::date_format_parser")]
     pub end_date: DateTime<Utc>,
     pub products: Vec<ProductId>,
     pub disclaimer: Option<String>,
