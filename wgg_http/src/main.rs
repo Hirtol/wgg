@@ -4,7 +4,8 @@ use wgg_http::{config, get_quit_notifier, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv()?;
+    // We don't care if it can't find a .env file
+    let _ = dotenv::dotenv();
 
     // Setup Tracing
     let subscriber = telemetry::create_subscriber("DEBUG,wgg_http=TRACE,wgg_providers=TRACE,sqlx=WARN,hyper=WARN");
