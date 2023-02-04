@@ -141,26 +141,26 @@ impl<T: InputType> InputType for Filter<T> {
                     fields.insert(
                         "or".to_string(),
                         async_graphql::registry::MetaInputValue {
-                            name: "or",
+                            name: "or".to_string(),
                             description: None,
                             ty: <Option<Vec<Box<Filter<T>>>> as InputType>::create_type_info(registry),
                             default_value: None,
                             visible: None,
                             inaccessible: false,
-                            tags: &[],
+                            tags: Vec::new(),
                             is_secret: false,
                         },
                     );
                     fields.insert(
                         "and".to_string(),
                         async_graphql::registry::MetaInputValue {
-                            name: "and",
+                            name: "and".to_string(),
                             description: None,
                             ty: <Option<Vec<Box<Filter<T>>>> as InputType>::create_type_info(registry),
                             default_value: None,
                             visible: None,
                             inaccessible: false,
-                            tags: &[],
+                            tags: Vec::new(),
                             is_secret: false,
                         },
                     );
@@ -177,8 +177,8 @@ impl<T: InputType> InputType for Filter<T> {
                 },
                 visible: None,
                 inaccessible: false,
-                tags: &[],
-                rust_typename: ::std::any::type_name::<Self>(),
+                tags: Vec::new(),
+                rust_typename: Some(std::any::type_name::<Self>()),
                 oneof: false,
             }
         })

@@ -4,8 +4,9 @@ use crate::db;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
-use axum::extract::{FromRequest, RequestParts};
-use cookie::Key;
+use axum::extract::{FromRequestParts};
+use axum::http::request::Parts;
+use tower_cookies::Key;
 use mutation::LoginInput;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
@@ -95,12 +96,12 @@ fn hash_password(password: impl AsRef<[u8]>) -> anyhow::Result<String> {
 }
 
 #[async_trait::async_trait]
-impl<B: Send> FromRequest<B> for AuthContext {
+impl<S: Send + Sync> FromRequestParts<S> for AuthContext {
     type Rejection = GraphqlError;
 
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let cookies = Cookies::from_request(req).await.unwrap();
-        let extensions = req.extensions();
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let cookies = Cookies::from_request_parts(parts, state).await.unwrap();
+        let extensions = &parts.extensions;
 
         let key = extensions
             .get::<Key>()

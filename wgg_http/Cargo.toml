@@ -26,15 +26,15 @@ tokio = { workspace = true, features = ["full"]}
 futures = {workspace = true}
 
 # Web
-async-graphql = { version = "4.0.6", features = ["time", "dataloader", "tracing"] }
-async-graphql-axum = "4.0.6"
-axum = { version = "0.5.13", features = ["ws", "headers", "tower-log", "multipart"] }
-axum-extra = { version = "0.3.7", features = ["spa"] }
+async-graphql = { version = "5.0.5", features = ["time", "dataloader", "tracing"] }
+async-graphql-axum = "5.0.5"
+axum = { version = "0.6.4", features = ["ws", "headers", "tower-log", "multipart"] }
+axum-extra = { version = "0.4.2", features = ["spa"] }
 tower = { version = "0.4.13", features = ["timeout", "limit", "load-shed"] }
 tower-http = { version = "0.3.4", features = ["full"] }
 
-cookie = { version = "0.16.0", features = ["private", "percent-encode"] }
-tower-cookies = { version = "0.7.0", features = ["private"] }
+cookie = { version = "0.16.2", features = ["private", "percent-encode"] }
+tower-cookies = { version = "0.8.0", features = ["private"] }
 httpdate = "1.0.2"
 
 chrono = { workspace = true, features = ["serde"] }
@@ -53,7 +53,7 @@ rand = "0.8.5"
 figment = { version = "0.10.6", features = ["toml", "env"] }
 dotenv = "0.15.0"
 platform-dirs = "0.3.0"
-toml = "0.5.9"
+toml = "0.7.1"
 arc-swap = { workspace = true }
 
 # Providers

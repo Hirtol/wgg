@@ -105,15 +105,14 @@ impl AuthMutation {
 
         let (user, session_token) = super::login_user(&state.db, &input).await?;
 
-        let mut cookie = tower_cookies::Cookie::new(super::SESSION_KEY, session_token.token);
-        let expiry = cookie::Expiration::DateTime(
-            OffsetDateTime::from_unix_timestamp(session_token.expires.timestamp()).unwrap(),
-        );
+        let mut cookie = Cookie::new(super::SESSION_KEY, session_token.token);
+
+        let expiry = OffsetDateTime::from_unix_timestamp(session_token.expires.timestamp()).unwrap();
 
         cookie.set_http_only(true);
         cookie.set_path("/");
         cookie.set_expires(expiry);
-        cookie.set_same_site(Some(SameSite::Lax));
+        cookie.set_same_site(SameSite::Lax);
         cookie.set_secure(false);
 
         cookies.cookies.add(cookie);

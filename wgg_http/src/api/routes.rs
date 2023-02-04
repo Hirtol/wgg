@@ -12,15 +12,15 @@ pub fn config(schema: WggSchema) -> Router {
         "/graphql",
         axum::Router::new()
             .route("/", get(index_playground).post(index))
-            .route("/ws", GraphQLSubscription::new(schema)),
+            .route_service("/ws", GraphQLSubscription::new(schema)),
     )
 }
 
 async fn index(
     schema: Extension<WggSchema>,
-    req: GraphQLRequest,
     cookies: tower_cookies::Cookies,
     user: Option<AuthContext>,
+    req: GraphQLRequest,
 ) -> GraphQLResponse {
     let req = req.0.data(cookies).data(user);
 

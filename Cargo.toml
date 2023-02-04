@@ -27,6 +27,9 @@ resolver = "2"
 members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity", "wgg_schema_gen", "wgg_scheduler"]
 default-members = ["wgg_http"]
 
+[patch.crates-io]
+async-graphql = {git = "https://github.com/Hirtol/async-graphql"}
+
 [workspace.dependencies]
 anyhow = "1"
 thiserror = "1"

@@ -6,7 +6,6 @@ use anyhow::Context;
 use arc_swap::access::{DynAccess, DynGuard};
 use arc_swap::ArcSwap;
 use async_graphql::{EmptySubscription, Schema};
-use axum::body::Body;
 use axum::error_handling::HandleErrorLayer;
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::routing::{get_service, MethodRouter};
@@ -19,7 +18,7 @@ use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tower::{Layer, ServiceBuilder};
+use tower::{ServiceBuilder};
 use tower_cookies::CookieManagerLayer;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::compression::CompressionLayer;
@@ -197,7 +196,7 @@ fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate:
 fn api_router(schema: crate::api::WggSchema, static_dir: &Path, security: &crate::config::Security) -> axum::Router {
     let error_handler = |_| std::future::ready(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     let spa_handler = ServeDir::new(static_dir).fallback(ServeFile::new(static_dir.join("index.html")));
-    let assets_service: MethodRouter<Body> = get_service(spa_handler).handle_error(error_handler);
+    let assets_service = get_service(spa_handler).handle_error(error_handler);
     let assets_service = apply_static_security_headers(assets_service, security);
 
     // For some reason manifest.json isn't picked up in ServeDir, so we have to special case it here.
@@ -207,10 +206,10 @@ fn api_router(schema: crate::api::WggSchema, static_dir: &Path, security: &crate
             get_service(ServeFile::new(static_dir.join("manifest.json"))).handle_error(error_handler),
         )
         .nest("/api", crate::api::config(schema))
-        .fallback(assets_service)
+        .fallback_service(assets_service)
 }
 
-fn apply_static_security_headers(router: MethodRouter<Body>, security: &crate::config::Security) -> MethodRouter<Body> {
+fn apply_static_security_headers(router: MethodRouter, security: &crate::config::Security) -> MethodRouter {
     let security = ServiceBuilder::new()
         .layer(HandleErrorLayer::new(generic_error_handler))
         .option_layer(
