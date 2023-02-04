@@ -7,7 +7,10 @@ use arc_swap::access::{DynAccess, DynGuard};
 use arc_swap::ArcSwap;
 use async_graphql::{EmptySubscription, Schema};
 use axum::body::Body;
+use axum::error_handling::HandleErrorLayer;
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::routing::{get_service, MethodRouter};
+use axum::{BoxError, Router};
 use sea_orm::{DatabaseConnection, SqlxSqliteConnector};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::SqlitePool;
@@ -16,11 +19,12 @@ use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tower::ServiceBuilder;
+use tower::{Layer, ServiceBuilder};
 use tower_cookies::CookieManagerLayer;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
@@ -163,17 +167,17 @@ async fn construct_server(
     state.providers.clone().schedule_all_jobs(&state.scheduler);
     crate::api::scheduled_jobs::schedule_all_jobs(&state.scheduler, state.clone());
 
-    let app = api_router(&cfg.app.static_dir, schema.clone()).layer(
-        ServiceBuilder::new()
-            .layer(AddExtensionLayer::new(schema))
-            .layer(AddExtensionLayer::new(state))
-            .layer(AddExtensionLayer::new(secret_key))
-            .layer(TraceLayer::new_for_http())
-            .layer(CompressionLayer::new().br(true).gzip(true).deflate(true))
-            .layer(CookieManagerLayer::new()),
-    );
+    let app_layers = ServiceBuilder::new()
+        .layer(AddExtensionLayer::new(schema.clone()))
+        .layer(AddExtensionLayer::new(state))
+        .layer(AddExtensionLayer::new(secret_key))
+        .layer(TraceLayer::new_for_http())
+        .layer(CompressionLayer::new().br(true).gzip(true).deflate(true))
+        .layer(CookieManagerLayer::new());
 
-    Ok(app)
+    let app = api_router(schema, &cfg.app.static_dir, &cfg.security).layer(app_layers);
+
+    Ok(apply_security_middleware(app, &cfg))
 }
 
 fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate::api::WggSchema {
@@ -190,10 +194,11 @@ fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate:
     .finish()
 }
 
-fn api_router(static_dir: &Path, schema: crate::api::WggSchema) -> axum::Router {
+fn api_router(schema: crate::api::WggSchema, static_dir: &Path, security: &crate::config::Security) -> axum::Router {
     let error_handler = |_| std::future::ready(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     let spa_handler = ServeDir::new(static_dir).fallback(ServeFile::new(static_dir.join("index.html")));
     let assets_service: MethodRouter<Body> = get_service(spa_handler).handle_error(error_handler);
+    let assets_service = apply_static_security_headers(assets_service, security);
 
     // For some reason manifest.json isn't picked up in ServeDir, so we have to special case it here.
     axum::Router::new()
@@ -203,6 +208,40 @@ fn api_router(static_dir: &Path, schema: crate::api::WggSchema) -> axum::Router 
         )
         .nest("/api", crate::api::config(schema))
         .fallback(assets_service)
+}
+
+fn apply_static_security_headers(router: MethodRouter<Body>, security: &crate::config::Security) -> MethodRouter<Body> {
+    let security = ServiceBuilder::new()
+        .layer(HandleErrorLayer::new(generic_error_handler))
+        .option_layer(
+            security
+                .clickjack_protection
+                .then_some(SetResponseHeaderLayer::overriding(
+                    header::X_FRAME_OPTIONS,
+                    HeaderValue::from_static("SAMEORIGIN"),
+                )),
+        )
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_XSS_PROTECTION,
+            HeaderValue::from_static("1; mode=block"),
+        ));
+
+    router.layer(security)
+}
+
+fn apply_security_middleware(router: Router, cfg: &Config) -> Router {
+    let security = ServiceBuilder::new()
+        .layer(HandleErrorLayer::new(generic_error_handler))
+        .load_shed()
+        .concurrency_limit(cfg.security.max_concurrency as usize)
+        .layer(tower_http::timeout::TimeoutLayer::new(cfg.security.timeout));
+
+    router.layer(security)
+}
+
+async fn generic_error_handler(_error: BoxError) -> impl axum::response::IntoResponse {
+    tracing::trace!(error=?_error, "Error occurred in normal respone handler");
+    (StatusCode::INTERNAL_SERVER_ERROR, "Internal Error")
 }
 
 async fn initialise_database(db_cfg: &DbConfig) -> anyhow::Result<SqlitePool> {

@@ -38,9 +38,9 @@ pub async fn teardown_cache(cache: SerdeCache, config: &Config) {
 async fn serialize_cache(cache: SerdeCache, config: &Config) -> anyhow::Result<()> {
     let json = serde_json::to_string(&cache)?;
 
-    std::fs::create_dir_all(&config.app.cache_dir)?;
+    tokio::fs::create_dir_all(&config.app.cache_dir).await?;
 
-    Ok(std::fs::write(full_path(&config.app.cache_dir), json)?)
+    Ok(tokio::fs::write(full_path(&config.app.cache_dir), json).await?)
 }
 
 /// Deserializes the [wgg_providers::WggProvider] cache and returns it, alongside the last modified time, if available.

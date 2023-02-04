@@ -30,7 +30,7 @@ async-graphql = { version = "4.0.6", features = ["time", "dataloader", "tracing"
 async-graphql-axum = "4.0.6"
 axum = { version = "0.5.13", features = ["ws", "headers", "tower-log", "multipart"] }
 axum-extra = { version = "0.3.7", features = ["spa"] }
-tower = "0.4.13"
+tower = { version = "0.4.13", features = ["timeout", "limit", "load-shed"] }
 tower-http = { version = "0.3.4", features = ["full"] }
 
 cookie = { version = "0.16.0", features = ["private", "percent-encode"] }

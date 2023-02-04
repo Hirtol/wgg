@@ -11,6 +11,7 @@ use std::net::ToSocketAddrs;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub type SharedConfig = Arc<ArcSwap<Config>>;
 
@@ -64,6 +65,21 @@ pub struct Config {
     pub db: DbConfig,
     /// Contains all settings relevant for the various providers.
     pub pd: ProviderConfig,
+    /// Contains all settings relevant for security/rate limiting.
+    pub security: Security,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Security {
+    /// Whether to block the embedding of the application in IFrames.
+    ///
+    /// (Sets x-frame header)
+    pub clickjack_protection: bool,
+    /// The maximum amount of requests concurrently being handled.
+    pub max_concurrency: u32,
+    /// How long a request can take before automatically being timed out.
+    pub timeout: Duration,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -150,6 +166,16 @@ impl Debug for Config {
             .field("db", &self.db)
             .field("pd", &self.pd)
             .finish()
+    }
+}
+
+impl Default for Security {
+    fn default() -> Self {
+        Self {
+            timeout: Duration::from_secs(30),
+            max_concurrency: 512,
+            clickjack_protection: true,
+        }
     }
 }
 
