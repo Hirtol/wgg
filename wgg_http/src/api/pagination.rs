@@ -119,7 +119,6 @@ pub async fn query<T: OutputType, I: IntoIterator<Item = T>>(
     };
 
     let edges: Vec<Edge<T>> = (start..end)
-        .into_iter()
         .zip(iter)
         .map(|(cursor, node)| connection::Edge::new(cursor.into(), node))
         .collect();

@@ -97,7 +97,7 @@ impl FullJumboApi {
             .headers()
             .get("x-jumbo-token")
             .ok_or_else(|| {
-                ApiError::LoginFailed(format!("No Jumbo auth token available in response: {:#?}", response))
+                ApiError::LoginFailed(format!("No Jumbo auth token available in response: {response:#?}"))
             })?
             .to_str()
             .map_err(|e| anyhow!(e))?

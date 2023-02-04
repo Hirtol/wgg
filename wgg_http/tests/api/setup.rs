@@ -53,7 +53,7 @@ impl TestApp {
         let _ = tokio::spawn(app.run(quit_notifier.clone()));
 
         TestApp {
-            address: format!("http://localhost:{}", port),
+            address: format!("http://localhost:{port}"),
             port,
             db_pool: pool,
             temp_dir,

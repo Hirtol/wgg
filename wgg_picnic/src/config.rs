@@ -18,14 +18,12 @@ impl Config {
     pub fn new(country_code: CountryCode, api_version: u16, picnic_details: Option<PicnicDetails>) -> Self {
         Config {
             url: format!(
-                "https://storefront-prod.{}.picnicinternational.com/api/{}",
-                country_code, api_version
+                "https://storefront-prod.{country_code}.picnicinternational.com/api/{api_version}"
             )
             .parse()
             .expect("Default URL Incorrect"),
             static_url: format!(
-                "https://storefront-prod.{}.picnicinternational.com/static",
-                country_code
+                "https://storefront-prod.{country_code}.picnicinternational.com/static"
             )
             .parse()
             .expect("Default URL Incorrect"),
@@ -126,7 +124,7 @@ impl PicnicDetails {
     pub fn new(client_id: impl Into<String>, client_version: impl Into<String>) -> PicnicDetails {
         let client_id = client_id.into();
         let client_version = client_version.into();
-        let agent = format!("{};{};", client_id, client_version);
+        let agent = format!("{client_id};{client_version};");
 
         Self {
             picnic_agent: agent,

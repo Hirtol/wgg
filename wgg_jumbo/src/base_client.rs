@@ -83,7 +83,7 @@ pub trait BaseApi {
     ) -> Result<PromotionGroup> {
         let url = format!("/promotion-tabs/{}/{}", tab.as_ref(), runtime.as_ref());
         let store_id = store_id.map(|i| i.to_string());
-        let sorted_by = sorted_by.map(|i| format!("{:?}", i));
+        let sorted_by = sorted_by.map(|i| format!("{i:?}"));
         let query = crate::utils::build_map([("store_id", store_id.as_deref()), ("sorted_by", sorted_by.as_deref())]);
         let response = self.endpoint_get(&url, &query).await?;
 
@@ -93,7 +93,7 @@ pub trait BaseApi {
     /// Retrieve the full promotion info.
     async fn promotion(&self, promotion_id: &PromotionId) -> Result<Promotion> {
         let response = self
-            .endpoint_get(&format!("/promotion/{}", promotion_id), &Default::default())
+            .endpoint_get(&format!("/promotion/{promotion_id}"), &Default::default())
             .await?;
 
         Ok(response.json().await?)
@@ -128,7 +128,7 @@ pub trait BaseApi {
         basket: &PromotionCompletionRequest,
     ) -> Result<PromotionCompletion> {
         let response = self
-            .endpoint_post(&format!("/promotion-completion/{}", promotion_id), basket)
+            .endpoint_post(&format!("/promotion-completion/{promotion_id}"), basket)
             .await?;
 
         Ok(response.json().await?)
@@ -150,7 +150,7 @@ pub trait BaseApi {
     /// Retrieve the full details of a product.
     async fn product(&self, product_id: &ProductId) -> Result<FullProductResponse> {
         let response = self
-            .endpoint_get(&format!("/products/{}", product_id), &Default::default())
+            .endpoint_get(&format!("/products/{product_id}"), &Default::default())
             .await?;
 
         Ok(response.json().await?)

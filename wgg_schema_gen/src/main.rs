@@ -13,5 +13,5 @@ fn main() {
 
 fn generate_graphql_schema(path: &Path) {
     let schema_file = path.join("schema.graphql");
-    std::fs::write(schema_file, &wgg_http::api::WggSchema::default().sdl()).expect("Failed to write GraphQL schema.");
+    std::fs::write(schema_file, wgg_http::api::WggSchema::default().sdl()).expect("Failed to write GraphQL schema.");
 }

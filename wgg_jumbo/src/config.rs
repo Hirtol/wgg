@@ -17,7 +17,7 @@ impl Config {
     /// Current default is `api_version = 17`.
     pub fn new(api_version: u16) -> Self {
         Config {
-            url: format!("https://mobileapi.jumbo.com/v{}", api_version)
+            url: format!("https://mobileapi.jumbo.com/v{api_version}")
                 .parse()
                 .expect("Default URL Incorrect"),
             user_agent: "Jumbo/9.4.1 (unknown Android_SDK_built_for_x86_64; Android 12)".to_string(),

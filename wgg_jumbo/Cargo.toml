@@ -26,7 +26,6 @@ urlencoding = "2.1.0"
 async-trait = "0.1.57"
 
 [dev-dependencies]
-static_init = "1"
 pretty_assertions = "1.2"
 tempfile = "3"
 const_format = "0.2.13"

@@ -63,7 +63,6 @@ wgg_scheduler = {workspace = true}
 
 
 [dev-dependencies]
-static_init = "1"
 pretty_assertions = "1.2"
 tempfile = "3"
 const_format = "0.2.13"

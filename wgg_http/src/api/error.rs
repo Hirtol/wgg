@@ -31,7 +31,7 @@ pub enum GraphqlError {
 
 impl ErrorExtensions for GraphqlError {
     fn extend(&self) -> async_graphql::Error {
-        async_graphql::Error::new(format!("{:#?}", self)).extend_with(|_, e| match self {
+        async_graphql::Error::new(format!("{self:#?}")).extend_with(|_, e| match self {
             GraphqlError::InternalError(reason) => e.set("details", reason.as_str()),
             GraphqlError::Other(default_err) => e.set("details", default_err.to_string()),
             _ => {}
@@ -169,7 +169,7 @@ impl From<wgg_providers::ProviderError> for GraphqlError {
             ProviderError::InitialisationFailed(e) => GraphqlError::InternalError(e),
             ProviderError::NothingFound => GraphqlError::ResourceNotFound,
             ProviderError::ProviderUninitialised(provider) => {
-                GraphqlError::InternalError(format!("Provider uninitialised: {:?}", provider))
+                GraphqlError::InternalError(format!("Provider uninitialised: {provider:?}"))
             }
             ProviderError::Other(e) => GraphqlError::Other(e),
             ProviderError::Reqwest(e) => GraphqlError::Other(anyhow!(e)),

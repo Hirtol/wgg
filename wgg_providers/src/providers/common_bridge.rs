@@ -301,7 +301,7 @@ mod tests {
 
         for (to_parse, expected) in test_cases.iter().zip(expected.iter()) {
             assert_eq!(
-                parse_sale_label(to_parse).unwrap_or_else(|| panic!("Failed to parse example: {}", to_parse)),
+                parse_sale_label(to_parse).unwrap_or_else(|| panic!("Failed to parse example: {to_parse}")),
                 *expected
             );
         }
