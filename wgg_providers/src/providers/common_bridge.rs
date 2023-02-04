@@ -17,6 +17,8 @@ pub(crate) fn parse_unit_component(unit: &str) -> Option<Unit> {
         "liter" => Some(Unit::Liter),
         "ml" => Some(Unit::MilliLiter),
         "kg" => Some(Unit::KiloGram),
+        "kilo" => Some(Unit::KiloGram),
+        "Kilo" => Some(Unit::KiloGram),
         "Kg" => Some(Unit::KiloGram),
         "KG" => Some(Unit::KiloGram),
         "g" => Some(Unit::Gram),

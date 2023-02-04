@@ -11,6 +11,7 @@ use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{derive_unit_price, parse_sale_label, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
 use crate::ProviderError;
+use anyhow::Context;
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -126,7 +127,7 @@ impl ProviderInfo for JumboBridge {
                 items: item
                     .promotions
                     .into_iter()
-                    .map(parse_jumbo_promotion)
+                    .flat_map(parse_jumbo_promotion)
                     .map(WggSaleItem::Group)
                     .collect(),
                 image_urls: Vec::new(),
@@ -149,8 +150,8 @@ impl ProviderInfo for JumboBridge {
     }
 }
 
-fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleGroupLimited {
-    WggSaleGroupLimited {
+fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> Option<WggSaleGroupLimited> {
+    Some(WggSaleGroupLimited {
         id: promotion.id.into(),
         name: promotion.title,
         image_urls: vec![promotion.image.url],
@@ -159,24 +160,25 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> WggSaleGrou
             .into_iter()
             .map(|product| ProductIdT { id: product.into() })
             .collect(),
+        // Jumbo has a tendency to include not on-sale items in their sale listings (Ronde prijs! kind of promotions)
+        // Those have no `tags` and will thus fail here.
         sale_info: parse_promotion_to_sale_info(
             &promotion.tags,
             SaleValidity {
                 valid_from: promotion.start_date,
                 valid_until: promotion.end_date,
             },
-        )
-        .expect("Jumbo promotion didn't have sale info!"),
+        )?,
         sale_description: promotion.subtitle,
         provider: Provider::Jumbo,
-    }
+    })
 }
 
 fn parse_jumbo_promotion_complete(
     promotion: wgg_jumbo::models::Promotion,
     product_list: wgg_jumbo::models::ProductList,
 ) -> Result<WggSaleGroupComplete> {
-    let promo = parse_jumbo_promotion(promotion);
+    let promo = parse_jumbo_promotion(promotion).context("Provided list is not a true sale (may be a faux-sale!)")?;
 
     let items = product_list
         .products
