@@ -281,10 +281,10 @@ impl From<WggCursor> for i32 {
 }
 
 impl CursorType for WggCursor {
-    type Error = anyhow::Error;
+    type Error = crate::api::error::GraphqlError;
 
     fn decode_cursor(s: &str) -> Result<Self, Self::Error> {
-        WggCursor::decode(s)
+        Ok(WggCursor::decode(s)?)
     }
 
     fn encode_cursor(&self) -> String {

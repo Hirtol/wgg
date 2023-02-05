@@ -96,7 +96,8 @@ impl Extension for ErrorTraceExtension {
         let result = next.run(ctx, operation_name).await;
 
         if result.is_err() {
-            tracing::warn!(error=?result.errors, "Error occurred in GraphQL resolution");
+            let source = result.errors.iter().flat_map(|r| &r.source).collect::<Vec<_>>();
+            tracing::warn!(error=?result.errors, ?source, "Error occurred in GraphQL resolution");
         }
 
         result

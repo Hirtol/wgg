@@ -29,17 +29,19 @@ pub enum GraphqlError {
     Other(#[from] anyhow::Error),
 }
 
-impl ErrorExtensions for GraphqlError {
-    fn extend(&self) -> async_graphql::Error {
-        async_graphql::Error::new(format!("{self:#?}")).extend_with(|_, e| match self {
+impl GraphqlError {
+    fn extensions(&self) -> async_graphql::ErrorExtensionValues {
+        let mut e = async_graphql::ErrorExtensionValues::default();
+
+        match self {
             GraphqlError::InternalError(reason) => e.set("details", reason.as_str()),
             GraphqlError::Other(default_err) => e.set("details", default_err.to_string()),
             _ => {}
-        })
-    }
-}
+        }
 
-impl GraphqlError {
+        e
+    }
+
     fn status_code(&self) -> axum::http::StatusCode {
         match self {
             GraphqlError::ResourceNotFound => StatusCode::NOT_FOUND,
@@ -49,6 +51,24 @@ impl GraphqlError {
             GraphqlError::InvalidInput(_) => StatusCode::BAD_REQUEST,
             GraphqlError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
+    }
+}
+
+impl From<GraphqlError> for async_graphql::Error {
+    fn from(value: GraphqlError) -> Self {
+        async_graphql::Error {
+            message: value.to_string(),
+            extensions: Some(value.extensions()),
+            source: Some(std::sync::Arc::new(value)),
+        }
+    }
+}
+
+impl ErrorExtensions for GraphqlError {
+    fn extend(&self) -> async_graphql::Error {
+        let mut output = async_graphql::Error::new(self.to_string());
+        output.extensions = Some(self.extensions());
+        output
     }
 }
 
@@ -88,7 +108,7 @@ impl IntoResponse for GraphqlError {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct ApiResponseError<T> {
+struct ApiResponseError<T> {
     pub code: u16,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
