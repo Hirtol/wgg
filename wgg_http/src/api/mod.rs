@@ -96,10 +96,29 @@ impl Extension for ErrorTraceExtension {
         let result = next.run(ctx, operation_name).await;
 
         if result.is_err() {
-            let source = result.errors.iter().flat_map(|r| &r.source).collect::<Vec<_>>();
-            tracing::warn!(error=?result.errors, ?source, "Error occurred in GraphQL resolution");
+            let errors = result
+                .errors
+                .iter()
+                .map(|r| TraceErrorLog {
+                    source: &r.source,
+                    locations: &r.locations,
+                    path: &r.path,
+                })
+                .collect::<Vec<_>>();
+            tracing::warn!(?errors, "Error occurred in GraphQL resolution");
         }
 
         result
     }
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
+struct TraceErrorLog<'a> {
+    /// The original error
+    pub source: &'a Option<Arc<dyn std::error::Error + Send + Sync>>,
+    /// Where the error occurred.
+    pub locations: &'a Vec<async_graphql::Pos>,
+    /// If the error occurred in a resolver, the path to the error.
+    pub path: &'a Vec<async_graphql::PathSegment>,
 }

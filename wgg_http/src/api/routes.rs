@@ -16,6 +16,7 @@ pub fn config(schema: WggSchema) -> Router {
     )
 }
 
+#[tracing::instrument(skip(schema, cookies, req))]
 async fn index(
     schema: Extension<WggSchema>,
     cookies: tower_cookies::Cookies,
@@ -27,6 +28,7 @@ async fn index(
     schema.execute(req).await.into()
 }
 
+#[tracing::instrument(skip_all)]
 async fn index_playground(_: Option<AuthContext>) -> GraphqlResult<impl IntoResponse> {
     Ok(axum::response::Html(playground_source(
         GraphQLPlaygroundConfig::new("/api/graphql").subscription_endpoint("/api/graphql/ws"),

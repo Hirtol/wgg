@@ -16,16 +16,16 @@ pub enum GraphqlError {
     #[error("Could not find requested resource")]
     ResourceNotFound,
     /// An internal error which we don't want to elaborate too much on (additional details provided in String)
-    #[error("An internal error occurred. Please try again later. {0}")]
+    #[error("An internal error occurred. Please try again later")]
     InternalError(String),
     /// User display error, provided `String` is displayed.
     #[error("Error: {0}")]
     UserError(String),
     #[error("Not allowed to perform this action")]
     Unauthorized,
-    #[error("Invalid Input Error: {0}")]
+    #[error("Invalid input provided by user")]
     InvalidInput(String),
-    #[error(transparent)]
+    #[error("An internal error occurred. Please try again later")]
     Other(#[from] anyhow::Error),
 }
 
@@ -35,6 +35,7 @@ impl GraphqlError {
 
         match self {
             GraphqlError::InternalError(reason) => e.set("details", reason.as_str()),
+            GraphqlError::InvalidInput(input) => e.set("details", input.as_str()),
             GraphqlError::Other(default_err) => e.set("details", default_err.to_string()),
             _ => {}
         }
