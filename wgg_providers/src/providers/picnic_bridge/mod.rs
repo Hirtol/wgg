@@ -27,7 +27,6 @@ use crate::error::Result;
 
 mod authentication;
 
-use crate::models::sale_types::SaleType;
 pub use authentication::PicnicCredentials;
 
 pub const PICNIC_RECOMMENDED_RPS: Option<NonZeroU32> = NonZeroU32::new(5);
@@ -572,12 +571,6 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         }
     }
 
-    // Normalise the prices, TODO: With proper login-credentials this is already done for us! This change will probably land for us in
-    // the future and this normalisation step can be removed.
-    if let Some(sale_info) = &result.sale_information {
-        normalise_price_info(&mut result.price_info, sale_info);
-    }
-
     Ok(result)
 }
 
@@ -644,53 +637,7 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
             common_bridge::derive_unit_price(&result.unit_quantity, result.price_info.display_price)
     }
 
-    // Normalise the prices, TODO: With proper login-credentials this is already done for us! This change will probably land for us in
-    // the future and this normalisation step can be removed.
-    if let Some(sale_info) = &result.sale_information {
-        normalise_price_info(&mut result.price_info, sale_info);
-    }
-
     result
-}
-
-/// Picnic publishes certain deals like `1 + 1 free` with different prices than our
-/// systems expect. They double the `original_price` for example to show you that you'd save 1 product's worth of income!
-/// This is annoying to handle in the higher layers (and no other shop does it like this!) so we normalise this away.
-fn normalise_price_info(price_info: &mut PriceInfo, sale_info: &SaleInformation) {
-    if let Some(sale_type) = &sale_info.sale_type {
-        match sale_type {
-            SaleType::NumPlusNumFree(data) => {
-                // In the case of `2 + 1 gratis` the prices are as follows: `ORIGINAL: 11.37 - DISPLAY: 7.58`.
-                // The 'true' original price is `3.79`, however, so we want to get that back.
-                let total = data.free.get() as u32 + data.required.get() as u32;
-
-                price_info.original_price /= total;
-                price_info.display_price /= data.required.get() as u32;
-
-                // Sanity check for when Picnic *eventually* changes over to their new API in the future.
-                if price_info.original_price != price_info.display_price {
-                    tracing::warn!(
-                        "Picnic price normalisation ended up different than expected, has the Picnic API been updated?"
-                    )
-                }
-                // The price per kilo is actually accurate, so no need to update!
-            }
-            SaleType::NumthPercentOff(data) => {
-                // In the case of `2de halve prijs` same as above
-                price_info.original_price /= data.required.get() as u32;
-                price_info.display_price = price_info.original_price;
-            }
-            SaleType::NumForPrice(data) => {
-                // In the case of `2 voor 4.00` the prices are as follows `ORIGINAL: 4.54 - DISPLAY: 4.00`.
-                // The 'true' original price is `2.27`
-                price_info.original_price /= data.required.get() as u32;
-                price_info.display_price = price_info.original_price;
-            }
-            SaleType::NumPercentOff(_) => {}
-            SaleType::NumEuroOff(_) => {}
-            SaleType::NumEuroPrice(_) => {}
-        }
-    }
 }
 
 fn parse_decorators_for_sale(decorators: &[Decorator]) -> (Option<String>, Option<SaleValidity>) {

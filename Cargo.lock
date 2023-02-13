@@ -217,7 +217,7 @@ dependencies = [
 [[package]]
 name = "async-graphql"
 version = "5.0.5"
-source = "git+https://github.com/Hirtol/async-graphql#f602545ee9e9b50597153954f6ee447f9ad67cc0"
+source = "git+https://github.com/Hirtol/async-graphql#a809e0a0cf30227c0881461c4559695ad3fee4b8"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
@@ -273,7 +273,7 @@ dependencies = [
 [[package]]
 name = "async-graphql-derive"
 version = "5.0.5"
-source = "git+https://github.com/Hirtol/async-graphql#f602545ee9e9b50597153954f6ee447f9ad67cc0"
+source = "git+https://github.com/Hirtol/async-graphql#a809e0a0cf30227c0881461c4559695ad3fee4b8"
 dependencies = [
  "Inflector",
  "async-graphql-parser",
@@ -288,7 +288,7 @@ dependencies = [
 [[package]]
 name = "async-graphql-parser"
 version = "5.0.5"
-source = "git+https://github.com/Hirtol/async-graphql#f602545ee9e9b50597153954f6ee447f9ad67cc0"
+source = "git+https://github.com/Hirtol/async-graphql#a809e0a0cf30227c0881461c4559695ad3fee4b8"
 dependencies = [
  "async-graphql-value",
  "pest",
@@ -299,7 +299,7 @@ dependencies = [
 [[package]]
 name = "async-graphql-value"
 version = "5.0.5"
-source = "git+https://github.com/Hirtol/async-graphql#f602545ee9e9b50597153954f6ee447f9ad67cc0"
+source = "git+https://github.com/Hirtol/async-graphql#a809e0a0cf30227c0881461c4559695ad3fee4b8"
 dependencies = [
  "bytes",
  "indexmap",
