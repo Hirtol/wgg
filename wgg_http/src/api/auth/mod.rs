@@ -1,15 +1,15 @@
 use crate::api::error::GraphqlError;
-use crate::api::{GraphqlResult, State};
+use crate::api::{AppState, GraphqlResult};
 use crate::db;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
-use axum::extract::{FromRequestParts};
+use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use tower_cookies::Key;
 use mutation::LoginInput;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
+use tower_cookies::Key;
 use tower_cookies::{Cookies, PrivateCookies};
 
 static SESSION_KEY: &str = "session_key";
@@ -96,10 +96,10 @@ fn hash_password(password: impl AsRef<[u8]>) -> anyhow::Result<String> {
 }
 
 #[async_trait::async_trait]
-impl<S: Send + Sync> FromRequestParts<S> for AuthContext {
+impl FromRequestParts<AppState> for AuthContext {
     type Rejection = GraphqlError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         let cookies = Cookies::from_request_parts(parts, state).await.unwrap();
         let extensions = &parts.extensions;
 
@@ -109,9 +109,6 @@ impl<S: Send + Sync> FromRequestParts<S> for AuthContext {
             .ok_or_else(|| GraphqlError::InternalError("Key extract failure".to_string()))?;
 
         let cookies = WggCookies::from_cookies(&cookies, &key);
-        let state = extensions
-            .get::<State>()
-            .ok_or_else(|| GraphqlError::InternalError("DB extract failure".to_string()))?;
 
         if let Some(session_token) = cookies.cookies.get(SESSION_KEY) {
             verify_login_status(&state.db, session_token.value()).await

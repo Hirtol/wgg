@@ -1,5 +1,5 @@
 use crate::api::dataloader::DataLoaders;
-use crate::api::State;
+use crate::api::AppState;
 use crate::config::{Config, DbConfig, SharedConfig};
 use crate::db::Id;
 use anyhow::Context;
@@ -18,7 +18,7 @@ use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tower::{ServiceBuilder};
+use tower::ServiceBuilder;
 use tower_cookies::CookieManagerLayer;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::compression::CompressionLayer;
@@ -149,11 +149,11 @@ async fn construct_server(
     providers: Arc<WggProvider>,
     db_providers: BTreeMap<Provider, Id>,
     scheduler: JobScheduler,
-) -> anyhow::Result<axum::Router> {
+) -> anyhow::Result<Router> {
     let cfg: DynGuard<Config> = config.load();
     let secret_key = tower_cookies::Key::from(cfg.app.cookie_secret_key.as_bytes());
 
-    let state = State {
+    let state = AppState {
         db,
         config,
         providers,
@@ -168,18 +168,19 @@ async fn construct_server(
 
     let app_layers = ServiceBuilder::new()
         .layer(AddExtensionLayer::new(schema.clone()))
-        .layer(AddExtensionLayer::new(state))
         .layer(AddExtensionLayer::new(secret_key))
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new().br(true).gzip(true).deflate(true))
         .layer(CookieManagerLayer::new());
 
-    let app = api_router(schema, &cfg.app.static_dir, &cfg.security).layer(app_layers);
+    let app = api_router(schema, &cfg.app.static_dir, &cfg.security)
+        .layer(app_layers)
+        .with_state(state);
 
     Ok(apply_security_middleware(app, &cfg))
 }
 
-fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate::api::WggSchema {
+fn create_graphql_schema(state: AppState, secret_key: tower_cookies::Key) -> crate::api::WggSchema {
     Schema::build(
         crate::api::QueryRoot::default(),
         crate::api::MutationRoot::default(),
@@ -193,14 +194,18 @@ fn create_graphql_schema(state: State, secret_key: tower_cookies::Key) -> crate:
     .finish()
 }
 
-fn api_router(schema: crate::api::WggSchema, static_dir: &Path, security: &crate::config::Security) -> axum::Router {
+fn api_router(
+    schema: crate::api::WggSchema,
+    static_dir: &Path,
+    security: &crate::config::Security,
+) -> Router<AppState> {
     let error_handler = |_| std::future::ready(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     let spa_handler = ServeDir::new(static_dir).fallback(ServeFile::new(static_dir.join("index.html")));
     let assets_service = get_service(spa_handler).handle_error(error_handler);
     let assets_service = apply_static_security_headers(assets_service, security);
 
     // For some reason manifest.json isn't picked up in ServeDir, so we have to special case it here.
-    axum::Router::new()
+    Router::new()
         .route(
             "/manifest.json",
             get_service(ServeFile::new(static_dir.join("manifest.json"))).handle_error(error_handler),

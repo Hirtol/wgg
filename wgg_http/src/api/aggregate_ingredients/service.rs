@@ -1,5 +1,5 @@
 use crate::api::aggregate_ingredients::AggregateIngredient;
-use crate::api::{GraphqlResult, State};
+use crate::api::{AppState, GraphqlResult};
 use crate::db;
 use crate::db::Id;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
@@ -32,7 +32,7 @@ pub async fn get_associated_aggregate_for_product(
 #[allow(dead_code)]
 pub async fn calculate_aggregate_total_price(
     db: &impl TransactionTrait,
-    state: &State,
+    state: &AppState,
     aggregate_id: Id,
 ) -> GraphqlResult<(CentPrice, usize)> {
     let tx = db.begin().await?;

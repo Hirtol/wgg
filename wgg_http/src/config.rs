@@ -97,6 +97,10 @@ pub struct AppConfig {
     ///
     /// Will be done asynchronously but will send *a lot* (~80 per provider) of requests.
     pub startup_sale_validation: bool,
+    /// Whether to enable the GraphQL playground.
+    /// 
+    /// Disabled by default.
+    pub graphql_playground: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, PartialOrd, PartialEq, Eq)]
@@ -155,6 +159,7 @@ impl Default for AppConfig {
                 .join("static"),
             cache_dir: crate::utils::get_app_dirs().config_dir.join("cache"),
             startup_sale_validation: true,
+            graphql_playground: false,
         }
     }
 }

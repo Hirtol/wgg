@@ -1,4 +1,4 @@
-use crate::api::{ProductId, State};
+use crate::api::{AppState, ProductId};
 use crate::db;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::VecDeque;
@@ -6,7 +6,7 @@ use wgg_providers::models::Provider;
 use wgg_scheduler::schedule::Schedule;
 use wgg_scheduler::Job;
 
-pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: State) -> Job {
+pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: AppState) -> Job {
     use futures::stream::StreamExt;
     Job::new(schedule, move |_, _| {
         let state = state.clone();
@@ -33,7 +33,7 @@ pub fn create_job_keep_cart_data_fresh(schedule: Schedule, state: State) -> Job 
 async fn get_all_cart_products(
     queue: &mut VecDeque<(Provider, ProductId)>,
     db: &impl ConnectionTrait,
-    state: &State,
+    state: &AppState,
 ) -> anyhow::Result<()> {
     let products = db::cart_contents::raw_product::Entity::find()
         .left_join(db::cart::Entity)

@@ -27,6 +27,8 @@ pub enum GraphqlError {
     InvalidInput(String),
     #[error("An internal error occurred. Please try again later")]
     Other(#[from] anyhow::Error),
+    #[error("GraphQL Playground is disabled on this server")]
+    PlaygroundDisabled,
 }
 
 impl GraphqlError {
@@ -51,6 +53,7 @@ impl GraphqlError {
             GraphqlError::Unauthorized => StatusCode::UNAUTHORIZED,
             GraphqlError::InvalidInput(_) => StatusCode::BAD_REQUEST,
             GraphqlError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            GraphqlError::PlaygroundDisabled => StatusCode::NOT_FOUND,
         }
     }
 }
@@ -125,6 +128,7 @@ impl Clone for GraphqlError {
             GraphqlError::Unauthorized => GraphqlError::Unauthorized,
             GraphqlError::InvalidInput(e) => GraphqlError::InvalidInput(e.clone()),
             GraphqlError::Other(e) => GraphqlError::Other(anyhow::Error::msg(e.to_string())),
+            GraphqlError::PlaygroundDisabled => GraphqlError::PlaygroundDisabled,
         }
     }
 }

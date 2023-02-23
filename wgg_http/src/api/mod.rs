@@ -41,7 +41,7 @@ const MAX_AMOUNT_DELETE: usize = 20;
 
 /// State to be shared between all routes, and available as an ExtensionLayer/Context
 #[derive(Clone)]
-pub struct State {
+pub struct AppState {
     pub(crate) db: DatabaseConnection,
     pub(crate) config: SharedConfig,
     pub(crate) providers: Arc<WggProvider>,
@@ -52,7 +52,7 @@ pub struct State {
     pub(crate) db_providers: BTreeMap<Provider, Id>,
 }
 
-impl State {
+impl AppState {
     /// Quickly find the [Provider] associated with the given `id`.
     pub fn provider_from_id(&self, id: Id) -> Provider {
         self.db_providers

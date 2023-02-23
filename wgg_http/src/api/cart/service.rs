@@ -1,5 +1,5 @@
 use crate::api::error::GraphqlError;
-use crate::api::{GraphqlResult, State};
+use crate::api::{AppState, GraphqlResult};
 use crate::db;
 use crate::db::Id;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
@@ -73,7 +73,7 @@ pub async fn get_products_quantity(
 pub async fn calculate_tallies(
     db: &impl ConnectionTrait,
     cart_id: Id,
-    state: &State,
+    state: &AppState,
 ) -> GraphqlResult<HashMap<Provider, TallyPriceInfo>> {
     let mut result: HashMap<Provider, TallyPriceInfo> = HashMap::with_capacity(state.db_providers.len());
     let mut sale_items: HashMap<SublistId, SaleTracking> = HashMap::new();

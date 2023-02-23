@@ -1,11 +1,11 @@
 use crate::api::auth::{AuthContext, WggCookies};
 use crate::api::error::GraphqlError;
-use crate::api::{GraphqlResult, State};
+use crate::api::{AppState, GraphqlResult};
 use async_graphql::Context;
 
 pub(crate) trait ContextExt {
-    /// Retrieve the [`State`] from the context
-    fn wgg_state(&self) -> &State;
+    /// Retrieve the [`AppState`] from the context
+    fn wgg_state(&self) -> &AppState;
 
     /// Retrieve the current [AuthContext] from the request.
     ///
@@ -19,7 +19,7 @@ pub(crate) trait ContextExt {
 }
 
 impl<'a> ContextExt for Context<'a> {
-    fn wgg_state(&self) -> &State {
+    fn wgg_state(&self) -> &AppState {
         self.data_unchecked()
     }
 
