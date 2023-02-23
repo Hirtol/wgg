@@ -433,7 +433,7 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
     if let Some(blob) = product.misc.iter().find(|i| i.header.text.contains("Voedingswaarde")) {
         if let Body::NutritionalTable { nutritional_table } = &blob.body {
             result.nutritional = NutritionalInfo {
-                info_unit: format!("Per {}", nutritional_table.default_unit),
+                info_unit: nutritional_table.default_unit.clone(),
                 items: nutritional_table
                     .values
                     .iter()
