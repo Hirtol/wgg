@@ -108,7 +108,7 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
             // `2e halve prijs`
             r#"(\d+) \s* e \s* halve \s* prijs"#,
             // `3 voor €4,50`
-            r#"(\d+) \s* voor \s* €? \s* (\d+)[,.](\d+)"#,
+            r#"(\d+) \s* voor \s* €? \s* (\d+)(?:[,.](\d+))?"#,
             // `1 euro korting` | `1.50 euro korting`
             r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
             // `€1.00 korting`
@@ -178,10 +178,10 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
         4 => {
             // `3 voor €4,50`
             let required: NonZeroU16 = capture.get(1)?.as_str().parse().ok()?;
-            let (integer_part, fractional_part) = (capture.get(2)?, capture.get(3)?);
+            let (integer_part, fractional_part) = (capture.get(2)?, capture.get(3));
             let price = parse_int_fract_price(
                 integer_part.as_str().parse().ok()?,
-                fractional_part.as_str().parse().ok()?,
+                fractional_part.and_then(|frac| frac.as_str().parse().ok()).unwrap_or(0),
             );
             let result = NumForPrice { required, price };
 
@@ -261,7 +261,8 @@ mod tests {
             "2e halve prijs",
             "3 voor €4,50",
             "4 voor 4.50",
-            "2 voor € 2,75 ",
+            "2 voor € 2,75",
+            "2 voor €3",
             "15 euro korting",
             "1.50 euro korting",
         ];
@@ -294,6 +295,10 @@ mod tests {
             SaleType::NumForPrice(NumForPrice {
                 required: nz!(2),
                 price: 275,
+            }),
+            SaleType::NumForPrice(NumForPrice {
+                required: nz!(2),
+                price: 300,
             }),
             SaleType::NumEuroOff(NumEuroOff { price_off: 1500 }),
             SaleType::NumEuroOff(NumEuroOff { price_off: 150 }),
