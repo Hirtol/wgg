@@ -38,7 +38,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Dependencies
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2
         with:
           key: backend-${{ matrix.config.target }}
 
@@ -82,7 +82,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v1.2.0
+        uses: Swatinem/rust-cache@v2
 
       - uses: bahmutov/npm-install@v1
         name: Install NPM Dependencies
