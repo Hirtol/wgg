@@ -182,7 +182,7 @@ pub struct UserLoginPayload {
     pub user: AuthContext,
 }
 
-#[derive(Debug, Clone, async_graphql::InputObject)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, async_graphql::InputObject)]
 pub struct LoginInput {
     /// The email of the user account
     pub email: String,

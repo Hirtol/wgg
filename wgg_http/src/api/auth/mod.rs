@@ -6,7 +6,6 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use mutation::LoginInput;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use tower_cookies::Key;
@@ -17,10 +16,13 @@ static SESSION_KEY: &str = "session_key";
 mod mutation;
 mod objects;
 mod query;
+mod routes;
 
+pub use mutation::LoginInput;
 pub use mutation::{AuthMutation, UserCreateInput};
 pub use objects::AuthContext;
 pub use query::AuthQuery;
+pub use routes::config;
 
 /// Verify the provided login credentials, and if successful, create a new session token in the database.
 ///

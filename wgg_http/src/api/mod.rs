@@ -27,7 +27,7 @@ mod providers;
 mod routes;
 pub mod scheduled_jobs;
 
-pub use auth::{create_user, UserCreateInput};
+pub use auth::{create_user, AuthContext, LoginInput, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
 

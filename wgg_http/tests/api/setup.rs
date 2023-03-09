@@ -36,7 +36,7 @@ impl TestApp {
     pub async fn spawn_app_with_settings(mut test_settings: TestSettings) -> Self {
         // Setup Tracing
         let subscriber = telemetry::create_subscriber("DEBUG,wgg_http=TRACE,wgg_providers=TRACE,sqlx=WARN,hyper=WARN");
-        subscriber.init();
+        let _ = subscriber.try_init();
 
         // Spawn the actual app
         let temp_dir = Arc::new(tempfile::tempdir().expect("Couldn't create a temp appdata directory!"));
@@ -68,6 +68,14 @@ impl TestApp {
         settings.db.in_memory = true;
 
         TestSettings { config: settings }
+    }
+
+    pub fn to_client(self) -> WggClient {
+        WggClient::new(self)
+    }
+
+    pub async fn to_authenticated_client(self) -> WggClient {
+        WggClient::with_login(self).await
     }
 
     pub fn address_route(&self, route: impl AsRef<str>) -> String {

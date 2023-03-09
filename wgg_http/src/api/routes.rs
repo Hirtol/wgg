@@ -10,7 +10,7 @@ use axum::{Extension, Router};
 
 /// Root config for all GraphQL queries
 pub fn config(schema: WggSchema) -> Router<super::AppState> {
-    Router::new().nest(
+    Router::new().merge(super::auth::config()).nest(
         "/graphql",
         Router::new()
             .route("/", get(index_playground).post(index))
