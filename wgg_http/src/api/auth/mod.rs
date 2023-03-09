@@ -6,6 +6,9 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use async_graphql::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
+use chrono::{DateTime, Utc};
+use cookie::time::OffsetDateTime;
+use cookie::{Cookie, SameSite};
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, IntoActiveValue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use tower_cookies::Key;
@@ -49,6 +52,21 @@ pub async fn login_user(
     tracing::debug!(id=%user.id, "Login success");
 
     Ok((user.into(), session_token))
+}
+
+/// Insert an authentication cookie in the provided cookie jar, given a session token and expiry date.
+pub fn insert_auth_cookie(cookies: &WggCookies, session_token: String, session_expiry: DateTime<Utc>) {
+    let mut cookie = Cookie::new(SESSION_KEY, session_token);
+
+    let expiry = OffsetDateTime::from_unix_timestamp(session_expiry.timestamp()).unwrap();
+
+    cookie.set_http_only(true);
+    cookie.set_path("/");
+    cookie.set_expires(expiry);
+    cookie.set_same_site(SameSite::Lax);
+    cookie.set_secure(false);
+
+    cookies.cookies.add(cookie);
 }
 
 /// Create a new user in the database.

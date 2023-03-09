@@ -5,8 +5,7 @@ use crate::api::GraphqlResult;
 use crate::db;
 use crate::db::{Id, IntoActiveValueExt, SelectExt};
 use async_graphql::{Context, Object};
-use cookie::time::OffsetDateTime;
-use cookie::{Cookie, SameSite};
+use cookie::Cookie;
 
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, QueryFilter, TransactionTrait};
 
@@ -105,17 +104,7 @@ impl AuthMutation {
 
         let (user, session_token) = super::login_user(&state.db, &input).await?;
 
-        let mut cookie = Cookie::new(super::SESSION_KEY, session_token.token);
-
-        let expiry = OffsetDateTime::from_unix_timestamp(session_token.expires.timestamp()).unwrap();
-
-        cookie.set_http_only(true);
-        cookie.set_path("/");
-        cookie.set_expires(expiry);
-        cookie.set_same_site(SameSite::Lax);
-        cookie.set_secure(false);
-
-        cookies.cookies.add(cookie);
+        super::insert_auth_cookie(&cookies, session_token.token, session_token.expires);
 
         Ok(UserLoginPayload { user })
     }
@@ -141,7 +130,7 @@ impl AuthMutation {
     }
 }
 
-#[derive(Debug, Clone, async_graphql::InputObject)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, async_graphql::InputObject)]
 pub struct UserCreateInput {
     pub username: String,
     /// The email of the user account

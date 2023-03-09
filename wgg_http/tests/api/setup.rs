@@ -70,11 +70,11 @@ impl TestApp {
         TestSettings { config: settings }
     }
 
-    pub fn to_client(self) -> WggClient {
+    pub fn into_client(self) -> WggClient {
         WggClient::new(self)
     }
 
-    pub async fn to_authenticated_client(self) -> WggClient {
+    pub async fn into_authenticated_client(self) -> WggClient {
         WggClient::with_login(self).await
     }
 
