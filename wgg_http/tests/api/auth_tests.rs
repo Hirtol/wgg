@@ -50,11 +50,81 @@ static NORMAL_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
     password: "normal".to_string(),
     is_admin: false,
 });
+static ADMIN_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
+    username: "admin_user".to_string(),
+    email: "admin@admin.com".to_string(),
+    password: "admin".to_string(),
+    is_admin: true,
+});
 
 async fn create_normal_user(app: &TestApp) -> GraphqlResult<AuthContext> {
     create_test_user(app, NORMAL_USER.clone()).await
 }
+async fn create_admin_user(app: &TestApp) -> GraphqlResult<AuthContext> {
+    create_test_user(app, ADMIN_USER.clone()).await
+}
 
 async fn create_test_user(app: &TestApp, input: UserCreateInput) -> GraphqlResult<AuthContext> {
     create_user(&app.db_pool, input).await
+}
+#[tokio::test]
+async fn test_http_login_invalid_normal() {
+    let client = TestApp::spawn_app().await.into_client();
+    let _ = create_normal_user(&client.app).await.unwrap();
+    let input = LoginInput {
+        email: "randominvalid@normal.com".to_string(),
+        password: NORMAL_USER.password.clone(),
+    };
+
+    let response = client.post("/api/auth/login").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_success());
+
+    let user = response.json::<AuthContext>().await.unwrap();
+
+    assert!(response.status().is_client_error() || response.status().is_server_error());
+}
+
+#[tokio::test]
+async fn test_http_login_invalid_admin() {
+    let app = TestApp::spawn_app().await.into_client();
+
+    let input = LoginInput {
+        email: "randomadmininvalid@normal.com".to_string(),
+        password: DEFAULT_USER.password.clone(),
+    };
+
+    let response = app.post("/api/auth/login").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_client_error() || response.status().is_server_error());
+}
+#[tokio::test]
+async fn test_http_create_normal_user() {
+    let client = TestApp::spawn_app().await.into_client();
+
+    // Create a new user
+    let response = client
+        .post("/api/users")
+        .json(&ADMIN_USER.clone())
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+
+    // Get the created user's ID from the response body
+    let user = response.json::<User>().await.unwrap();
+    let user_id = user.id;
+
+    // Get the user from the database and check that it matches the input
+    let response = client
+        .get(&format!("/api/users/{}", user_id))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+
+    let user = response.json::<User>().await.unwrap();
+    assert_eq!(user.username, ADMIN_USER.username);
+    assert_eq!(user.email, ADMIN_USER.email);
+    assert_eq!(user.is_admin, true);
 }
