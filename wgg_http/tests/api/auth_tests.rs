@@ -99,7 +99,7 @@ async fn test_http_login_invalid_admin() {
     assert!(response.status().is_client_error() || response.status().is_server_error());
 }
 #[tokio::test]
-async fn test_http_create_normal_user() {
+async fn test_http_create_admin_user() {
     let client = TestApp::spawn_app().await.into_client();
 
     // Create a new user
