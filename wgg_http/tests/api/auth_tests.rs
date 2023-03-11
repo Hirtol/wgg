@@ -69,9 +69,9 @@ async fn test_http_login_normal_unsuccessfull() {
 
     assert!(response.status().is_client_error() || response.status().is_server_error());
 
-    let user = response.json::<AuthContext>().await.unwrap();
+    //let user = response.json::<AuthContext>().await.unwrap();
 
-    assert_eq!(user.email, NORMAL_USER.email);
+   // assert_eq!(user.email, NORMAL_USER.email);
 }
 static NORMAL_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
     username: "normal_user".to_string(),
