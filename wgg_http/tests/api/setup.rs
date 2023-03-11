@@ -100,7 +100,7 @@ impl WggClient {
             client: ClientBuilder::new()
                 .cookie_store(true)
                 .build()
-                .expect("Failed to create a Reqwest client!"),
+                .expect("Failed to create a Request client!"),
             app,
         }
     }

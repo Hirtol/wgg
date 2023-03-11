@@ -33,7 +33,6 @@ async fn test_http_login_normal() {
 #[tokio::test]
 async fn test_http_login_admin() {
     let app = TestApp::spawn_app().await.into_client();
-
     let input = LoginInput {
         email: DEFAULT_USER.email.clone(),
         password: DEFAULT_USER.password.clone(),
@@ -43,7 +42,37 @@ async fn test_http_login_admin() {
 
     assert!(response.status().is_success());
 }
+//test unsuccesful admin login using the credentials of a normal user
+#[tokio::test]
+async fn test_http_login_admin_unsuccessful() {
+    let app = TestApp::spawn_app().await.into_client();
+    let input = LoginInput {
+        email: DEFAULT_USER.email.clone(),
+        password: "wrong".to_string().clone(),
+    };
 
+    let response = app.post("/api/auth/login").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_client_error() || response.status().is_server_error());
+}
+//test unsuccesful normal login using the credentials of a normal user
+#[tokio::test]
+async fn test_http_login_normal_unsuccessfull() {
+    let client = TestApp::spawn_app().await.into_client();
+    let _ = create_normal_user(&client.app).await.unwrap();
+    let input = LoginInput {
+        email: NORMAL_USER.email.clone(),
+        password: "wrong".to_string.clone(),
+    };
+
+    let response = client.post("/api/auth/login").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_client_error() || response.status().is_server_error());
+
+    let user = response.json::<AuthContext>().await.unwrap();
+
+    assert_eq!(user.email, NORMAL_USER.email);
+}
 static NORMAL_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
     username: "normal_user".to_string(),
     email: "normal@normal.com".to_string(),
