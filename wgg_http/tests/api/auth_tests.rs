@@ -48,7 +48,7 @@ async fn test_http_login_admin_unsuccessful() {
     let app = TestApp::spawn_app().await.into_client();
     let input = LoginInput {
         email: DEFAULT_USER.email.clone(),
-        password: "wrong".to_string().clone(),
+        password: "wrong".to_string(),
     };
 
     let response = app.post("/api/auth/login").json(&input).send().await.unwrap();
@@ -62,7 +62,7 @@ async fn test_http_login_normal_unsuccessfull() {
     let _ = create_normal_user(&client.app).await.unwrap();
     let input = LoginInput {
         email: NORMAL_USER.email.clone(),
-        password: "wrong".to_string.clone(),
+        password: "wrong".to_string(),
     };
 
     let response = client.post("/api/auth/login").json(&input).send().await.unwrap();
