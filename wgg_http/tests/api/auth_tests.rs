@@ -73,6 +73,50 @@ async fn test_http_login_normal_unsuccessfull() {
 
    // assert_eq!(user.email, NORMAL_USER.email);
 }
+
+#[tokio::test]
+async fn test_http_register_normal_successful() {
+    let client = TestApp::spawn_app().await.into_client();
+    let input = LoginInput {
+        email: NORMAL_USER.email.clone(),
+        password: NORMAL_USER.password.clone(),
+    };
+
+    let response = client.post("/api/auth/register").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_success());
+}
+
+#[tokio::test]
+async fn test_http_register_normal_twice_unsuccessful() {
+    let client = TestApp::spawn_app().await.into_client();
+    let input = LoginInput {
+        email: NORMAL_USER.email.clone(),
+        password: NORMAL_USER.password.clone(),
+    };
+
+    let first_response = client.post("/api/auth/register").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_success());
+
+    let second_response = client.post("/api/auth/register").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_client_error() || response.status().is_server_error());
+}
+
+#[tokio::test]
+async fn test_http_register_invalid_email_unsuccessful() {
+    let client = TestApp::spawn_app().await.into_client();
+    let input = LoginInput {
+        email: "emailwithoutatsign.com".to_string(),
+        password: NORMAL_USER.password.clone(),
+    };
+
+    let response = client.post("/api/auth/register").json(&input).send().await.unwrap();
+
+    assert!(response.status().is_client_error() || response.status().is_server_error());
+}
+
 static NORMAL_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
     username: "normal_user".to_string(),
     email: "normal@normal.com".to_string(),
