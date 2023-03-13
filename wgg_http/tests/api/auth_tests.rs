@@ -3,6 +3,19 @@ use once_cell::sync::Lazy;
 use wgg_http::api::{create_user, AuthContext, GraphqlResult, LoginInput, UserCreateInput};
 use wgg_http::setup::DEFAULT_USER;
 
+static NORMAL_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
+    username: "normal_user".to_string(),
+    email: "normal@normal.com".to_string(),
+    password: "normal".to_string(),
+    is_admin: false,
+});
+static ADMIN_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
+    username: "admin_user".to_string(),
+    email: "admin@admin.com".to_string(),
+    password: "admin".to_string(),
+    is_admin: true,
+});
+
 #[tokio::test]
 async fn test_graphql_login() {
     let app = TestApp::spawn_app().await;
@@ -42,6 +55,7 @@ async fn test_http_login_admin() {
 
     assert!(response.status().is_success());
 }
+
 //test unsuccesful admin login using the credentials of a normal user
 #[tokio::test]
 async fn test_http_login_admin_unsuccessful() {
@@ -55,6 +69,7 @@ async fn test_http_login_admin_unsuccessful() {
 
     assert!(response.status().is_client_error() || response.status().is_server_error());
 }
+
 //test unsuccesful normal login using the credentials of a normal user
 #[tokio::test]
 async fn test_http_login_normal_unsuccessfull() {
@@ -68,10 +83,6 @@ async fn test_http_login_normal_unsuccessfull() {
     let response = client.post("/api/auth/login").json(&input).send().await.unwrap();
 
     assert!(response.status().is_client_error() || response.status().is_server_error());
-
-    //let user = response.json::<AuthContext>().await.unwrap();
-
-   // assert_eq!(user.email, NORMAL_USER.email);
 }
 
 #[tokio::test]
@@ -97,11 +108,11 @@ async fn test_http_register_normal_twice_unsuccessful() {
 
     let first_response = client.post("/api/auth/register").json(&input).send().await.unwrap();
 
-    assert!(response.status().is_success());
+    assert!(first_response.status().is_success());
 
     let second_response = client.post("/api/auth/register").json(&input).send().await.unwrap();
 
-    assert!(response.status().is_client_error() || response.status().is_server_error());
+    assert!(second_response.status().is_client_error() || second_response.status().is_server_error());
 }
 
 #[tokio::test]
@@ -117,31 +128,6 @@ async fn test_http_register_invalid_email_unsuccessful() {
     assert!(response.status().is_client_error() || response.status().is_server_error());
 }
 
-static NORMAL_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
-    username: "normal_user".to_string(),
-    email: "normal@normal.com".to_string(),
-    password: "normal".to_string(),
-    is_admin: false,
-});
-static ADMIN_USER: Lazy<UserCreateInput> = Lazy::new(|| UserCreateInput {
-    username: "admin_user".to_string(),
-    email: "admin@admin.com".to_string(),
-    password: "admin".to_string(),
-    is_admin: true,
-});
-
-async fn create_normal_user(app: &TestApp) -> GraphqlResult<AuthContext> {
-    create_test_user(app, NORMAL_USER.clone()).await
-}
-
-async fn create_admin_user(app: &TestApp) -> GraphqlResult<AuthContext> {
-    create_test_user(app, ADMIN_USER.clone()).await
-}
-
-
-async fn create_test_user(app: &TestApp, input: UserCreateInput) -> GraphqlResult<AuthContext> {
-    create_user(&app.db_pool, input).await
-}
 #[tokio::test]
 async fn test_http_login_invalid_normal() {
     let client = TestApp::spawn_app().await.into_client();
@@ -153,13 +139,8 @@ async fn test_http_login_invalid_normal() {
 
     let response = client.post("/api/auth/login").json(&input).send().await.unwrap();
 
-    assert!(response.status().is_success());
-
-    let user = response.json::<AuthContext>().await.unwrap();
-
     assert!(response.status().is_client_error() || response.status().is_server_error());
 }
-
 
 #[tokio::test]
 async fn test_http_login_invalid_admin() {
@@ -192,15 +173,23 @@ async fn test_http_create_admin_user() {
     let user_id = user.id;
 
     // Get the user from the database and check that it matches the input
-    let response = client
-        .get(&format!("/api/users/{}", user_id))
-        .send()
-        .await
-        .unwrap();
+    let response = client.get(&format!("/api/users/{}", user_id)).send().await.unwrap();
     assert!(response.status().is_success());
 
     let user = response.json::<AuthContext>().await.unwrap();
     assert_eq!(user.username, ADMIN_USER.username);
     assert_eq!(user.email, ADMIN_USER.email);
     assert_eq!(user.is_admin, true);
+}
+
+async fn create_normal_user(app: &TestApp) -> GraphqlResult<AuthContext> {
+    create_test_user(app, NORMAL_USER.clone()).await
+}
+
+async fn create_admin_user(app: &TestApp) -> GraphqlResult<AuthContext> {
+    create_test_user(app, ADMIN_USER.clone()).await
+}
+
+async fn create_test_user(app: &TestApp, input: UserCreateInput) -> GraphqlResult<AuthContext> {
+    create_user(&app.db_pool, input).await
 }
