@@ -27,9 +27,9 @@ FROM alpine:3.11
 COPY --from=fetcher /wgg_http /
 COPY ./dist /static
 
-ENV WGG__APP_SETTINGS__dist_dir="/static"
-ENV WGG__APP_SETTINGS__APPDATA_DIR="/appdata"
-ENV WGG__DB_SETTINGS__SQLITE__DB_PATH="/appdata/wgg.db"
+ENV WGG__APP__STATIC_DIR="/static"
+ENV WGG__APP__APPDATA_DIR="/appdata"
+ENV WGG__DB__DB_PATH="/appdata/wgg.db"
 
 EXPOSE 8080
 

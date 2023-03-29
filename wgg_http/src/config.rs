@@ -1,10 +1,3 @@
-use anyhow::anyhow;
-use arc_swap::ArcSwap;
-use figment::providers::{Env, Format, Serialized, Toml};
-use figment::Figment;
-use rand::Rng;
-use secrecy::SecretString;
-use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::net::ToSocketAddrs;
@@ -12,6 +5,13 @@ use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+
+use arc_swap::ArcSwap;
+use figment::providers::{Env, Format, Serialized, Toml};
+use figment::Figment;
+use rand::Rng;
+use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
 
 pub type SharedConfig = Arc<ArcSwap<Config>>;
 
@@ -24,17 +24,17 @@ pub fn initialise_config() -> anyhow::Result<Config> {
     let c_path = get_full_config_path();
 
     if !c_path.exists() {
-        save_config(&Config::default())?;
+        save_config(
+            &Figment::from(Serialized::defaults(Config::default()))
+                .merge(get_environment_provider())
+                .extract()?,
+        )?;
     }
 
     let result = Figment::from(Serialized::defaults(Config::default()))
         .merge(Toml::file(&c_path))
         .merge(get_environment_provider())
-        .extract()
-        .map_err(|e| anyhow!(e))?;
-
-    // For the initial config creation, pass the obtained environment variables to ensure consistency.
-    save_config(&result)?;
+        .extract()?;
 
     Ok(result)
 }
@@ -98,7 +98,7 @@ pub struct AppConfig {
     /// Will be done asynchronously but will send *a lot* (~80 per provider) of requests.
     pub startup_sale_validation: bool,
     /// Whether to enable the GraphQL playground.
-    /// 
+    ///
     /// Disabled by default.
     pub graphql_playground: bool,
 }

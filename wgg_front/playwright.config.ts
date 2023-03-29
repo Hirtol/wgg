@@ -1,10 +1,15 @@
 import type { PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
+    testDir: './tests',
+    // fullyParallel: true,
+    reporter: process.env.CI ? 'github' : 'list',
     webServer: {
-        command: 'npm run build && npm run preview',
+        command: 'npm run build && cargo run',
+        reuseExistingServer: !process.env.CI,
+        env: { WGG__APP__STATIC_DIR: './build', WGG__APP__PORT: '4173' },
         port: 4173
-    }
+    },
 };
 
 export default config;
