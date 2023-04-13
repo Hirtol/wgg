@@ -1,32 +1,46 @@
 import { expect } from '@playwright/test';
 import { test } from './fixture.js';
 import { WggLandingPage } from './pageObjects/WggLandingPage.js';
+import { WggLoginPage } from './pageObjects/WggLoginPage.js';
 
 let landingPage: WggLandingPage;
 
-test.beforeEach(async ({ authPage }) => {
-    landingPage = new WggLandingPage(authPage);
+test.beforeEach(async ({ page }) => {
+    const loginPage = new WggLoginPage(page);
+
+    await loginPage.goto();
+
+    await loginPage.loginAdmin();
+    landingPage = new WggLandingPage(page);
+    await landingPage.goto();
 });
 
-test('go to product page and add to cart', async ({ authPage }) => {
+test('go to product page and add to cart', async ({ page, authPage }) => {
+    const loginPage = new WggLoginPage(page);
+
+    await loginPage.goto();
+
+    await loginPage.loginAdmin();
+    landingPage = new WggLandingPage(page);
     await landingPage.goto();
-    await authPage.getByPlaceholder('Product Text').click();
+    
+    await page.getByPlaceholder('Product Text').click();
 
-    await authPage.getByPlaceholder('Product Text').fill('melk');
+    await page.getByPlaceholder('Product Text').fill('melk');
 
-    await authPage.getByPlaceholder('Product Text').press('Enter');
+    await page.getByPlaceholder('Product Text').press('Enter');
 
-    await authPage.getByText('Jumbo Verse Halfvolle Melk 1L').click();
-    await expect(authPage).toHaveURL(/.*498518PAK/);
+    await page.getByText('Jumbo Verse Halfvolle Melk 1L').click();
+    await expect(page).toHaveURL(/.*498518PAK/);
 
-    await authPage.getByRole('button', { name: 'Add to cart' }).click();
-    await authPage.getByRole('link', { name: 'Cart' }).click();
+    await page.getByRole('button', { name: 'Add to cart' }).click();
+    await page.getByRole('link', { name: 'Cart' }).click();
 
-    await expect(authPage).toHaveURL(/.*cart/);
-    await expect(authPage.getByRole('link', { name: 'Jumbo Verse Halfvolle Melk 1L' })).toBeVisible();
+    await expect(page).toHaveURL(/.*cart/);
+    await expect(page.getByRole('link', { name: 'Jumbo Verse Halfvolle Melk 1L' })).toBeVisible();
     // Remove the item again
-    await authPage.locator('.btn-icon').first().click();
-    await authPage.getByRole('button', { name: 'Subtract Quantity' }).click();
+    await page.locator('.btn-icon').first().click();
+    await page.getByRole('button', { name: 'Subtract Quantity' }).click();
 
-    await expect(authPage.getByRole('link', { name: 'Jumbo Verse Halfvolle Melk 1L' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Jumbo Verse Halfvolle Melk 1L' })).toHaveCount(0);
 });

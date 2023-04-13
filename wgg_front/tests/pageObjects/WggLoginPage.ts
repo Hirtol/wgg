@@ -9,6 +9,10 @@ export class WggLoginPage {
         await this.page.goto('/login');
     }
 
+    async loginAdmin() {
+        await this.login("admin@admin.com", "admin")
+    }
+
     async login(email: string, password: string) {
         await this.page.getByPlaceholder('name@email.com').click();
         await this.page.getByPlaceholder('name@email.com').fill(email);

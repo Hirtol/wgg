@@ -19,7 +19,7 @@ test.describe('auth flow', () => {
     });
 
     test('test default login', async ({ page }) => {
-        await login.login('admin@admin.com', 'admin');
+        await login.loginAdmin();
 
         // Should be logged in
         await expect(page).toHaveTitle(landingPage.title);
@@ -33,7 +33,7 @@ test.describe('auth flow', () => {
     });
 
     test('test default login persistent', async ({ page }) => {
-        await login.login('admin@admin.com', 'admin');
+        await login.loginAdmin();
 
         page.reload();
         landingPage.goto();
