@@ -154,7 +154,7 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> Option<WggS
     Some(WggSaleGroupLimited {
         id: promotion.id.into(),
         name: promotion.title,
-        image_urls: vec![promotion.image.url],
+        image_urls: promotion.image.map(|img| vec![img.url]).unwrap_or_default(),
         items: promotion
             .products
             .into_iter()

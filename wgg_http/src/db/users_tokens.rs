@@ -4,7 +4,8 @@ use rand::distributions::Alphanumeric;
 use rand::Rng;
 use sea_orm::sea_query::IntoCondition;
 use sea_orm::{
-    ActiveModelTrait, ActiveValue, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveValue, QueryFilter, Select,
+    ActiveModelTrait, ActiveValue, ColumnTrait, Condition, ConnectionTrait, EntityTrait, IntoActiveValue, QueryFilter,
+    Select,
 };
 pub use wgg_db_entity::users_tokens::*;
 
@@ -36,11 +37,11 @@ pub fn find_by_token(token: &str) -> Select<Entity> {
 }
 
 /// Condition for selecting entities with the provided token.
-pub fn has_token(token: &str) -> impl IntoCondition {
-    Column::Token.eq(token)
+pub fn has_token(token: &str) -> Condition {
+    Column::Token.eq(token).into_condition()
 }
 
 /// Condition for selecting entities which have not yet expired
-pub fn non_expired() -> impl IntoCondition {
-    Column::Expires.gt(chrono::Utc::now())
+pub fn non_expired() -> Condition {
+    Column::Expires.gt(chrono::Utc::now()).into_condition()
 }

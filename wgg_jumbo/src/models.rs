@@ -63,7 +63,7 @@ pub struct Promotion {
     pub secondary_badges: Vec<PromotionBadge>,
     pub tags: Vec<String>,
     pub subtitle: Option<String>,
-    pub image: PromotionImage,
+    pub image: Option<PromotionImage>,
     #[serde(with = "crate::utils::date_format_parser")]
     pub start_date: DateTime<Utc>,
     #[serde(with = "crate::utils::date_format_parser")]
@@ -76,7 +76,7 @@ pub struct Promotion {
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromotionBadge {
-    pub image: PromotionImage,
+    pub image: Option<PromotionImage>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]

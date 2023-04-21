@@ -596,13 +596,15 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
     // Parse sale data
     let (sale_label, sale_validity) = parse_decorators_for_sale(&article.decorators);
     if let Some(label) = sale_label {
-        result.sale_information = SaleInformation {
-            sale_type: parse_sale_label(&label),
-            label,
-            additional_label: Vec::new(),
-            sale_validity: sale_validity.unwrap_or_else(|| common_bridge::get_guessed_sale_validity(Utc::now())),
+        if label != "Receptkorting" {
+            result.sale_information = SaleInformation {
+                sale_type: parse_sale_label(&label),
+                label,
+                additional_label: Vec::new(),
+                sale_validity: sale_validity.unwrap_or_else(|| common_bridge::get_guessed_sale_validity(Utc::now())),
+            }
+            .into()
         }
-        .into()
     }
 
     // Parse remaining decorators
