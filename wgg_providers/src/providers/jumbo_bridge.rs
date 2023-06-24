@@ -15,7 +15,7 @@ use anyhow::Context;
 use cached::proc_macro::once;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use wgg_jumbo::models::AvailabilityType;
+use wgg_jumbo::models::{AvailabilityType, PromotionGroupContent};
 use wgg_jumbo::{BaseApi, BaseJumboApi};
 
 pub(crate) struct JumboBridge {
@@ -117,8 +117,16 @@ impl ProviderInfo for JumboBridge {
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Jumbo Promotions: {:#?}", result);
 
-        Ok(result
-            .categories
+        let main_sale_items = result
+            .groups
+            .into_iter()
+            .find(|group| group.title.contains("gangpad"))
+            .ok_or(ProviderError::NothingFound)?;
+        let PromotionGroupContent::Categories(categories) = main_sale_items.content else {
+            return Err(anyhow::anyhow!("Found promotion group did not contain categories as expected!"))?;
+        };
+
+        Ok(categories
             .into_iter()
             .map(|item| WggSaleCategory {
                 id: None,
