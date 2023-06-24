@@ -41,14 +41,33 @@ pub enum SortedByQuery {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PromotionGroup {
+pub struct PromotionContent {
     pub categories: Vec<PromotionCategory>,
     pub promotions: Vec<Promotion>,
+    pub groups: Vec<PromotionGroup>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromotionGroup {
+    pub title: String,
+    #[serde(flatten)]
+    pub content: PromotionGroupContent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PromotionGroupContent {
+    Promotions(Vec<Promotion>),
+    Categories(Vec<PromotionCategory>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromotionCategory {
+    pub id: Option<String>,
     pub title: String,
     pub promotions: Vec<Promotion>,
 }

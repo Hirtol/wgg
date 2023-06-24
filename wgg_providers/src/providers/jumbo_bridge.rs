@@ -105,13 +105,13 @@ impl ProviderInfo for JumboBridge {
         let all_proms = tab_ids
             .tabs
             .iter()
-            .find(|tab| tab.id == "alle")
+            .find(|tab| tab.id == "actieprijs")
             .ok_or(ProviderError::NothingFound)?;
         let current_runtime = all_proms.runtimes.first().ok_or(ProviderError::NothingFound)?;
 
         let result = self
             .api
-            .promotion_group(&all_proms.id, &current_runtime.id, None, None)
+            .promotion_content(&all_proms.id, &current_runtime.id, None, None)
             .await?;
 
         #[cfg(feature = "trace-original-api")]

@@ -1,7 +1,7 @@
 use crate::ids::{Id, ProductId, PromotionId, RuntimeId, TabId};
 use crate::models::{
     AutoCompleteResponse, FullProductResponse, ProductList, Promotion, PromotionCompletion, PromotionCompletionRequest,
-    PromotionGroup, PromotionTabs, SortedByQuery,
+    PromotionContent, PromotionTabs, SortedByQuery,
 };
 use crate::{ApiError, Result};
 use crate::{Config, Query};
@@ -68,19 +68,19 @@ pub trait BaseApi {
     ///
     /// # Notice
     /// There are several [TabId]s commonly available ('alle', 'weekaanbiedingen', etc).
-    /// 'Alle' is a special case it would seem, as [PromotionGroup]'s `category` field will have the promotions, instead
+    /// 'Alle' is a special case it would seem, as [PromotionContent]'s `category` field will have the promotions, instead
     /// of the `promotions` field. For all other tabs the `promotions` field is used instead, and the `category` field is empty.
     ///
     /// # Arguments
     /// * `store_id` - Local store Id for the specific pricing/availability.
     /// * `sorted_by` - How to sort the results, seems ineffective in the back-end at the moment.
-    async fn promotion_group(
+    async fn promotion_content(
         &self,
         tab: &TabId,
         runtime: &RuntimeId,
         store_id: Option<u32>,
         sorted_by: Option<SortedByQuery>,
-    ) -> Result<PromotionGroup> {
+    ) -> Result<PromotionContent> {
         let url = format!("/promotion-tabs/{}/{}", tab.as_ref(), runtime.as_ref());
         let store_id = store_id.map(|i| i.to_string());
         let sorted_by = sorted_by.map(|i| format!("{i:?}"));

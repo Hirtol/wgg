@@ -8,7 +8,7 @@ pub async fn test_promotion_tabs() {
 
     let result = api.promotion_tabs().await.unwrap();
 
-    assert!(result.tabs.iter().any(|tab| tab.id == "weekaanbiedingen"))
+    assert!(result.tabs.iter().any(|tab| tab.id == "actieprijs"))
 }
 
 #[tokio::test]
@@ -19,15 +19,15 @@ pub async fn test_promotion_group() {
     let latest = current_promotion
         .tabs
         .iter()
-        .find(|tab| tab.id == "weekaanbiedingen")
+        .find(|tab| tab.id == "actieprijs")
         .unwrap();
 
     let result = api
-        .promotion_group(&latest.id, &latest.runtimes[0].id, None, None)
+        .promotion_content(&latest.id, &latest.runtimes[0].id, None, None)
         .await
         .unwrap();
 
-    assert!(!result.promotions.is_empty())
+    assert!(!result.groups.is_empty())
 }
 
 #[tokio::test]
