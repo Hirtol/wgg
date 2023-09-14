@@ -123,6 +123,7 @@ pub struct SingleArticle {
     pub id: String,
     #[serde(default)]
     pub decorators: Vec<Decorator>,
+    pub header_text: Option<String>,
     pub name: String,
     pub display_price: u32,
     pub price: Option<u32>,
@@ -553,7 +554,7 @@ pub struct PagesRoot {
     pub header: PageRootHeader,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, wgg_proc::IntoEnumVariant)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PageChildren {

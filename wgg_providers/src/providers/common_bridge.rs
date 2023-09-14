@@ -1,11 +1,27 @@
+use std::num::NonZeroU16;
+
+use chrono::{DateTime, Datelike, Utc, Weekday};
+use regex::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
+
 use crate::models::sale_types::{
     NumEuroOff, NumEuroPrice, NumForPrice, NumPercentOff, NumPlusNumFree, NumthPercentOff, SaleType,
 };
 use crate::models::{CentPrice, SaleValidity, Unit, UnitPrice, UnitQuantity};
-use chrono::{DateTime, Datelike, Utc, Weekday};
-use once_cell::sync::Lazy;
-use regex::{Regex, RegexBuilder, RegexSet, RegexSetBuilder};
-use std::num::NonZeroU16;
+
+#[macro_export]
+macro_rules! lazy_re {
+    ($name:ident, $regex:expr) => {
+        static $name: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| Regex::new($regex).unwrap());
+    };
+}
+
+#[macro_export]
+macro_rules! lazy_re_set {
+    ($name:ident, $($regex:expr),*) => {
+        static $name: once_cell::sync::Lazy<(regex::RegexSet, Vec<regex::Regex>)> =
+            once_cell::sync::Lazy::new(|| $crate::providers::common_bridge::create_regex_set([$($regex,)*]));
+    };
+}
 
 /// Try to parse the provided price in the format `l` or `kg` as a [crate::models::Unit].
 ///
@@ -96,43 +112,26 @@ pub(crate) fn derive_unit_price(unit_quantity: &UnitQuantity, display_price: Cen
 
 /// Try to parse the given sale label into a proper [SaleType]
 pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
-    static SALE_RX: Lazy<(RegexSet, Vec<Regex>)> = Lazy::new(|| {
-        //language=regexp
-        let regex_patterns = [
-            // Basic `1 + 2 gratis`
-            r#"(\d+) \s* \+ \s* (\d+) \s* gratis"#,
-            // `2e gratis`
-            r#"(\d+) \s* e \s* gratis"#,
-            // `50% korting`
-            r#"(\d+) \s* % \s* korting"#,
-            // `2e halve prijs`
-            r#"(\d+) \s* e \s* halve \s* prijs"#,
-            // `3 voor €4,50`
-            r#"(\d+) \s* voor \s* €? \s* (\d+)(?:[,.](\d+))?"#,
-            // `1 euro korting` | `1.50 euro korting`
-            r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
-            // `€1.00 korting`
-            r#"€(\d+)(?:[,.](\d+))? \s* korting"#,
-            // `NU €4.00`
-            r#"NU \s* €(\d+)(?:[,.](\d+))?"#,
-        ];
-        let set = RegexSetBuilder::new(regex_patterns)
-            .case_insensitive(true)
-            .ignore_whitespace(true)
-            .build()
-            .expect("Failed to compile regexes");
-        let regexes: Vec<_> = regex_patterns
-            .iter()
-            .map(|pat| {
-                RegexBuilder::new(pat)
-                    .case_insensitive(true)
-                    .ignore_whitespace(true)
-                    .build()
-                    .expect("Failed to compile regex")
-            })
-            .collect();
-        (set, regexes)
-    });
+    //language=regexp
+    lazy_re_set!(
+        SALE_RX,
+        // Basic `1 + 2 gratis`
+        r#"(\d+) \s* \+ \s* (\d+) \s* gratis"#,
+        // `2e gratis`
+        r#"(\d+) \s* e \s* gratis"#,
+        // `50% korting`
+        r#"(\d+) \s* % \s* korting"#,
+        // `2e halve prijs`
+        r#"(\d+) \s* e \s* halve \s* prijs"#,
+        // `3 voor €4,50`
+        r#"(\d+) \s* voor \s* €? \s* (\d+)(?:[,.](\d+))?"#,
+        // `1 euro korting` | `1.50 euro korting`
+        r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
+        // `€1.00 korting`
+        r#"€(\d+)(?:[,.](\d+))? \s* korting"#,
+        // `NU €4.00`
+        r#"NU \s* €(\d+)(?:[,.](\d+))?"#
+    );
 
     let match_idx = SALE_RX.0.matches(sale_label).into_iter().next()?;
     let capture = SALE_RX.1[match_idx].captures(sale_label)?;
@@ -238,6 +237,28 @@ pub(crate) fn get_guessed_sale_validity(now: DateTime<Utc>) -> SaleValidity {
         valid_from,
         valid_until,
     }
+}
+
+/// Create an efficient [RegexSetBuilder] for all the given regexes, alongside individual [Regex] for each respective regex.
+/// The regexes are case insensitive and ignore whitespace.
+pub(crate) fn create_regex_set(regexes: impl IntoIterator<Item = impl AsRef<str>>) -> (RegexSet, Vec<Regex>) {
+    let set = RegexSetBuilder::new(regexes)
+        .case_insensitive(true)
+        .ignore_whitespace(true)
+        .build()
+        .expect("Failed to compile regexes");
+
+    let regexes: Vec<_> = regexes
+        .into_iter()
+        .map(|pat| {
+            RegexBuilder::new(pat.as_ref())
+                .case_insensitive(true)
+                .ignore_whitespace(true)
+                .build()
+                .expect("Failed to compile regex")
+        })
+        .collect();
+    (set, regexes)
 }
 
 #[cfg(test)]

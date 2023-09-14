@@ -5,17 +5,18 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = {workspace = true}
-tracing = {workspace = true}
-itertools = {workspace = true}
+thiserror = { workspace = true }
+tracing = { workspace = true }
+itertools = { workspace = true }
 
 # Async
-tokio = { workspace = true}
-futures = {workspace = true}
+tokio = { workspace = true }
+futures = { workspace = true }
 
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = {workspace = true}
+serde_json = { workspace = true }
+wgg_proc.workspace = true
 serde_with = { version = "3.3.0", features = ["chrono_0_4"] }
 serde_path_to_error = "0.1"
 reqwest = { version = "0.11.11", features = ["json", "cookies", "rustls-tls", "rustls-native-certs", "gzip"] }

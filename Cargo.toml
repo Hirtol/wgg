@@ -24,7 +24,7 @@ debug = 0
 
 [workspace]
 resolver = "2"
-members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity", "wgg_schema_gen", "wgg_scheduler"]
+members = ["wgg_http", "wgg_providers", "wgg_picnic", "wgg_jumbo", "wgg_db_entity", "wgg_schema_gen", "wgg_scheduler", "wgg_proc"]
 default-members = ["wgg_http"]
 
 [patch.crates-io]
@@ -49,3 +49,4 @@ serde_json = "1"
 secrecy = { version = "0.8.0", features = ["serde"] }
 
 wgg_scheduler = { path = "wgg_scheduler", features = ["tracing"]}
+wgg_proc = { path = "wgg_proc" }
