@@ -17,17 +17,13 @@ impl Config {
     /// Two factor authentication will also need to be called if it is provided.
     pub fn new(country_code: CountryCode, api_version: u16, picnic_details: Option<PicnicDetails>) -> Self {
         Config {
-            url: format!(
-                "https://storefront-prod.{country_code}.picnicinternational.com/api/{api_version}"
-            )
-            .parse()
-            .expect("Default URL Incorrect"),
-            static_url: format!(
-                "https://storefront-prod.{country_code}.picnicinternational.com/static"
-            )
-            .parse()
-            .expect("Default URL Incorrect"),
-            user_agent: "okhttp/3.12.2".to_string(),
+            url: format!("https://storefront-prod.{country_code}.picnicinternational.com/api/{api_version}")
+                .parse()
+                .expect("Default URL Incorrect"),
+            static_url: format!("https://storefront-prod.{country_code}.picnicinternational.com/static")
+                .parse()
+                .expect("Default URL Incorrect"),
+            user_agent: "okhttp/4.9.0".to_string(),
             picnic_details,
         }
     }
@@ -64,7 +60,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(CountryCode::NL, 17, None)
+        Self::new(CountryCode::NL, 17, Some(PicnicDetails::default()))
     }
 }
 
@@ -111,11 +107,11 @@ pub struct PicnicDetails {
 impl Default for PicnicDetails {
     fn default() -> Self {
         PicnicDetails {
-            picnic_agent: "30100;1.15.159;".to_string(),
+            picnic_agent: "30100;1.15.204;".to_string(),
             // Extracted from the decompiled app, is just a constant?
             client_id: "30100".to_string(),
             // Can contain a - android:versionCode component as well
-            client_version: "1.15.159".to_string(),
+            client_version: "1.15.204".to_string(),
         }
     }
 }

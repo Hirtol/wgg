@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
 
 // ** LOGIN **
 
@@ -350,8 +351,7 @@ pub struct PromoText {
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SizeInfo {
-    pub size: String,
-    pub text: String,
+    pub text: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -420,10 +420,12 @@ pub enum Body {
     Other,
 }
 
+#[serde_with::serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PmlContent {
     pub pml_version: String,
-    pub component: PmlComponent,
+    #[serde_as(deserialize_as = "serde_with::DefaultOnError")]
+    pub component: Option<PmlComponent>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -431,7 +433,11 @@ pub struct PmlContent {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PmlComponent {
     Stack(PmlStack),
-    RichText(PmlChildren),
+    RichText(PmlRichText),
+    Touchable(PmlOther),
+    Container(PmlOther),
+    Image(PmlImage),
+    /// Ideally we'd be able to use `PmlOther` here, but serde doesn't support this :/
     #[serde(other)]
     Other,
 }
@@ -439,17 +445,31 @@ pub enum PmlComponent {
 /// Tends to contain additional info such as country of origin, company,
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PmlStack {
-    pub axis: String,
-    pub spacing: String,
     #[serde(default)]
-    pub children: Vec<PmlChildren>,
+    pub children: Vec<PmlComponent>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PmlChildren {
-    pub text_type: String,
-    pub text_alignment: String,
+pub struct PmlRichText {
+    pub text_type: Option<String>,
+    pub text_alignment: Option<String>,
     pub markdown: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlImage {
+    pub source: PmlImageSource,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlImageSource {
+    id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlOther {
+    pub child: Option<Box<PmlComponent>>,
+    pub children: Option<Vec<PmlComponent>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -524,6 +544,71 @@ pub struct Catalog {
     pub links: Vec<Link>,
     pub image_id: Option<String>,
     pub header_image_id: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PagesRoot {
+    pub id: String,
+    pub body: PageBody,
+    pub header: PageRootHeader,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PageChildren {
+    Block(PageBody),
+    ArticleTile(PageArticle),
+    Pml(PagePml),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PagePml {
+    pub pml: PmlContent,
+    pub analytics: PageArticleAnalytics,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageBody {
+    pub id: String,
+    pub children: Vec<PageChildren>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageArticle {
+    pub article: SingleArticle,
+    /// This contains the actual promotion's title hidden in in a `data` context.
+    ///
+    /// Awful way of getting at it, but that's the new Picnic API :/.
+    pub analytics: PageArticleAnalytics,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageArticleAnalytics {
+    #[serde(default)]
+    pub contexts: Vec<PageArticleAnalyticsContext>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageArticleAnalyticsContext {
+    pub schema: String,
+    pub data: PageArticleAnalyticsData,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageArticleAnalyticsData {
+    #[serde(default)]
+    #[serde(rename = "type")]
+    pub _typ: Option<String>,
+    pub product_id: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageRootHeader {
+    title: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

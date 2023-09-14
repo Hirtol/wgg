@@ -1,6 +1,6 @@
 use crate::models::{
     Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct,
-    MyStore, Order, OrderStatus, PartialDelivery, ProductArticle, SearchResult, SubCategory, Suggestion, UserInfo,
+    MyStore, Order, OrderStatus, PagesRoot, PartialDelivery, ProductArticle, SearchResult, Suggestion, UserInfo,
 };
 use anyhow::{anyhow, Context};
 use md5::Digest;
@@ -299,37 +299,27 @@ impl PicnicApi {
     ///
     /// Default `depth` is 0. When specified at `>= 2` then the first 4 items for all promotions will also be returned,
     /// even when called without a specified `sublist_id`.
-    pub async fn promotions(&self, sublist_id: Option<&ListId>, depth: u32) -> Result<Vec<SubCategory>> {
-        self.list("promotions", sublist_id, depth).await
+    pub async fn promotions(&self) -> Result<PagesRoot> {
+        let url = "/pages/promo-page-root";
+
+        let response = self.get(url, &[]).await?;
+
+        Ok(response.json().await?)
+    }
+
+    pub async fn promotion(&self, sublist_id: &ListId) -> Result<PagesRoot> {
+        let url = "/pages/promo-group-deep-dive";
+        let response = self.get(url, &[("promo_group_id", sublist_id)]).await?;
+
+        Ok(response.json().await?)
     }
 
     /// Returns all lists and sub-lists.
     /// Note that this returns (almost) the exact same as the catalogue provided in [PicnicApi::categories].
     ///
     /// Default `depth` is 0.
-    pub async fn lists(&self, depth: u32) -> Result<Vec<Category>> {
-        let response = self.get("/lists", &[("depth", &depth.to_string())]).await?;
-
-        Ok(response.json().await?)
-    }
-
-    /// Retrieves the sub-lists of a list if no `sublist_id` was provided.
-    /// Optionally, if given a `depth >= 2` will also include the articles in those sub-lists.
-    ///
-    /// Retrieves the articles of a sublist if the `sublist_id` was given.
-    pub async fn list(
-        &self,
-        list_id: impl AsRef<ListId>,
-        sublist_id: Option<&ListId>,
-        depth: u32,
-    ) -> Result<Vec<SubCategory>> {
-        let url = format!("/lists/{}", list_id.as_ref());
-        let response = if let Some(sublist) = sublist_id {
-            self.get(&url, &[("sublist", sublist), ("depth", depth.to_string().as_ref())])
-                .await
-        } else {
-            self.get(&url, &[("depth", depth.to_string().as_ref())]).await
-        }?;
+    pub async fn pages(&self, depth: u32) -> Result<Vec<Category>> {
+        let response = self.get("/pages", &[("depth", &depth.to_string())]).await?;
 
         Ok(response.json().await?)
     }
@@ -351,7 +341,7 @@ impl PicnicApi {
                 .picnic_details
                 .as_ref()
                 .map(|i| i.client_id.clone())
-                .unwrap_or_else(|| "1".to_string()),
+                .unwrap_or_else(|| "30100".to_string()),
             client_version: config.picnic_details.as_ref().map(|i| i.client_version.clone()),
             device_id: None,
         };
