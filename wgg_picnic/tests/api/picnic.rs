@@ -50,12 +50,11 @@ pub async fn test_product() {
 
 #[tokio::test]
 pub async fn test_promotion() {
-    let api = picnic_api();
+    let api = conditional_test!(picnic_api);
 
     let result = api.promotions().await.unwrap();
 
-    println!("DATA: {:#?}", result);
-    std::fs::write("OUTPUT.txt", format!("{:#?}", result));
+    assert!(!result.body.children.is_empty())
 }
 
 #[tokio::test]
