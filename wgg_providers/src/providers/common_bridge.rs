@@ -241,8 +241,8 @@ pub(crate) fn get_guessed_sale_validity(now: DateTime<Utc>) -> SaleValidity {
 
 /// Create an efficient [RegexSetBuilder] for all the given regexes, alongside individual [Regex] for each respective regex.
 /// The regexes are case insensitive and ignore whitespace.
-pub(crate) fn create_regex_set(regexes: impl IntoIterator<Item = impl AsRef<str>>) -> (RegexSet, Vec<Regex>) {
-    let set = RegexSetBuilder::new(regexes)
+pub(crate) fn create_regex_set(regexes: impl IntoIterator<Item = impl AsRef<str>> + Clone) -> (RegexSet, Vec<Regex>) {
+    let set = RegexSetBuilder::new(regexes.clone())
         .case_insensitive(true)
         .ignore_whitespace(true)
         .build()

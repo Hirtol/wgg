@@ -1,4 +1,24 @@
-use crate::error::ProviderError;
+use std::marker::PhantomData;
+use std::num::NonZeroU32;
+use std::ops::Deref;
+use std::time::Duration;
+
+use chrono::{Datelike, NaiveDate, Utc};
+use futures::future::FutureExt;
+use governor::clock::DefaultClock;
+use governor::state::{InMemoryState, NotKeyed};
+use governor::{Jitter, Quota};
+use itertools::Itertools;
+use regex::Regex;
+use secrecy::ExposeSecret;
+
+pub use authentication::PicnicCredentials;
+use wgg_picnic::models::{
+    Body, Decorator, ImageSize, PageBody, PageChildren, PagesRoot, PmlComponent, SubCategory, UnavailableReason,
+};
+use wgg_picnic::PicnicApi;
+
+use crate::error::Result;
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo,
     NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation, SaleResolutionStrategy,
@@ -8,26 +28,9 @@ use crate::models::{
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use chrono::{Datelike, NaiveDate, Utc};
-use futures::future::FutureExt;
-use governor::clock::DefaultClock;
-use governor::state::{InMemoryState, NotKeyed};
-use governor::{Jitter, Quota};
-use itertools::Itertools;
-use regex::Regex;
-use secrecy::ExposeSecret;
-use std::marker::PhantomData;
-use std::num::NonZeroU32;
-use std::ops::Deref;
-use std::time::Duration;
-use wgg_picnic::models::{Body, Decorator, ImageSize, PmlComponent, SubCategory, UnavailableReason};
-use wgg_picnic::PicnicApi;
-
-use crate::error::Result;
+use crate::{lazy_re, lazy_re_set, ProviderError};
 
 mod authentication;
-
-pub use authentication::PicnicCredentials;
 
 pub const PICNIC_RECOMMENDED_RPS: Option<NonZeroU32> = NonZeroU32::new(5);
 const JITTER: Duration = Duration::from_millis(500);
@@ -203,70 +206,23 @@ impl ProviderInfo for PicnicBridge {
 
     #[tracing::instrument(name = "picnic_promotions", level = "trace", skip(self))]
     async fn promotions(&self) -> Result<Vec<WggSaleCategory>> {
-        let result = self.picnic_request(|api| api.promotions(None, 1).boxed()).await?;
+        let result = self.picnic_request(|api| api.promotions().boxed()).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions: {:#?}", result);
 
-        Ok(result.into_iter().flat_map(parse_picnic_promotion).collect())
+        Ok(parse_new_picnic_promotions(result))
     }
 
     #[tracing::instrument(name = "picnic_promotions_sublist", level = "trace", skip(self))]
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete> {
         // When querying for a sublist with `depth > 1` we just get a raw array of SingleArticles
-        let result = self
-            .picnic_request(|api| api.promotions(Some(sublist_id), 0).boxed())
-            .await?;
+        let result = self.picnic_request(|api| api.promotion(sublist_id).boxed()).await?;
 
         #[cfg(feature = "trace-original-api")]
         tracing::trace!("Picnic Promotions Sublist: {:#?}", result);
 
-        let sale_cat = result
-            .into_iter()
-            .flat_map(parse_picnic_promotion)
-            .next()
-            .ok_or(ProviderError::NothingFound)?;
-
-        // Check for sale info.
-        // Picnic doesn't embed this in the promotion itself, so we have to get it from one of the items.
-        let sale_info: SaleInformation = sale_cat
-            .items
-            .iter()
-            .flat_map(|i| match i {
-                WggSaleItem::Product(item) => Some(item),
-                _ => None,
-            })
-            .flat_map(|item| &item.sale_information)
-            .next()
-            .cloned()
-            .unwrap_or_else(|| SaleInformation {
-                label: "UNKNOWN".to_string(),
-                additional_label: Vec::new(),
-                sale_validity: common_bridge::get_guessed_sale_validity(Utc::now()),
-                sale_type: None,
-            });
-
-        let result = WggSaleGroupComplete {
-            id: sale_cat
-                .id
-                .expect("Picnic Category does not have an id when it is expected"),
-            name: sale_cat.name,
-            image_urls: sale_cat.image_urls,
-            items: sale_cat
-                .items
-                .into_iter()
-                .flat_map(|item| match item {
-                    WggSaleItem::Product(product) => Some(product),
-                    _ => {
-                        tracing::warn!(?item, "Sublist completion was provided a non-complete SearchProduct!");
-                        None
-                    }
-                })
-                .collect(),
-            sale_info,
-            sale_description: None,
-            provider: sale_cat.provider,
-        };
+        let result = parse_new_picnic_promotion(sublist_id, result).ok_or_else(|| ProviderError::NothingFound)?;
 
         Ok(result)
     }
@@ -296,53 +252,131 @@ impl<'lower, 'upper> TemporaryApi<'lower, 'upper> {
     }
 }
 
-fn parse_picnic_promotion(promotion: SubCategory) -> Option<WggSaleCategory> {
-    let SubCategory::Category(category) = promotion else {
-        tracing::warn!(?promotion, "Expected category for promotion parsing, but found other");
-        return None;
-    };
+fn parse_new_picnic_promotion(sublist_id: impl Into<String>, promotion: PagesRoot) -> Option<WggSaleGroupComplete> {
+    let children = promotion.body.children;
+    let content = children.into_iter().next()?.to_block()?;
+    let vertical_tiles = content.children.into_iter().next()?.to_block()?;
 
-    let mut result = WggSaleCategory {
-        id: Some(category.id),
-        name: category.name,
-        image_urls: vec![],
-        items: vec![],
-        provider: Provider::Picnic,
-        complete: true,
-    };
+    if vertical_tiles.id.contains("vertical-selling-unit-tiles") {
+        let articles: Vec<_> = vertical_tiles
+            .children
+            .into_iter()
+            .flat_map(PageChildren::to_article_tile)
+            .map(|article| parse_picnic_item_to_search_item(article.article))
+            .collect();
 
-    // Decorators
-    for dec in category.decorators {
-        if let Decorator::MoreButton { images, .. } = &dec {
-            result.image_urls = images
-                .iter()
-                .map(|id| wgg_picnic::images::image_url(id, ImageSize::Medium))
-                .collect();
+        let sale_info: SaleInformation = articles
+            .iter()
+            .flat_map(|item| &item.sale_information)
+            .next()
+            .cloned()
+            .unwrap_or_else(|| SaleInformation {
+                label: "UNKNOWN".to_string(),
+                additional_label: Vec::new(),
+                sale_validity: common_bridge::get_guessed_sale_validity(Utc::now()),
+                sale_type: None,
+            });
 
-            result.complete = false;
-        } else {
-            tracing::trace!(?dec, "Unknown decorator encountered in parsing Picnic sale")
-        }
+        let result = WggSaleGroupComplete {
+            id: sublist_id.into(),
+            name: promotion.header.title,
+            image_urls: vec![],
+            items: articles,
+            sale_info,
+            sale_description: None,
+            provider: Provider::Picnic,
+        };
+
+        Some(result)
+    } else {
+        tracing::warn!(
+            ?vertical_tiles,
+            "Expected `vertical-selling-unit-tiles` id, but couldn't match with given id"
+        );
+        None
     }
+}
 
-    result.items = category
-        .items
+fn parse_new_picnic_promotions(promotions: PagesRoot) -> Vec<WggSaleCategory> {
+    let children = promotions.body.children;
+    //language=regexp
+    lazy_re_set!(
+        BLOCK_IDS,
+        // Normal group as was the case in the old Picnic client
+        r#"promo-groups-vertical-tiles.*"#,
+        // Vertical list of single item groups
+        r#"promo-group-list-element-section.*"#
+    );
+
+    children
         .into_iter()
-        .flat_map(|item| match item {
-            SubCategory::SingleArticle(itm) => Some(itm),
-            _ => {
-                tracing::warn!(
-                    ?item,
-                    "Expected single article in promotion parsing, but found articles"
-                );
-                None
+        .flat_map(|groups| groups.to_block())
+        .flat_map(|promo_group| {
+            let match_idx = BLOCK_IDS.0.matches(&promo_group.id).into_iter().next()?;
+            match match_idx {
+                0 => parse_promo_vertical_tiles(promo_group),
+                1 => parse_promo_list_tiles(promo_group),
+                _ => unreachable!(),
             }
         })
-        .map(parse_picnic_item_to_search_item)
-        .map(WggSaleItem::Product)
-        .collect();
+        .collect()
+}
 
-    Some(result)
+fn parse_promo_vertical_tiles(promotion: PageBody) -> Option<WggSaleCategory> {
+    //language=regexp
+    lazy_re!(PROMO_GROUP_ID, r".*promo-group-(.*)");
+
+    let child = promotion.children.into_iter().next()?.to_block()?;
+    // Expect some form of `promo-groups-vertical-tiles`
+    if child.id.contains("inner") {
+        let nested_child = child.children.into_iter().next()?.to_block()?;
+        // Now we can expect some form of id: `single-promo-group-b50f7476-2ade-4af8-888a-ac97bfe8b539`
+        let promo_id = PROMO_GROUP_ID.captures(&nested_child.id)?.get(1)?.as_str();
+        // The first item is the title in PML format, we can get it from ArticleAnalytics instead.
+        let article_children = nested_child.children.into_iter().nth(1)?;
+        let article_block = article_children.to_block()?;
+        // Whether to display the `more` button in the categories
+        let more_button = matches!(article_block.children.last(), Some(PageChildren::Pml(_)));
+
+        let mut category_name = None;
+        let articles = article_block
+            .children
+            .into_iter()
+            .flat_map(PageChildren::to_article_tile)
+            .map(|article| {
+                let parsed = parse_picnic_item_to_search_item(article.article);
+
+                // Update the `category_name`.
+                if category_name.is_none() {
+                    if let Some(category) = article.analytics.contexts.into_iter().last() {
+                        category_name = category.data.name;
+                    }
+                }
+
+                WggSaleItem::Product(parsed)
+            })
+            .collect();
+
+        Some(WggSaleCategory {
+            id: Some(promo_id.to_string()),
+            name: category_name.unwrap_or_else(|| "UNKNOWN".to_string()),
+            items: articles,
+            image_urls: vec![],
+            complete: !more_button,
+            provider: Provider::Picnic,
+        })
+    } else {
+        tracing::warn!(
+            block_id = child.id,
+            "Possibly outdated Picnic promotion parsing, expected `inner` id"
+        );
+        None
+    }
+}
+
+fn parse_promo_list_tiles(promotion: PageBody) -> Option<WggSaleCategory> {
+    //TODO
+    None
 }
 
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
@@ -419,7 +453,7 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
     // Parse ingredients
     if let Some(blob) = product.misc.iter().find(|i| i.header.text.contains("Ingrediënten")) {
         if let Body::Pml { pml_content } = &blob.body {
-            if let PmlComponent::RichText(item) = &pml_content.component {
+            if let Some(PmlComponent::RichText(item)) = &pml_content.component {
                 result.ingredients = parse_picnic_ingredient_blob(&item.markdown).unwrap_or_default();
             } else {
                 tracing::warn!(product=?result, "Failed to find a rich-text component for the ingredient blob")
@@ -480,8 +514,7 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
 
     // Parse fresh label
     if let Some(fresh) = product.highlights.iter().find(|item| item.text.contains("dagen vers")) {
-        static REGEX: once_cell::sync::Lazy<Regex> =
-            once_cell::sync::Lazy::new(|| Regex::new(r#"(\d+) (dagen|dag|week|weken)"#).unwrap());
+        lazy_re!(REGEX, r"(\d+) (dagen|dag|week|weken)");
 
         for capture in REGEX.captures_iter(&fresh.text) {
             let (number, unit) = (capture.get(1).unwrap(), capture.get(2).unwrap());
@@ -532,24 +565,27 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
         }
         match item.body {
             Body::Pml { pml_content } => match pml_content.component {
-                PmlComponent::Stack(stack) => {
+                Some(PmlComponent::Stack(stack)) => {
                     for child in stack.children.into_iter() {
-                        if child.markdown.contains("Bewaren") {
-                            result.additional_items.push(ItemInfo {
-                                item_type: ItemType::StorageAdvice,
-                                text: child.markdown,
-                                text_type: TextType::Markdown,
-                            })
-                        } else if child.markdown.contains("Land van herkomst") {
-                            result.additional_items.push(ItemInfo {
-                                item_type: ItemType::CountryOfOrigin,
-                                text: child.markdown,
-                                text_type: TextType::Markdown,
-                            })
+                        let md = child.to_rich_text().map(|md| md.markdown);
+                        if let Some(md) = md {
+                            if md.contains("Bewaren") {
+                                result.additional_items.push(ItemInfo {
+                                    item_type: ItemType::StorageAdvice,
+                                    text: md,
+                                    text_type: TextType::Markdown,
+                                })
+                            } else if md.contains("Land van herkomst") {
+                                result.additional_items.push(ItemInfo {
+                                    item_type: ItemType::CountryOfOrigin,
+                                    text: md,
+                                    text_type: TextType::Markdown,
+                                })
+                            }
                         }
                     }
                 }
-                PmlComponent::RichText(text) => {
+                Some(PmlComponent::RichText(text)) => {
                     if item.header.text == "Bereiding" {
                         result.additional_items.push(ItemInfo {
                             item_type: ItemType::PreparationAdvice,
@@ -560,7 +596,7 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
                         tracing::debug!(product=?result, "Received unknown RichText in Misc parsing");
                     }
                 }
-                PmlComponent::Other => {
+                _ => {
                     tracing::warn!(product=?result, "Received `Other` content for misc item")
                 }
             },
@@ -802,11 +838,12 @@ fn parse_days_fresh(period: &str) -> Option<u32> {
 
 #[cfg(test)]
 mod test {
+    use std::vec;
+
     use crate::models::{IngredientInfo, Unit, UnitPrice};
     use crate::providers::picnic_bridge::{
         parse_days_fresh, parse_euro_price, parse_picnic_ingredient_blob, parse_prep_time, parse_unit_price,
     };
-    use std::vec;
 
     #[test]
     pub fn test_parse_price() {

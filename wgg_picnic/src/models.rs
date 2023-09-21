@@ -429,7 +429,7 @@ pub struct PmlContent {
     pub component: Option<PmlComponent>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, wgg_proc::IntoEnumVariant)]
 #[serde(tag = "type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PmlComponent {
@@ -609,7 +609,7 @@ pub struct PageArticleAnalyticsData {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PageRootHeader {
-    title: String,
+    pub title: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
