@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::num::NonZeroU32;
 use std::ops::Deref;
@@ -15,8 +14,7 @@ use secrecy::ExposeSecret;
 
 pub use authentication::PicnicCredentials;
 use wgg_picnic::models::{
-    Body, Decorator, ImageSize, PageBody, PageChildren, PagePml, PagesRoot, PmlComponent, SubCategory,
-    UnavailableReason,
+    Body, Decorator, ImageSize, PageBody, PageChildren, PagePml, PagesRoot, PmlComponent, UnavailableReason,
 };
 use wgg_picnic::PicnicApi;
 

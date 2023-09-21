@@ -224,7 +224,7 @@ pub async fn refresh_promotions(sales: &SaleResolver, provider: Provider) -> Res
     }
 
     // Then add the newly added sub-lists
-    let results = get_sales(added, external_prov.deref(), sales).await?;
+    let results = get_sales(added, external_prov, sales).await?;
     for (id, info) in results {
         derived_caches.normal_cache.insert(id, info);
     }

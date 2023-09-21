@@ -17,12 +17,14 @@ pub fn enum_to_variant(ast: &DeriveInput) -> syn::Result<TokenStream> {
             Fields::Named(_) => None,
             Fields::Unnamed(contained) => {
                 let variant_name = &variant.ident;
+                let contained_type = &contained.unnamed.first().unwrap().ty;
+
                 let fn_name = format_ident!("to_{}", &variant_name.to_string().to_snake_case());
 
                 Some(quote! {
                     #[must_use]
                     #[inline]
-                    pub fn #fn_name(self) -> Option<#contained> {
+                    pub fn #fn_name(self) -> Option<#contained_type> {
                         match self {
                             #enum_name::#variant_name(contained) => Some(contained),
                             _ => None

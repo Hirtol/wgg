@@ -527,8 +527,8 @@ impl Display for ImageSize {
 impl ImageSize {
     pub fn to_page_size(&self) -> &str {
         match &self {
-            ImageSize::Tiny => "500x500",
-            ImageSize::Small => "700x700",
+            ImageSize::Tiny => "300x300",
+            ImageSize::Small => "600x600",
             ImageSize::Medium => "1000x1000",
             ImageSize::Large => "1500x1500",
             ImageSize::ExtraLarge => "2500x2500",
