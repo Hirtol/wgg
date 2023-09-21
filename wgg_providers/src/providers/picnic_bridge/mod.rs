@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::num::NonZeroU32;
 use std::ops::Deref;
@@ -14,7 +15,8 @@ use secrecy::ExposeSecret;
 
 pub use authentication::PicnicCredentials;
 use wgg_picnic::models::{
-    Body, Decorator, ImageSize, PageBody, PageChildren, PagesRoot, PmlComponent, SubCategory, UnavailableReason,
+    Body, Decorator, ImageSize, PageBody, PageChildren, PagePml, PagesRoot, PmlComponent, SubCategory,
+    UnavailableReason,
 };
 use wgg_picnic::PicnicApi;
 
@@ -23,7 +25,7 @@ use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo,
     NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation, SaleResolutionStrategy,
     SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct,
-    WggSaleCategory, WggSaleGroupComplete, WggSaleItem, WggSearchProduct,
+    WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem, WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
@@ -298,7 +300,6 @@ fn parse_new_picnic_promotion(sublist_id: impl Into<String>, promotion: PagesRoo
 }
 
 fn parse_new_picnic_promotions(promotions: PagesRoot) -> Vec<WggSaleCategory> {
-    let children = promotions.body.children;
     //language=regexp
     lazy_re_set!(
         BLOCK_IDS,
@@ -308,6 +309,10 @@ fn parse_new_picnic_promotions(promotions: PagesRoot) -> Vec<WggSaleCategory> {
         r#"promo-group-list-element-section.*"#
     );
 
+    let children = promotions.body.children;
+    // Used for some 'list-tiles'. They don't _always_ have titles.
+    let mut misc_list_id = 0;
+
     children
         .into_iter()
         .flat_map(|groups| groups.to_block())
@@ -315,7 +320,7 @@ fn parse_new_picnic_promotions(promotions: PagesRoot) -> Vec<WggSaleCategory> {
             let match_idx = BLOCK_IDS.0.matches(&promo_group.id).into_iter().next()?;
             match match_idx {
                 0 => parse_promo_vertical_tiles(promo_group),
-                1 => parse_promo_list_tiles(promo_group),
+                1 => parse_promo_list_tiles(promo_group, &mut misc_list_id),
                 _ => unreachable!(),
             }
         })
@@ -374,9 +379,104 @@ fn parse_promo_vertical_tiles(promotion: PageBody) -> Option<WggSaleCategory> {
     }
 }
 
-fn parse_promo_list_tiles(promotion: PageBody) -> Option<WggSaleCategory> {
-    //TODO
-    None
+fn parse_promo_list_tiles(promotion: PageBody, misc_list_id: &mut u32) -> Option<WggSaleCategory> {
+    // Check if it's a 'naked' list tile section, without header
+    let child = promotion.children.into_iter().last()?.to_block()?;
+    // Expect some form of `promo-groups-vertical-tiles`
+    if child.id.contains("section-content") {
+        let pml_articles = child.children.into_iter().flat_map(PageChildren::to_pml);
+
+        let mut category_name = None;
+        let sale_groups = pml_articles
+            .flat_map(|article| parse_list_article_item(&mut category_name, article))
+            .collect();
+
+        Some(WggSaleCategory {
+            id: None,
+            name: category_name.unwrap_or_else(|| {
+                *misc_list_id += 1;
+                format!("Misc List {misc_list_id}")
+            }),
+            items: sale_groups,
+            image_urls: vec![],
+            complete: true,
+            provider: Provider::Picnic,
+        })
+    } else {
+        tracing::warn!(
+            block_id = child.id,
+            "Possibly outdated Picnic promotion parsing, expected `inner` id"
+        );
+        None
+    }
+}
+
+fn parse_list_article_item(category_name: &mut Option<String>, article: PagePml) -> Option<WggSaleItem> {
+    //language=regexp
+    lazy_re!(PROMO_GROUP_ID, r".*promo_group_id=(.*)");
+
+    // Usually 3 items in `analytics`. First is skipped, second is the group id, third is the category title.
+    let mut category_and_id = article.analytics.contexts.into_iter().skip(1);
+    let binding = category_and_id.next()?.data.deeplink?;
+
+    let group_id = PROMO_GROUP_ID.captures(&binding)?.get(1)?.as_str();
+    // Update the `category_name`.
+    if category_name.is_none() {
+        if let Some(category) = category_and_id.last() {
+            *category_name = category.data.name;
+        }
+    }
+
+    let touchable_outline = article.pml.component?.to_touchable()?;
+    let sale_accessibility = touchable_outline.accessibility_label?;
+    let child = touchable_outline.child?.to_container()?.child?.to_stack()?;
+
+    let mut stack_children = child.children.into_iter();
+    let image_id = stack_children.next()?.to_container()?.child?.to_image()?.source.id;
+
+    let article_data = stack_children.next()?.to_container()?.child?.to_stack()?.children;
+    let mut article_iter = article_data.into_iter();
+
+    let mut title_items = article_iter.next()?.to_stack()?.children.into_iter();
+    let binding_title = title_items.next()?.to_container()?.child?.to_rich_text()?.markdown;
+    let title = parse_pml_markdown(&binding_title)?;
+    let description =
+        parse_pml_markdown(&title_items.next()?.to_container()?.child?.to_rich_text()?.markdown).map(|c| c.to_string());
+
+    // The accessibility label is made up of `PRODUCT TITLE + SALE STRING`, we just care about the latter.
+    let sale_type = sale_accessibility.replace(title, "");
+    let parsed_sale = common_bridge::parse_sale_label(&sale_type);
+
+    let sale_information = {
+        let valid = common_bridge::get_guessed_sale_validity(Utc::now());
+        if let Some(sale) = parsed_sale {
+            SaleInformation {
+                label: sale_type,
+                additional_label: Vec::new(),
+                sale_validity: valid,
+                sale_type: Some(sale),
+            }
+        } else {
+            SaleInformation {
+                label: "UNKNOWN".to_string(),
+                additional_label: Vec::new(),
+                sale_validity: valid,
+                sale_type: None,
+            }
+        }
+    };
+
+    let group = WggSaleGroupLimited {
+        id: group_id.to_string(),
+        name: title.to_string(),
+        image_urls: vec![wgg_picnic::images::image_url(image_id, ImageSize::Medium)],
+        items: Vec::new(),
+        sale_info: sale_information,
+        sale_description: description,
+        provider: Provider::Picnic,
+    };
+
+    Some(WggSaleItem::Group(group))
 }
 
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
@@ -834,6 +934,16 @@ fn parse_days_fresh(period: &str) -> Option<u32> {
     let price: String = period.chars().filter(|&ch| ch != 'P' && ch != 'D').collect();
 
     price.parse().ok()
+}
+
+/// Parse any PML markdown between their colour tags.
+fn parse_pml_markdown(contents: &str) -> Option<&str> {
+    //language=regexp
+    lazy_re!(ESCAPER, r"#.*?\)(.*?)#.*");
+
+    let matchr = ESCAPER.captures(contents)?.get(1)?.as_str();
+
+    Some(matchr)
 }
 
 #[cfg(test)]

@@ -435,7 +435,7 @@ pub struct PmlContent {
 pub enum PmlComponent {
     Stack(PmlStack),
     RichText(PmlRichText),
-    Touchable(PmlOther),
+    Touchable(PmlTouchable),
     Container(PmlOther),
     Image(PmlImage),
     /// Ideally we'd be able to use `PmlOther` here, but serde doesn't support this :/
@@ -464,13 +464,19 @@ pub struct PmlImage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PmlImageSource {
-    id: String,
+    pub id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PmlOther {
     pub child: Option<Box<PmlComponent>>,
     pub children: Option<Vec<PmlComponent>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PmlTouchable {
+    pub accessibility_label: Option<String>,
+    pub child: Option<Box<PmlComponent>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -514,6 +520,18 @@ impl Display for ImageSize {
             ImageSize::Medium => f.write_str("medium"),
             ImageSize::Large => f.write_str("large"),
             ImageSize::ExtraLarge => f.write_str("extra-large"),
+        }
+    }
+}
+
+impl ImageSize {
+    pub fn to_page_size(&self) -> &str {
+        match &self {
+            ImageSize::Tiny => "300x300",
+            ImageSize::Small => "500x500",
+            ImageSize::Medium => "1000x1000",
+            ImageSize::Large => "1500x1500",
+            ImageSize::ExtraLarge => "2500x2500",
         }
     }
 }
@@ -605,6 +623,7 @@ pub struct PageArticleAnalyticsData {
     pub _typ: Option<String>,
     pub product_id: Option<String>,
     pub name: Option<String>,
+    pub deeplink: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
