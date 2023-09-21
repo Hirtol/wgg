@@ -254,51 +254,6 @@ impl<'lower, 'upper> TemporaryApi<'lower, 'upper> {
     }
 }
 
-fn parse_new_picnic_promotion(sublist_id: impl Into<String>, promotion: PagesRoot) -> Option<WggSaleGroupComplete> {
-    let children = promotion.body.children;
-    let content = children.into_iter().next()?.to_block()?;
-    let vertical_tiles = content.children.into_iter().next()?.to_block()?;
-
-    if vertical_tiles.id.contains("vertical-selling-unit-tiles") {
-        let articles: Vec<_> = vertical_tiles
-            .children
-            .into_iter()
-            .flat_map(PageChildren::to_article_tile)
-            .map(|article| parse_picnic_item_to_search_item(article.article))
-            .collect();
-
-        let sale_info: SaleInformation = articles
-            .iter()
-            .flat_map(|item| &item.sale_information)
-            .next()
-            .cloned()
-            .unwrap_or_else(|| SaleInformation {
-                label: "UNKNOWN".to_string(),
-                additional_label: Vec::new(),
-                sale_validity: common_bridge::get_guessed_sale_validity(Utc::now()),
-                sale_type: None,
-            });
-
-        let result = WggSaleGroupComplete {
-            id: sublist_id.into(),
-            name: promotion.header.title,
-            image_urls: vec![],
-            items: articles,
-            sale_info,
-            sale_description: None,
-            provider: Provider::Picnic,
-        };
-
-        Some(result)
-    } else {
-        tracing::warn!(
-            ?vertical_tiles,
-            "Expected `vertical-selling-unit-tiles` id, but couldn't match with given id"
-        );
-        None
-    }
-}
-
 fn parse_new_picnic_promotions(promotions: PagesRoot) -> Vec<WggSaleCategory> {
     //language=regexp
     lazy_re_set!(
@@ -334,7 +289,7 @@ fn parse_promo_vertical_tiles(promotion: PageBody) -> Option<WggSaleCategory> {
     let child = promotion.children.into_iter().next()?.to_block()?;
     // Expect some form of `promo-groups-vertical-tiles`
     if child.id.contains("inner") {
-        let nested_child = child.children.into_iter().next()?.to_block()?;
+        let nested_child = child.children.into_iter().last()?.to_block()?;
         // Now we can expect some form of id: `single-promo-group-b50f7476-2ade-4af8-888a-ac97bfe8b539`
         let promo_id = PROMO_GROUP_ID.captures(&nested_child.id)?.get(1)?.as_str();
         // The first item is the title in PML format, we can get it from ArticleAnalytics instead.
@@ -469,7 +424,7 @@ fn parse_list_article_item(category_name: &mut Option<String>, article: PagePml)
     let group = WggSaleGroupLimited {
         id: group_id.to_string(),
         name: title.to_string(),
-        image_urls: vec![wgg_picnic::images::image_url(image_id, ImageSize::Medium)],
+        image_urls: vec![wgg_picnic::images::image_url(image_id, ImageSize::Small)],
         items: Vec::new(),
         sale_info: sale_information,
         sale_description: description,
@@ -477,6 +432,51 @@ fn parse_list_article_item(category_name: &mut Option<String>, article: PagePml)
     };
 
     Some(WggSaleItem::Group(group))
+}
+
+fn parse_new_picnic_promotion(sublist_id: impl Into<String>, promotion: PagesRoot) -> Option<WggSaleGroupComplete> {
+    let children = promotion.body.children;
+    let content = children.into_iter().next()?.to_block()?;
+    let vertical_tiles = content.children.into_iter().next()?.to_block()?;
+
+    if vertical_tiles.id.contains("vertical-selling-unit-tiles") {
+        let articles: Vec<_> = vertical_tiles
+            .children
+            .into_iter()
+            .flat_map(PageChildren::to_article_tile)
+            .map(|article| parse_picnic_item_to_search_item(article.article))
+            .collect();
+
+        let sale_info: SaleInformation = articles
+            .iter()
+            .flat_map(|item| &item.sale_information)
+            .next()
+            .cloned()
+            .unwrap_or_else(|| SaleInformation {
+                label: "UNKNOWN".to_string(),
+                additional_label: Vec::new(),
+                sale_validity: common_bridge::get_guessed_sale_validity(Utc::now()),
+                sale_type: None,
+            });
+
+        let result = WggSaleGroupComplete {
+            id: sublist_id.into(),
+            name: promotion.header.title,
+            image_urls: vec![],
+            items: articles,
+            sale_info,
+            sale_description: None,
+            provider: Provider::Picnic,
+        };
+
+        Some(result)
+    } else {
+        tracing::warn!(
+            ?vertical_tiles,
+            "Expected `vertical-selling-unit-tiles` id, but couldn't match with given id"
+        );
+        None
+    }
 }
 
 /// Parse a full picnic [wgg_picnic::models::ProductDetails] to our normalised [Product]
