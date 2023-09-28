@@ -116,21 +116,21 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
     lazy_re_set!(
         SALE_RX,
         // Basic `1 + 2 gratis`
-        r#"(\d+) \s* \+ \s* (\d+) \s* gratis"#,
+        r"(\d+) \s* \+ \s* (\d+) \s* gratis",
         // `2e gratis`
-        r#"(\d+) \s* e \s* gratis"#,
+        r"(\d+) \s* e \s* gratis",
         // `50% korting`
-        r#"(\d+) \s* % \s* korting"#,
+        r"(\d+) \s* % \s* korting",
         // `2e halve prijs`
-        r#"(\d+) \s* e \s* halve \s* prijs"#,
+        r"(\d+) \s* e \s* halve \s* prijs",
         // `3 voor €4,50`
-        r#"(\d+) \s* voor \s* €? \s* (\d+)(?:[,.](\d+))?"#,
+        r"(\d+) \s* voor \s* €? \s* (\d+)(?:[,.](\d+))?",
         // `1 euro korting` | `1.50 euro korting`
-        r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
+        r"(\d+)(?:[,.](\d+))? \s* euro \s* korting",
         // `€1.00 korting`
-        r#"€ \s* (\d+)(?:[,.](\d+))? \s* korting"#,
+        r"€ \s* (\d+)(?:[,.](\d+))? \s* korting",
         // `NU €4.00`
-        r#"NU \s* €(\d+)(?:[,.](\d+))?"#
+        r"NU \s* €(\d+)(?:[,.](\d+))?"
     );
 
     let match_idx = SALE_RX.0.matches(sale_label).into_iter().next()?;
@@ -230,8 +230,8 @@ pub(crate) fn get_guessed_sale_validity(now: DateTime<Utc>) -> SaleValidity {
         .and_hms_opt(23, 59, 59)
         .unwrap();
 
-    let valid_from: DateTime<Utc> = DateTime::from_local(monday, Utc);
-    let valid_until: DateTime<Utc> = DateTime::from_local(sunday, Utc);
+    let valid_from: DateTime<Utc> = monday.and_local_timezone(Utc).latest().unwrap_or_default();
+    let valid_until: DateTime<Utc> = sunday.and_local_timezone(Utc).latest().unwrap_or_default();
 
     SaleValidity {
         valid_from,

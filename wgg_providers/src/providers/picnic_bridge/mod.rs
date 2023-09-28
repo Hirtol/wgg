@@ -793,14 +793,16 @@ fn parse_decorators_for_sale(decorators: &[Decorator]) -> (Option<String>, Optio
                 sale_label = Some(text.clone());
             }
             Decorator::ValidityLabel { valid_until } => {
-                let valid_until =
-                    chrono::DateTime::from_utc(valid_until.and_hms_opt(23, 59, 59).expect("invalid time"), Utc);
+                let valid_until = chrono::DateTime::from_naive_utc_and_offset(
+                    valid_until.and_hms_opt(23, 59, 59).expect("invalid time"),
+                    Utc,
+                );
                 let valid_from =
                     NaiveDate::from_isoywd_opt(valid_until.year(), valid_until.iso_week().week(), chrono::Weekday::Mon)
                         .expect("invalid time")
                         .and_hms_opt(0, 0, 0)
                         .expect("invalid time");
-                let valid_from = chrono::DateTime::from_utc(valid_from, Utc);
+                let valid_from = chrono::DateTime::from_naive_utc_and_offset(valid_from, Utc);
 
                 sale_validity = Some(SaleValidity {
                     valid_from,

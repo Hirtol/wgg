@@ -9,7 +9,6 @@ use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
 use tracing::log;
 
