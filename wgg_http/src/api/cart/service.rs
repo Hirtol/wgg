@@ -328,8 +328,8 @@ fn handle_group(
             let final_price = final_price_calc(total_original_price);
             let sale_group = SaleItemGroup {
                 price_info: PriceInfo {
-                    display_price: total_original_price,
-                    original_price: final_price,
+                    display_price: final_price,
+                    original_price: total_original_price,
                     unit_price: None,
                 },
                 items,
