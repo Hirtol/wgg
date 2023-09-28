@@ -1,4 +1,4 @@
-use reqwest::{Client, Proxy, Response};
+use reqwest::{Client, Response};
 use serde::Serialize;
 use std::collections::HashMap;
 

@@ -28,7 +28,7 @@ futures = {workspace = true}
 # Web
 async-graphql = { version = "5.0.5", default-features=false, features = ["email-validator", "tempfile", "time", "dataloader", "tracing", "playground", "graphiql"] }
 async-graphql-axum = "5.0.5"
-axum = { version = "0.6.4", features = ["ws", "headers", "tower-log", "multipart"] }
+axum = { version = "0.6.4", features = ["ws", "headers", "tower-log", "multipart", "http2"] }
 axum-extra = { version = "0.4.2", features = ["spa"] }
 tower = { version = "0.4.13", features = ["timeout", "limit", "load-shed"] }
 tower-http = { version = "0.3.4", features = ["full"] }

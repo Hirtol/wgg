@@ -90,11 +90,16 @@ pub async fn calculate_tallies(
     let (products, aggregate) = futures::future::try_join(products, aggregate).await?;
 
     let mut add_sale_item = |search_product: WggSearchProduct, quantity: u32| {
-        let Some(sale) = &search_product.sale_information else { return Ok(()) };
+        let Some(sale) = &search_product.sale_information else {
+            return Ok(());
+        };
 
         let provider = search_product.provider;
         let Some(sale_id) = state.providers.product_sale_id(provider, &search_product.id) else {
-            return Err(GraphqlError::InternalError(format!("Product: {:?} - {} - has a sale with no associated sale!", provider, search_product.id)));
+            return Err(GraphqlError::InternalError(format!(
+                "Product: {:?} - {} - has a sale with no associated sale!",
+                provider, search_product.id
+            )));
         };
 
         sale_items
@@ -127,7 +132,9 @@ pub async fn calculate_tallies(
         let original_price = product.quantity as u32 * search_product.price_info.original_price;
 
         // Handle sale look-up.
-        add_sale_item(search_product, product.quantity as u32)?;
+        if let Err(e) = add_sale_item(search_product, product.quantity as u32) {
+            tracing::warn!(?e, "Failed to handle sale item")
+        }
 
         result
             .entry(provider)
@@ -149,7 +156,9 @@ pub async fn calculate_tallies(
             let original_price = agg_ingredient.quantity as u32 * search_product.price_info.original_price;
 
             // Handle sale look-up.
-            add_sale_item(search_product, agg_ingredient.quantity as u32)?;
+            if let Err(e) = add_sale_item(search_product, agg_ingredient.quantity as u32) {
+                tracing::warn!(?e, "Failed to handle aggregate item")
+            }
 
             result
                 .entry(provider)

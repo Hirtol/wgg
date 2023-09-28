@@ -397,14 +397,19 @@ fn parse_list_article_item(category_name: &mut Option<String>, article: PagePml)
         parse_pml_markdown(&title_items.next()?.to_container()?.child?.to_rich_text()?.markdown).map(|c| c.to_string());
 
     // The accessibility label is made up of `PRODUCT TITLE + SALE STRING`, we just care about the latter.
-    let sale_type = sale_accessibility.replace(title, "");
-    let parsed_sale = common_bridge::parse_sale_label(&sale_type);
+    let sale_label = sale_accessibility.replace(title, "");
+
+    if !should_permit_sale_label(&sale_label) {
+        return None;
+    }
+
+    let parsed_sale = common_bridge::parse_sale_label(&sale_label);
 
     let sale_information = {
         let valid = common_bridge::get_guessed_sale_validity(Utc::now());
         if let Some(sale) = parsed_sale {
             SaleInformation {
-                label: sale_type,
+                label: sale_label,
                 additional_label: Vec::new(),
                 sale_validity: valid,
                 sale_type: Some(sale),
@@ -636,13 +641,15 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
     // Parse Sales
     let (_, sale_validity) = parse_decorators_for_sale(&product.decorators);
     if let Some(promo) = product.labels.promo {
-        result.sale_information = SaleInformation {
-            sale_type: parse_sale_label(&promo.text),
-            label: promo.text,
-            additional_label: Vec::new(),
-            sale_validity: sale_validity.unwrap_or_else(|| common_bridge::get_guessed_sale_validity(Utc::now())),
+        if should_permit_sale_label(&promo.text) {
+            result.sale_information = SaleInformation {
+                sale_type: parse_sale_label(&promo.text),
+                label: promo.text,
+                additional_label: Vec::new(),
+                sale_validity: sale_validity.unwrap_or_else(|| common_bridge::get_guessed_sale_validity(Utc::now())),
+            }
+            .into();
         }
-        .into();
     }
 
     // Parse remaining decorators
@@ -730,7 +737,7 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
     // Parse sale data
     let (sale_label, sale_validity) = parse_decorators_for_sale(&article.decorators);
     if let Some(label) = sale_label {
-        if label != "Receptkorting" {
+        if should_permit_sale_label(&label) {
             result.sale_information = SaleInformation {
                 sale_type: parse_sale_label(&label),
                 label,
@@ -942,6 +949,13 @@ fn parse_pml_markdown(contents: &str) -> Option<&str> {
     let matchr = ESCAPER.captures(contents)?.get(1)?.as_str();
 
     Some(matchr)
+}
+
+/// Check whether a given label should be allowed.
+///
+/// If not the sale part of the given item should be skipped.
+fn should_permit_sale_label(label: impl AsRef<str>) -> bool {
+    label.as_ref() != "Receptkorting"
 }
 
 #[cfg(test)]

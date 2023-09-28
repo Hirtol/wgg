@@ -292,11 +292,27 @@ pub async fn get_sales(
         for item in promo.items {
             if let WggSaleItem::Group(limited_group) = item {
                 let id = limited_group.id;
+                let to_insert = if limited_group.items.is_empty() {
+                    // In this case we're not sure if we're dealing with an *actual* empty sub-group, or whether it wasn't provided by the
+                    // underlying provider. Just in case we'll request the sublist data.
+                    let sub_list = provider.promotions_sublist(&id).await?;
+                    let item_ids = sub_list.items.iter().map(|i| i.id.clone()).collect();
+                    let to_insert = SaleInfo {
+                        valid_from: sub_list.sale_info.sale_validity.valid_from,
+                        valid_until: sub_list.sale_info.sale_validity.valid_until,
+                        item_ids,
+                    };
+                    let _ = sales_resolver
+                        .cache
+                        .insert_promotion_sublist(provider.provider(), sub_list);
 
-                let to_insert = SaleInfo {
-                    valid_from: limited_group.sale_info.sale_validity.valid_from,
-                    valid_until: limited_group.sale_info.sale_validity.valid_until,
-                    item_ids: limited_group.items.into_iter().map(|i| i.id).collect(),
+                    to_insert
+                } else {
+                    SaleInfo {
+                        valid_from: limited_group.sale_info.sale_validity.valid_from,
+                        valid_until: limited_group.sale_info.sale_validity.valid_until,
+                        item_ids: limited_group.items.into_iter().map(|i| i.id).collect(),
+                    }
                 };
 
                 result.insert(id, to_insert);
