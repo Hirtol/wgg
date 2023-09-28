@@ -20,7 +20,7 @@ impl Config {
             url: format!("https://mobileapi.jumbo.com/v{api_version}")
                 .parse()
                 .expect("Default URL Incorrect"),
-            user_agent: "Jumbo/9.4.1 (unknown Android_SDK_built_for_x86_64; Android 12)".to_string(),
+            user_agent: "Jumbo/10.5.1 (unknown Android_SDK_built_for_x86_64; Android 12)".to_string(),
         }
     }
 

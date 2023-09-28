@@ -1,4 +1,4 @@
-use reqwest::{Client, Response};
+use reqwest::{Client, Proxy, Response};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -96,9 +96,7 @@ impl FullJumboApi {
         let auth_token = response
             .headers()
             .get("x-jumbo-token")
-            .ok_or_else(|| {
-                ApiError::LoginFailed(format!("No Jumbo auth token available in response: {response:#?}"))
-            })?
+            .ok_or_else(|| ApiError::LoginFailed(format!("No Jumbo auth token available in response: {response:#?}")))?
             .to_str()
             .map_err(|e| anyhow!(e))?
             .to_string();
