@@ -128,7 +128,7 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
         // `1 euro korting` | `1.50 euro korting`
         r#"(\d+)(?:[,.](\d+))? \s* euro \s* korting"#,
         // `€1.00 korting`
-        r#"€(\d+)(?:[,.](\d+))? \s* korting"#,
+        r#"€ \s* (\d+)(?:[,.](\d+))? \s* korting"#,
         // `NU €4.00`
         r#"NU \s* €(\d+)(?:[,.](\d+))?"#
     );
@@ -286,6 +286,7 @@ mod tests {
             "2 voor €3",
             "15 euro korting",
             "1.50 euro korting",
+            "€ 1,00 korting",
         ];
         let expected = [
             SaleType::NumPlusNumFree(NumPlusNumFree {
@@ -323,6 +324,7 @@ mod tests {
             }),
             SaleType::NumEuroOff(NumEuroOff { price_off: 1500 }),
             SaleType::NumEuroOff(NumEuroOff { price_off: 150 }),
+            SaleType::NumEuroOff(NumEuroOff { price_off: 100 }),
         ];
 
         for (to_parse, expected) in test_cases.iter().zip(expected.iter()) {
