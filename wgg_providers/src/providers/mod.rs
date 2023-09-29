@@ -28,6 +28,11 @@ pub trait ProviderInfo: StaticProviderInfo {
 
     fn metadata(&self) -> ProviderMetadata;
 
+    /// If this provider support cart interactions then it will be converted to [ProviderCart].
+    fn as_cart_provider(&self) -> Option<&(dyn ProviderCart + Send + Sync)> {
+        None
+    }
+
     /// Perform an autocomplete match for the provided query.
     ///
     /// Some APIs will perform a network call, whilst others will do in-process filtering to provide a list of terms.
@@ -55,18 +60,10 @@ pub trait ProviderInfo: StaticProviderInfo {
 #[async_trait::async_trait]
 pub trait ProviderCart: ProviderInfo {
     /// Add the given item(s) and the quantity thereof to the current cart.
-    async fn add_to_cart<I, ProdId>(&self, items: I) -> Result<()>
-    where
-        I: IntoIterator<Item = (ProdId, u32)> + Send,
-        I::IntoIter: Send,
-        ProdId: AsRef<ProductIdRef> + Send;
+    async fn add_to_cart(&self, items: &[(&ProductIdRef, u32)]) -> Result<()>;
 
     /// Remove the given item(s) and the quantity thereof from the current cart.
-    async fn remove_from_cart<I, ProdId>(&self, items: I) -> Result<()>
-    where
-        I: IntoIterator<Item = (ProdId, u32)> + Send,
-        I::IntoIter: Send,
-        ProdId: AsRef<ProductIdRef> + Send;
+    async fn remove_from_cart(&self, items: &[(&ProductIdRef, u32)]) -> Result<()>;
 
     /// Clear the current remote cart.
     async fn clear_cart(&self) -> Result<()>;

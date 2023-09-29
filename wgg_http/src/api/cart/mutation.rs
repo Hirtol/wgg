@@ -1,4 +1,4 @@
-use crate::api::cart::UserCart;
+use crate::api::cart::{service, UserCart};
 use crate::api::error::GraphqlError;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
 use crate::db;
@@ -204,6 +204,46 @@ impl CartMutation {
 
         Ok(CartCompletePayload { data: cart.into() })
     }
+
+    /// Export the items in the current cart to the given [Provider]'s cart implementation.
+    ///
+    /// # Arguments
+    /// * `clear_existing` - Whether to clear any existing external cart contents or not.
+    ///
+    /// # Accessible By
+    ///
+    /// Everyone.
+    #[tracing::instrument(skip(self, ctx))]
+    pub async fn cart_current_export(
+        &self,
+        ctx: &Context<'_>,
+        input: CartExportInput,
+    ) -> GraphqlResult<CartExportPayload> {
+        let state = ctx.wgg_state();
+        let user = ctx.wgg_user()?;
+        let tx = state.db.begin().await?;
+
+        let cart = db::cart::get_active_cart_for_user(user.id, &tx).await?;
+        let items =
+            service::get_products_from_provider(&tx, cart.id, state.provider_id_from_provider(&input.provider)).await?;
+
+        tx.commit().await?;
+
+        if input.clear_existing {
+            state.providers.clear_cart(input.provider).await?;
+        }
+
+        let items_to_add = items
+            .iter()
+            .map(|item| (item.product_id.as_ref(), item.quantity))
+            .collect::<Vec<_>>();
+        state
+            .providers
+            .add_to_cart(input.provider, items_to_add.as_slice())
+            .await?;
+
+        Ok(CartExportPayload { success: true })
+    }
 }
 
 #[derive(Debug, async_graphql::InputObject)]
@@ -256,6 +296,12 @@ pub struct CartCompleteInput {
     pub picked_provider: Provider,
 }
 
+#[derive(Debug, async_graphql::InputObject)]
+pub struct CartExportInput {
+    pub provider: Provider,
+    pub clear_existing: bool,
+}
+
 #[derive(Debug, async_graphql::SimpleObject)]
 pub struct CartAddProductPayload {
     /// The current cart
@@ -272,4 +318,9 @@ pub struct CartRemoveProductPayload {
 pub struct CartCompletePayload {
     /// The completed cart
     pub data: UserCart,
+}
+
+#[derive(Debug, async_graphql::SimpleObject)]
+pub struct CartExportPayload {
+    pub success: bool,
 }

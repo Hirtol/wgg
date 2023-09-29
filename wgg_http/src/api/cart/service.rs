@@ -1,5 +1,5 @@
 use crate::api::error::GraphqlError;
-use crate::api::{AppState, GraphqlResult};
+use crate::api::{AppState, GraphqlResult, ProductId};
 use crate::db;
 use crate::db::Id;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
@@ -65,6 +65,40 @@ pub async fn get_products_quantity(
     Ok(cart_content
         .into_iter()
         .map(|item| (item.provider_product, item.quantity as u32))
+        .collect())
+}
+
+/// Get all products in the given cart which belong to the given provider.
+pub async fn get_products_from_provider(
+    db: &impl ConnectionTrait,
+    cart_id: Id,
+    provider_id: Id,
+) -> GraphqlResult<Vec<ProductIdWithQuantity>> {
+    let products = db::cart_contents::raw_product::Entity::find()
+        .filter(db::cart_contents::raw_product::Column::CartId.eq(cart_id))
+        .filter(db::cart_contents::raw_product::Column::ProviderId.eq(provider_id))
+        .all(db);
+
+    let aggregate = db::cart_contents::aggregate::Entity::find()
+        .find_with_related(db::agg_ingredients_links::Entity)
+        .filter(db::cart_contents::aggregate::Column::CartId.eq(cart_id))
+        .filter(db::agg_ingredients_links::Column::ProviderId.eq(provider_id))
+        .all(db);
+
+    let (products, aggregate) = futures::future::try_join(products, aggregate).await?;
+
+    Ok(products
+        .into_iter()
+        .map(|item| ProductIdWithQuantity {
+            product_id: item.provider_product,
+            quantity: item.quantity as u32,
+        })
+        .chain(aggregate.into_iter().flat_map(|(agg, y)| {
+            Some(ProductIdWithQuantity {
+                product_id: y.into_iter().next()?.provider_ingr_id,
+                quantity: agg.quantity as u32,
+            })
+        }))
         .collect())
 }
 
@@ -351,14 +385,20 @@ struct SaleTracking {
 
 #[derive(Debug)]
 pub struct SaleItemGroup {
-    price_info: PriceInfo,
-    items: Vec<ProductWithQuantity>,
+    pub price_info: PriceInfo,
+    pub items: Vec<ProductWithQuantity>,
 }
 
 #[derive(Debug)]
 pub struct ProductWithQuantity {
-    quantity: u32,
-    item: WggSearchProduct,
+    pub quantity: u32,
+    pub item: WggSearchProduct,
+}
+
+#[derive(Debug)]
+pub struct ProductIdWithQuantity {
+    pub product_id: ProductId,
+    pub quantity: u32,
 }
 
 #[derive(Copy, Clone)]

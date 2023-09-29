@@ -152,6 +152,10 @@ impl ProviderInfo for PicnicBridge {
         <Self as StaticProviderInfo>::metadata()
     }
 
+    fn as_cart_provider(&self) -> Option<&(dyn ProviderCart + Send + Sync)> {
+        Some(self as &(dyn ProviderCart + Send + Sync))
+    }
+
     #[tracing::instrument(name = "picnic_autocomplete", level = "trace", skip(self))]
     async fn autocomplete(&self, query: &str) -> Result<Vec<WggAutocomplete>> {
         let result = self.picnic_request(|api| api.suggestions(query).boxed()).await?;
@@ -233,36 +237,40 @@ impl ProviderInfo for PicnicBridge {
 #[async_trait::async_trait]
 impl ProviderCart for PicnicBridge {
     #[tracing::instrument(name = "picnic_add_to_cart", level = "trace", skip(self, items))]
-    async fn add_to_cart<I, ProdId>(&self, items: I) -> Result<()>
-    where
-        I: IntoIterator<Item = (ProdId, u32)> + Send,
-        I::IntoIter: Send,
-        ProdId: AsRef<ProductIdRef> + Send,
-    {
-        for (id, quantity) in items {
-            let id = id.as_ref();
-            tracing::trace!(id = id, quantity, "Adding Picnic product to cart");
+    async fn add_to_cart(&self, items: &[(&ProductIdRef, u32)]) -> Result<()> {
+        let futures = items.iter().map(|(id, quantity)| async move {
             let _ = self
-                .picnic_request(|api| api.add_product_to_shopping_cart(id, quantity).boxed())
+                .picnic_request(|api| {
+                    tracing::trace!(id, quantity, "Adding Picnic product to cart");
+
+                    api.add_product_to_shopping_cart(id, *quantity).boxed()
+                })
                 .await?;
-        }
+
+            Ok::<_, ProviderError>(())
+        });
+
+        futures::future::try_join_all(futures).await?;
+
         Ok(())
     }
 
     #[tracing::instrument(name = "picnic_remove_from_cart", level = "trace", skip(self, items))]
-    async fn remove_from_cart<I, ProdId>(&self, items: I) -> Result<()>
-    where
-        I: IntoIterator<Item = (ProdId, u32)> + Send,
-        I::IntoIter: Send,
-        ProdId: AsRef<ProductIdRef> + Send,
-    {
-        for (id, quantity) in items {
-            let id = id.as_ref();
-            tracing::trace!(id, quantity, "Adding Picnic product to cart");
+    async fn remove_from_cart(&self, items: &[(&ProductIdRef, u32)]) -> Result<()> {
+        let futures = items.iter().map(|(id, quantity)| async move {
             let _ = self
-                .picnic_request(|api| api.remove_product_from_shopping_cart(id, quantity).boxed())
+                .picnic_request(|api| {
+                    tracing::trace!(id, quantity, "Removing Picnic product from cart");
+
+                    api.remove_product_from_shopping_cart(id, *quantity).boxed()
+                })
                 .await?;
-        }
+
+            Ok::<_, ProviderError>(())
+        });
+
+        futures::future::try_join_all(futures).await?;
+
         Ok(())
     }
 

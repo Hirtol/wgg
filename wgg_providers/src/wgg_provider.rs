@@ -1,24 +1,26 @@
-use crate::models::{
-    Provider, SublistId, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
-    WggSearchProduct,
-};
-use async_graphql::EnumType;
 use std::fmt::Debug;
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
+
+use async_graphql::EnumType;
+
 use wgg_jumbo::BaseJumboApi;
+use wgg_scheduler::JobScheduler;
 
 use crate::caching::SerdeCache;
 use crate::caching::WggProviderCache;
 use crate::error::{ProviderError, Result};
+use crate::models::{
+    ProductIdRef, Provider, SublistId, WggAutocomplete, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleItem,
+    WggSearchProduct,
+};
 use crate::pagination::OffsetPagination;
-use crate::providers::PicnicCredentials;
 use crate::providers::{JumboBridge, PicnicBridge};
+use crate::providers::{PicnicCredentials, ProviderCart};
 use crate::sale_resolver::{SaleInfo, SaleResolver};
 use crate::{DynProvider, DynamicProviders};
-use wgg_scheduler::JobScheduler;
 
 pub struct WggProvider {
     pub(crate) dyn_providers: Arc<DynamicProviders>,
@@ -234,7 +236,7 @@ impl WggProvider {
     pub async fn search_products(
         &self,
         provider: Provider,
-        product_ids: impl IntoIterator<Item = impl AsRef<str> + Debug>,
+        product_ids: impl IntoIterator<Item = impl AsRef<ProductIdRef> + Debug>,
     ) -> Result<Vec<WggSearchProduct>> {
         use futures::stream::{StreamExt, TryStreamExt};
 
@@ -254,15 +256,40 @@ impl WggProvider {
     }
 
     /// Retrieve the associated sale for this item.
-    pub fn product_sale_association(&self, provider: Provider, product_id: impl AsRef<str>) -> Result<SaleInfo> {
+    pub fn product_sale_association(
+        &self,
+        provider: Provider,
+        product_id: impl AsRef<ProductIdRef>,
+    ) -> Result<SaleInfo> {
         self.sales
             .get_sale_info(provider, product_id.as_ref())
             .ok_or(ProviderError::NothingFound)
     }
 
     /// Retrieve the associated sale sublist for this item.
-    pub fn product_sale_id(&self, provider: Provider, product_id: impl AsRef<str>) -> Option<SublistId> {
+    pub fn product_sale_id(&self, provider: Provider, product_id: impl AsRef<ProductIdRef>) -> Option<SublistId> {
         self.sales.get_sale_sublist_id(provider, product_id.as_ref())
+    }
+
+    /// Add the given item(s) and the quantity thereof to the current cart.
+    pub async fn add_to_cart(&self, provider: Provider, items: &[(&ProductIdRef, u32)]) -> Result<()> {
+        let cart_provider = self.cart_provider(provider)?;
+
+        cart_provider.add_to_cart(items).await
+    }
+
+    /// Remove the given item(s) and the quantity thereof from the current cart.
+    pub async fn remove_from_cart(&self, provider: Provider, items: &[(&ProductIdRef, u32)]) -> Result<()> {
+        let cart_provider = self.cart_provider(provider)?;
+
+        cart_provider.remove_from_cart(items).await
+    }
+
+    /// Clear the current remote cart.
+    pub async fn clear_cart(&self, provider: Provider) -> Result<()> {
+        let cart_provider = self.cart_provider(provider)?;
+
+        cart_provider.clear_cart().await
     }
 
     /// Push all jobs relevant for optimal service of [WggProvider]s onto the given scheduler.
@@ -270,6 +297,13 @@ impl WggProvider {
     /// These services are *not* mandatory for this to work, but they *are* mandatory for things to stay up-to-date.
     pub fn schedule_all_jobs(self: Arc<Self>, scheduler: &JobScheduler) {
         crate::scheduled_jobs::schedule_all_jobs(scheduler, self)
+    }
+
+    /// Iterate over all providers in arbitrary order, allowing an action to be performed on all of them
+    pub fn active_providers(&self) -> ProvidersIter<'_> {
+        ProvidersIter {
+            providers_iter: self.dyn_providers.values(),
+        }
     }
 
     /// Perform a network request for the requested product.
@@ -282,11 +316,15 @@ impl WggProvider {
         Ok(result)
     }
 
-    /// Iterate over all providers in arbitrary order, allowing an action to be performed on all of them
-    pub fn active_providers(&self) -> ProvidersIter<'_> {
-        ProvidersIter {
-            providers_iter: self.dyn_providers.values(),
-        }
+    fn cart_provider(&self, provider: Provider) -> Result<&(dyn ProviderCart + Send + Sync)> {
+        self.dyn_providers
+            .find_provider(provider)?
+            .as_cart_provider()
+            .ok_or_else(|| {
+                ProviderError::OperationUnsupported(
+                    "Cart operations are not supported on the given provider".to_string(),
+                )
+            })
     }
 }
 

@@ -661,7 +661,7 @@ pub enum SubCategory {
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Order {
-    pub id: String,
+    pub id: Option<String>,
     #[serde(default)]
     pub items: Vec<OrderLine>,
     #[serde(default)]
@@ -673,7 +673,7 @@ pub struct Order {
     pub total_count: Option<i64>,
     pub total_price: i64,
     pub checkout_total_price: i64,
-    pub total_savings: i64,
+    pub total_savings: Option<i64>,
     /// Only available once the total price exceeds the minimum (at the moment, 35,- euros) quantity.
     pub total_deposit: Option<u32>,
     /// Only available once the order has been placed.

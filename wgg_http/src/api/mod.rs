@@ -30,11 +30,10 @@ pub mod scheduled_jobs;
 pub use auth::{create_user, UserCreateInput};
 pub(crate) use ctx::*;
 pub(crate) use routes::config;
+pub use wgg_providers::models::ProductId;
 
 pub type WggSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 pub type GraphqlResult<T, E = GraphqlError> = std::result::Result<T, E>;
-/// A product id for an arbitrary provider.
-type ProductId = String;
 
 /// The maximum amount of items that should be allowed to be deleted within a single request.
 const MAX_AMOUNT_DELETE: usize = 20;
