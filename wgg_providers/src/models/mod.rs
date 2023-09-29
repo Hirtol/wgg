@@ -15,6 +15,7 @@ pub use search_product::*;
 pub type CentPrice = u32;
 pub type SublistId = String;
 pub type ProductId = String;
+pub type ProductIdRef = str;
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WggAutocomplete {

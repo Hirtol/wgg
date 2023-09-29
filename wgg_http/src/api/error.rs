@@ -201,6 +201,7 @@ impl From<wgg_providers::ProviderError> for GraphqlError {
             ProviderError::SubProviderError(provider, e) => {
                 GraphqlError::Other(anyhow!("{:?} - Failure: {:#}", provider, e))
             }
+            ProviderError::OperationUnsupported(msg) => GraphqlError::UserError(msg),
         }
     }
 }

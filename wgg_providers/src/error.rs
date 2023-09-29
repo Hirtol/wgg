@@ -14,6 +14,8 @@ pub enum ProviderError {
     ProviderUninitialised(Provider),
     #[error("Provider: {0:?} - Failure: {1:?}")]
     SubProviderError(Provider, SubProviderError),
+    #[error("Operation `{0}` is not supported on this provider")]
+    OperationUnsupported(String),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]

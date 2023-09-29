@@ -21,13 +21,14 @@ use wgg_picnic::PicnicApi;
 use crate::error::Result;
 use crate::models::{
     AllergyTags, AllergyType, CentPrice, Description, FreshLabel, IngredientInfo, ItemInfo, ItemType, NutritionalInfo,
-    NutritionalItem, PrepTime, PriceInfo, Provider, ProviderMetadata, SaleInformation, SaleResolutionStrategy,
-    SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete, WggDecorator, WggProduct,
-    WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem, WggSearchProduct,
+    NutritionalItem, PrepTime, PriceInfo, ProductIdRef, Provider, ProviderMetadata, SaleInformation,
+    SaleResolutionStrategy, SaleValidity, SubNutritionalItem, TextType, UnavailableItem, UnitPrice, WggAutocomplete,
+    WggDecorator, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited, WggSaleItem,
+    WggSearchProduct,
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
-use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
+use crate::providers::{common_bridge, ProviderCart, ProviderInfo, StaticProviderInfo};
 use crate::{lazy_re, lazy_re_set, ProviderError};
 
 mod authentication;
@@ -55,6 +56,7 @@ impl StaticProviderInfo for PicnicBridge {
             // Technically Picnic sale resolution depends on the order of addition to the cart, but the user can manually
             // make this opportunistic in that case.
             sale_strategy: SaleResolutionStrategy::Opportunistic,
+            supports_cart: true,
         }
     }
 }
@@ -225,6 +227,49 @@ impl ProviderInfo for PicnicBridge {
         let result = parse_new_picnic_promotion(sublist_id, result).ok_or_else(|| ProviderError::NothingFound)?;
 
         Ok(result)
+    }
+}
+
+#[async_trait::async_trait]
+impl ProviderCart for PicnicBridge {
+    #[tracing::instrument(name = "picnic_add_to_cart", level = "trace", skip(self, items))]
+    async fn add_to_cart<I, ProdId>(&self, items: I) -> Result<()>
+    where
+        I: IntoIterator<Item = (ProdId, u32)> + Send,
+        I::IntoIter: Send,
+        ProdId: AsRef<ProductIdRef> + Send,
+    {
+        for (id, quantity) in items {
+            let id = id.as_ref();
+            tracing::trace!(id = id, quantity, "Adding Picnic product to cart");
+            let _ = self
+                .picnic_request(|api| api.add_product_to_shopping_cart(id, quantity).boxed())
+                .await?;
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(name = "picnic_remove_from_cart", level = "trace", skip(self, items))]
+    async fn remove_from_cart<I, ProdId>(&self, items: I) -> Result<()>
+    where
+        I: IntoIterator<Item = (ProdId, u32)> + Send,
+        I::IntoIter: Send,
+        ProdId: AsRef<ProductIdRef> + Send,
+    {
+        for (id, quantity) in items {
+            let id = id.as_ref();
+            tracing::trace!(id, quantity, "Adding Picnic product to cart");
+            let _ = self
+                .picnic_request(|api| api.remove_product_from_shopping_cart(id, quantity).boxed())
+                .await?;
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(name = "picnic_clear_cart", level = "trace", skip(self))]
+    async fn clear_cart(&self) -> Result<()> {
+        self.picnic_request(|api| api.clear_shopping_cart().boxed()).await?;
+        Ok(())
     }
 }
 
@@ -869,8 +914,8 @@ fn parse_picnic_ingredient_blob(blob: &str) -> Option<Vec<IngredientInfo>> {
     // The regex we construct is a little unorthodox. Capturing the ingredients between commas directly would require
     // look-ahead/look-behind (within brackets, number with comma separators), not possible with the default `regex` crate.
     // We therefore match all patterns we *don't* want to match first (double nested brackets, brackets, and comma numbers), and then get all normal commas.
-    static REGEX: once_cell::sync::Lazy<Regex> =
-        once_cell::sync::Lazy::new(|| Regex::new(r#"\([^()]*?(?:\(.*?\))+[^()]*?\)|\(.*?\)|\d+,\d+%|(,)"#).unwrap());
+    // language=regexp
+    lazy_re!(REGEX, r"\([^()]*?(?:\(.*?\))+[^()]*?\)|\(.*?\)|\d+,\d+%|(,)");
 
     // Filter all 'normal' commas, they're the only ones in a capture group so it's trivial.
     let comma_indexes = REGEX

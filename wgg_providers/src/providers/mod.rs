@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::models::{Provider, ProviderMetadata, WggAutocomplete, WggSearchProduct};
+use crate::models::{ProductIdRef, Provider, ProviderMetadata, WggAutocomplete, WggSearchProduct};
 use crate::models::{WggProduct, WggSaleCategory, WggSaleGroupComplete};
 use crate::pagination::OffsetPagination;
 
@@ -47,6 +47,29 @@ pub trait ProviderInfo: StaticProviderInfo {
 
     /// Retrieve a specific promotion
     async fn promotions_sublist(&self, sublist_id: &str) -> Result<WggSaleGroupComplete>;
+}
+
+/// A trait implemented by a provider if it supports Cart manipulations
+///
+/// See also [ProviderMetadata::supports_cart]
+#[async_trait::async_trait]
+pub trait ProviderCart: ProviderInfo {
+    /// Add the given item(s) and the quantity thereof to the current cart.
+    async fn add_to_cart<I, ProdId>(&self, items: I) -> Result<()>
+    where
+        I: IntoIterator<Item = (ProdId, u32)> + Send,
+        I::IntoIter: Send,
+        ProdId: AsRef<ProductIdRef> + Send;
+
+    /// Remove the given item(s) and the quantity thereof from the current cart.
+    async fn remove_from_cart<I, ProdId>(&self, items: I) -> Result<()>
+    where
+        I: IntoIterator<Item = (ProdId, u32)> + Send,
+        I::IntoIter: Send,
+        ProdId: AsRef<ProductIdRef> + Send;
+
+    /// Clear the current remote cart.
+    async fn clear_cart(&self) -> Result<()>;
 }
 
 pub trait ProviderToAny: 'static {

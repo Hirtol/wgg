@@ -10,10 +10,9 @@ use crate::models::{
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{derive_unit_price, parse_sale_label, parse_unit_component};
 use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use crate::ProviderError;
+use crate::{lazy_re, ProviderError};
 use anyhow::Context;
 use cached::proc_macro::once;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use wgg_jumbo::models::{AvailabilityType, PromotionGroupContent};
 use wgg_jumbo::{BaseApi, BaseJumboApi};
@@ -37,6 +36,7 @@ impl StaticProviderInfo for JumboBridge {
         ProviderMetadata {
             logo_url: "https://upload.wikimedia.org/wikipedia/commons/8/8d/Jumbo_Logo.svg".into(),
             sale_strategy: SaleResolutionStrategy::Pessimistic,
+            supports_cart: false,
         }
     }
 }
@@ -123,7 +123,9 @@ impl ProviderInfo for JumboBridge {
             .find(|group| group.title.contains("gangpad"))
             .ok_or(ProviderError::NothingFound)?;
         let PromotionGroupContent::Categories(categories) = main_sale_items.content else {
-            return Err(anyhow::anyhow!("Found promotion group did not contain categories as expected!"))?;
+            return Err(anyhow::anyhow!(
+                "Found promotion group did not contain categories as expected!"
+            ))?;
         };
 
         Ok(categories
@@ -563,8 +565,7 @@ fn parse_nutritional_info(nut_info: &wgg_jumbo::models::NutritionalInformation) 
 ///
 /// Simple list similar to `Bevat Selderij,Kan het volgende bevatten Eieren,etc`
 fn parse_allergy_info(allergy_text: &str) -> Vec<AllergyTags> {
-    static ALLERGY_RX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r#"[Bb]evat(ten)? (\w+)"#).expect("Could not compile regex"));
+    lazy_re!(ALLERGY_RX, r"[Bb]evat(ten)? (\w+)");
 
     ALLERGY_RX
         .captures_iter(allergy_text)

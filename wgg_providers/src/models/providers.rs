@@ -61,6 +61,8 @@ pub struct ProviderMetadata {
     pub logo_url: Cow<'static, str>,
     /// The strategy for multi-product sale resolution.
     pub sale_strategy: SaleResolutionStrategy,
+    /// Whether the provider supports managing cart contents to whatever backend it uses.
+    pub supports_cart: bool,
 }
 
 /// When resolving multi-product (think `1 + 1 free`, `2nd half off`, etc) the strategy determines how products will
