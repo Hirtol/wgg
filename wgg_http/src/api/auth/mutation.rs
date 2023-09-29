@@ -26,11 +26,7 @@ impl AuthMutation {
     /// Admins.
     async fn user_create(&self, ctx: &Context<'_>, input: UserCreateInput) -> GraphqlResult<UserCreatePayload> {
         let state = ctx.wgg_state();
-        let current_user = ctx.wgg_user()?;
-
-        if !current_user.is_admin {
-            return Err(GraphqlError::Unauthorized);
-        }
+        let _ = ctx.wgg_admin()?;
 
         let created_user = super::create_user(&state.db, input).await?;
 
@@ -83,11 +79,7 @@ impl AuthMutation {
     /// Admins.
     async fn user_delete(&self, ctx: &Context<'_>, id: Id) -> GraphqlResult<UserDeletePayload> {
         let state = ctx.wgg_state();
-        let current_user = ctx.wgg_user()?;
-
-        if !current_user.is_admin {
-            return Err(GraphqlError::Unauthorized);
-        }
+        let _ = ctx.wgg_admin()?;
 
         let _ = db::users::Entity::delete_by_id(id).exec(&state.db).await?;
 
