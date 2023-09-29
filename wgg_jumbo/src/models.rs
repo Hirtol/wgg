@@ -203,7 +203,7 @@ pub struct Price {
 #[serde(rename_all = "camelCase")]
 pub struct UnitPrice {
     pub unit: String,
-    pub price: Price,
+    pub price: Option<Price>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Deserialize)]

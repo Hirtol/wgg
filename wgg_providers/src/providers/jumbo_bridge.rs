@@ -265,16 +265,22 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
     };
 
     // Unit Pricing
-    if let Some(price) = product.prices.unit_price {
-        if let Some(unit) = parse_unit_component(&price.unit) {
-            result.price_info.unit_price = UnitPrice {
-                unit,
-                price: price.price.amount,
+    match product.prices.unit_price {
+        Some(wgg_jumbo::models::UnitPrice {
+            unit,
+            price: Some(amount),
+        }) => {
+            if let Some(unit) = parse_unit_component(&unit) {
+                result.price_info.unit_price = UnitPrice {
+                    unit,
+                    price: amount.amount,
+                }
+                .into()
             }
-            .into()
         }
-    } else {
-        result.price_info.unit_price = derive_unit_price(&result.unit_quantity, result.price_info.display_price);
+        _ => {
+            result.price_info.unit_price = derive_unit_price(&result.unit_quantity, result.price_info.display_price);
+        }
     }
 
     // Promotions
@@ -416,16 +422,22 @@ fn parse_jumbo_item_to_search_item(mut article: wgg_jumbo::models::PartialProduc
     };
 
     // Unit Pricing
-    if let Some(price) = article.prices.unit_price {
-        if let Some(unit) = parse_unit_component(&price.unit) {
-            result.price_info.unit_price = UnitPrice {
-                unit,
-                price: price.price.amount,
+    match article.prices.unit_price {
+        Some(wgg_jumbo::models::UnitPrice {
+            unit,
+            price: Some(amount),
+        }) => {
+            if let Some(unit) = parse_unit_component(&unit) {
+                result.price_info.unit_price = UnitPrice {
+                    unit,
+                    price: amount.amount,
+                }
+                .into()
             }
-            .into()
         }
-    } else {
-        result.price_info.unit_price = derive_unit_price(&result.unit_quantity, result.price_info.display_price);
+        _ => {
+            result.price_info.unit_price = derive_unit_price(&result.unit_quantity, result.price_info.display_price);
+        }
     }
 
     // Promotions
