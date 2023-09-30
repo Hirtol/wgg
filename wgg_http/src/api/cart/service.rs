@@ -1,9 +1,9 @@
 use crate::api::error::GraphqlError;
 use crate::api::{AppState, GraphqlResult, ProductId};
 use crate::db;
-use crate::db::Id;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::HashMap;
+use wgg_db_entity::DbId;
 use wgg_providers::models::sale_types::SaleType;
 use wgg_providers::models::{
     CentPrice, PriceInfo, Provider, SaleInformation, SaleResolutionStrategy, SublistId, WggSearchProduct,
@@ -14,9 +14,9 @@ use wgg_providers::models::{
 /// For bulk queries please refer to [get_products_quantity].
 pub async fn get_direct_product_quantity(
     db: &impl ConnectionTrait,
-    cart_id: Option<Id>,
-    user_id: Id,
-    provider_id: Id,
+    cart_id: Option<DbId>,
+    user_id: DbId,
+    provider_id: DbId,
     product_id: &str,
 ) -> GraphqlResult<Option<u32>> {
     let cart_content = db::cart_contents::raw_product::Entity::find()
@@ -32,9 +32,9 @@ pub async fn get_direct_product_quantity(
 
 pub async fn get_aggregate_product_quantity(
     db: &impl ConnectionTrait,
-    cart_id: Option<Id>,
-    user_id: Id,
-    aggregate_id: Id,
+    cart_id: Option<DbId>,
+    user_id: DbId,
+    aggregate_id: DbId,
 ) -> GraphqlResult<Option<u32>> {
     let cart_content = db::cart_contents::aggregate::Entity::find()
         .left_join(db::agg_ingredients_links::Entity)
@@ -51,8 +51,8 @@ pub async fn get_aggregate_product_quantity(
 #[allow(dead_code)]
 pub async fn get_products_quantity(
     db: &impl ConnectionTrait,
-    cart_id: Option<Id>,
-    user_id: Id,
+    cart_id: Option<DbId>,
+    user_id: DbId,
     product_ids: impl IntoIterator<Item = &str>,
 ) -> GraphqlResult<HashMap<String, u32>> {
     let cart_content = db::cart_contents::raw_product::Entity::find()
@@ -71,8 +71,8 @@ pub async fn get_products_quantity(
 /// Get all products in the given cart which belong to the given provider.
 pub async fn get_products_from_provider(
     db: &impl ConnectionTrait,
-    cart_id: Id,
-    provider_id: Id,
+    cart_id: DbId,
+    provider_id: DbId,
 ) -> GraphqlResult<Vec<ProductIdWithQuantity>> {
     let products = db::cart_contents::raw_product::Entity::find()
         .filter(db::cart_contents::raw_product::Column::CartId.eq(cart_id))
@@ -106,7 +106,7 @@ pub async fn get_products_from_provider(
 #[tracing::instrument(skip(db, state))]
 pub async fn calculate_tallies(
     db: &impl ConnectionTrait,
-    cart_id: Id,
+    cart_id: DbId,
     state: &AppState,
 ) -> GraphqlResult<HashMap<Provider, TallyPriceInfo>> {
     let mut result: HashMap<Provider, TallyPriceInfo> = HashMap::with_capacity(state.db_providers.len());

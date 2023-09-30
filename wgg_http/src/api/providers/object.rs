@@ -1,8 +1,8 @@
 use crate::api::aggregate_ingredients::AggregateIngredient;
 use crate::api::{ContextExt, GraphqlResult};
-use crate::db::Id;
 use async_graphql::Context;
 use std::borrow::Cow;
+use wgg_db_entity::DbId;
 use wgg_providers::models::{
     Provider, SublistId, UnavailableItem, WggProduct, WggSaleCategory, WggSaleGroupComplete, WggSaleGroupLimited,
     WggSaleItem, WggSearchProduct,
@@ -23,7 +23,7 @@ impl<'a> ProductAppInfo<'a> {
     /// If `cart_id` is not given then the current cart of the user is assumed.
     ///
     /// For indirect quantities please refer to [associated_aggregates].
-    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<DbId>) -> GraphqlResult<Option<u32>> {
         let state = ctx.wgg_state();
         let user = ctx.wgg_user()?;
         let provider_id = state.provider_id_from_provider(&self.provider);

@@ -1,7 +1,6 @@
 use crate::api::dataloader::DataLoaders;
 use crate::api::AppState;
 use crate::config::{Config, DbConfig, SharedConfig};
-use crate::db::Id;
 use anyhow::Context;
 use arc_swap::access::{DynAccess, DynGuard};
 use arc_swap::ArcSwap;
@@ -25,6 +24,7 @@ use tower_http::compression::CompressionLayer;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
+use wgg_db_entity::DbId;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 
@@ -39,7 +39,7 @@ pub struct Application {
     pub config: SharedConfig,
     pub db: DatabaseConnection,
     pub providers: Arc<WggProvider>,
-    pub db_providers: BTreeMap<Provider, Id>,
+    pub db_providers: BTreeMap<Provider, DbId>,
     pub scheduler: JobScheduler,
 }
 
@@ -147,7 +147,7 @@ async fn construct_server(
     db: DatabaseConnection,
     config: SharedConfig,
     providers: Arc<WggProvider>,
-    db_providers: BTreeMap<Provider, Id>,
+    db_providers: BTreeMap<Provider, DbId>,
     scheduler: JobScheduler,
 ) -> anyhow::Result<Router> {
     let cfg: DynGuard<Config> = config.load();

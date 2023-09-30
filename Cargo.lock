@@ -4509,6 +4509,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "futures",
  "sea-orm",
  "sea-orm-cli",
  "sea-orm-codegen",

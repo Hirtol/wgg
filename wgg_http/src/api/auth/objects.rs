@@ -3,16 +3,16 @@ use crate::api::error::GraphqlError;
 use crate::api::pagination::ConnectionResult;
 use crate::api::{ContextExt, GraphqlResult};
 use crate::cross_system::Filter;
-use crate::db::Id;
 use crate::{api, db};
 use async_graphql::Context;
+use wgg_db_entity::DbId;
 
 /// Represents a user that is already logged in.
 /// Implements [axum::extract::FromRequest] and can therefore be requested in HTTP service methods.
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, async_graphql::SimpleObject)]
 #[graphql(complex)]
 pub struct AuthContext {
-    pub id: Id,
+    pub id: DbId,
     pub email: String,
     pub username: String,
     pub is_admin: bool,

@@ -1,9 +1,10 @@
 use crate::api::providers::WggSearchProductWrapper;
 use crate::api::{ContextExt, GraphqlResult};
-use crate::{db, db::Id};
+use crate::db;
 use async_graphql::{ComplexObject, Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use sea_orm::{EntityTrait, QueryFilter};
+use wgg_db_entity::DbId;
 use wgg_providers::models::{CentPrice, SaleInformation};
 
 /// An aggregate ingredient is a collection of concrete, provider specific, products.
@@ -19,11 +20,11 @@ use wgg_providers::models::{CentPrice, SaleInformation};
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
 pub struct AggregateIngredient {
-    pub id: Id,
+    pub id: DbId,
     pub name: String,
     pub image_url: Option<String>,
     #[graphql(skip)]
-    pub created_by: Id,
+    pub created_by: DbId,
     pub created_at: DateTime<Utc>,
     /// Lazily initialised as it is shared between multiple resolvers
     #[graphql(skip)]
@@ -71,7 +72,7 @@ impl AggregateIngredient {
     ///
     /// If `cart_id` is not given then the current cart of the user is assumed.
     #[tracing::instrument(skip(self, ctx))]
-    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<Id>) -> GraphqlResult<Option<u32>> {
+    pub async fn direct_quantity(&self, ctx: &Context<'_>, cart_id: Option<DbId>) -> GraphqlResult<Option<u32>> {
         let state = ctx.wgg_state();
         let user = ctx.wgg_user()?;
         crate::api::cart::get_aggregate_product_quantity(&state.db, cart_id, user.id, self.id).await

@@ -3,10 +3,10 @@ use crate::api::error::GraphqlError;
 use crate::api::pagination::{ConnectionResult, QueryResult};
 use crate::api::{ContextExt, GraphqlResult};
 use crate::cross_system::Filter;
-use crate::db::{Id, SelectExt};
 use crate::{api, cross_system, db};
 use async_graphql::Context;
 use sea_orm::{EntityTrait, QueryFilter};
+use wgg_db_entity::{DbId, SelectExt};
 
 #[derive(Default)]
 pub struct CartQuery;
@@ -77,7 +77,7 @@ impl CartQuery {
 #[derive(async_graphql::InputObject, Debug, Default)]
 pub struct CartList {
     /// The user id who owns a given cart.
-    pub owned_by: Option<Id>,
+    pub owned_by: Option<DbId>,
     /// Whether the cart has been resolved (aka completed)
     pub is_completed: Option<bool>,
 }

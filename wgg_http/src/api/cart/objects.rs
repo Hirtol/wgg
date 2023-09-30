@@ -4,18 +4,18 @@ use crate::api::error::GraphqlError;
 use crate::api::providers::WggSearchProductWrapper;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
 use crate::db;
-use crate::db::{Id, SelectExt};
 use async_graphql::{Context, SimpleObject};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use sea_orm::{EntityTrait, ModelTrait, TransactionTrait};
 use std::borrow::Cow;
+use wgg_db_entity::{DbId, SelectExt};
 use wgg_providers::models::{CentPrice, Provider, ProviderInfo};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
 pub struct UserCart {
-    id: Id,
+    id: DbId,
     #[graphql(skip)]
     model: db::cart::Model,
 }
@@ -132,7 +132,7 @@ impl UserCart {
 
 #[derive(Clone, Debug, async_graphql::Interface)]
 #[graphql(
-    field(name = "id", type = "&Id"),
+    field(name = "id", type = "&DbId"),
     field(name = "quantity", type = "&u32"),
     field(name = "created_at", type = "&DateTime<Utc>")
 )]
@@ -154,9 +154,9 @@ impl CartContent {
 
 #[derive(Clone, Debug, SimpleObject)]
 pub struct CartNoteProduct {
-    pub id: Id,
+    pub id: DbId,
     #[graphql(skip)]
-    pub cart_id: Id,
+    pub cart_id: DbId,
     pub note: String,
     pub quantity: u32,
     pub created_at: DateTime<Utc>,
@@ -165,11 +165,11 @@ pub struct CartNoteProduct {
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
 pub struct CartProviderProduct {
-    pub id: Id,
+    pub id: DbId,
     #[graphql(skip)]
-    pub cart_id: Id,
+    pub cart_id: DbId,
     #[graphql(skip)]
-    pub provider_id: Id,
+    pub provider_id: DbId,
     #[graphql(skip)]
     pub provider_product_id: ProductId,
     pub quantity: u32,
@@ -198,9 +198,9 @@ impl CartProviderProduct {
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
 pub struct CartAggregateProduct {
-    pub id: Id,
+    pub id: DbId,
     #[graphql(skip)]
-    pub cart_id: Id,
+    pub cart_id: DbId,
     #[graphql(skip)]
     pub aggregate_model: AggregateIngredient,
     pub quantity: u32,

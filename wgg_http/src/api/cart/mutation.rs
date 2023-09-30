@@ -2,12 +2,12 @@ use crate::api::cart::{service, UserCart};
 use crate::api::error::GraphqlError;
 use crate::api::{ContextExt, GraphqlResult, ProductId};
 use crate::db;
-use crate::db::{Id, IntoActiveValueExt};
 use async_graphql::Context;
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{
     ActiveModelTrait, ActiveValue, ColumnTrait, EntityTrait, IntoActiveValue, QueryFilter, TransactionTrait,
 };
+use wgg_db_entity::{DbId, IntoActiveValueExt};
 use wgg_providers::models::Provider;
 
 #[derive(Default)]
@@ -256,11 +256,11 @@ pub struct CartAddProductInput {
 #[derive(Debug, async_graphql::InputObject)]
 pub struct CartRemoveProductInput {
     /// The note id.
-    pub notes: Option<Id>,
+    pub notes: Option<DbId>,
     /// The provider product id used to add this product
     pub raw_product: Option<RemoveRawProductInput>,
     /// The aggregate id.
-    pub aggregate: Option<Id>,
+    pub aggregate: Option<DbId>,
 }
 
 #[derive(Debug, async_graphql::InputObject)]
@@ -273,7 +273,7 @@ pub struct RemoveRawProductInput {
 pub struct NoteProductInput {
     /// If the note already exists and you want to update it then set this Id,
     /// otherwise a new note will be created based on `content`.
-    pub id: Option<Id>,
+    pub id: Option<DbId>,
     pub content: String,
     pub quantity: u32,
 }
@@ -287,7 +287,7 @@ pub struct RawProductInput {
 
 #[derive(Debug, async_graphql::InputObject)]
 pub struct AggregateProductInput {
-    pub aggregate_id: Id,
+    pub aggregate_id: DbId,
     pub quantity: u32,
 }
 

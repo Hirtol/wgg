@@ -4,12 +4,12 @@ use crate::api::cart::{CartMutation, CartQuery};
 use crate::api::error::GraphqlError;
 use crate::api::providers::ProviderQuery;
 use crate::config::SharedConfig;
-use crate::db::Id;
 use async_graphql::extensions::{Extension, ExtensionContext, ExtensionFactory, NextExecute};
 use async_graphql::{async_trait, EmptySubscription, MergedObject, Response, Schema};
 use sea_orm::DatabaseConnection;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use wgg_db_entity::DbId;
 use wgg_providers::models::Provider;
 use wgg_providers::WggProvider;
 use wgg_scheduler::JobScheduler;
@@ -48,12 +48,12 @@ pub struct AppState {
     /// Lists all providers available in the database and their associated Ids.
     ///
     /// This assumes no external modification of the database *whilst* the application is running!
-    pub(crate) db_providers: BTreeMap<Provider, Id>,
+    pub(crate) db_providers: BTreeMap<Provider, DbId>,
 }
 
 impl AppState {
     /// Quickly find the [Provider] associated with the given `id`.
-    pub fn provider_from_id(&self, id: Id) -> Provider {
+    pub fn provider_from_id(&self, id: DbId) -> Provider {
         self.db_providers
             .iter()
             .find(|&(_, db_id)| *db_id == id)
@@ -62,7 +62,7 @@ impl AppState {
     }
 
     /// Quickly find the `Id` for the given `provider`.
-    pub fn provider_id_from_provider(&self, provider: &Provider) -> Id {
+    pub fn provider_id_from_provider(&self, provider: &Provider) -> DbId {
         self.db_providers
             .get(provider)
             .copied()

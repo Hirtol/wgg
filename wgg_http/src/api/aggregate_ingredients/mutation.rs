@@ -4,12 +4,12 @@ use sea_orm::{
 };
 use wgg_providers::models::Provider;
 
-use crate::db::EntityExt;
-use crate::db::{Id, IntoActiveValueExt, SelectExt};
+use crate::cross_system::IntoActiveValueExtGraphql;
 use crate::{
     api::{error::GraphqlError, ContextExt, GraphqlResult, ProductId, MAX_AMOUNT_DELETE},
     db,
 };
+use wgg_db_entity::{DbId, EntityExt, IntoActiveValueExt, SelectExt};
 
 use super::objects::AggregateIngredient;
 
@@ -97,7 +97,7 @@ impl AggregateMutation {
     async fn aggregate_ingredient_update(
         &self,
         ctx: &Context<'_>,
-        id: Id,
+        id: DbId,
         input: AggregateUpdateChangeSet,
     ) -> GraphqlResult<AggregateUpdatePayload> {
         let state = ctx.wgg_state();
@@ -170,7 +170,7 @@ impl AggregateMutation {
     async fn aggregate_ingredient_delete(
         &self,
         ctx: &Context<'_>,
-        #[graphql(desc = "All aggregate ingredient ids to delete")] ids: Vec<Id>,
+        #[graphql(desc = "All aggregate ingredient ids to delete")] ids: Vec<DbId>,
     ) -> GraphqlResult<AggregateDeletePayload> {
         let state = ctx.wgg_state();
         let current_user = ctx.wgg_user()?;

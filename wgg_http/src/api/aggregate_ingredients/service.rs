@@ -1,15 +1,15 @@
 use crate::api::aggregate_ingredients::AggregateIngredient;
 use crate::api::{AppState, GraphqlResult};
 use crate::db;
-use crate::db::Id;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
+use wgg_db_entity::DbId;
 use wgg_providers::models::CentPrice;
 
 /// Perform a reverse-lookup for all aggregate ingredients associated with the given `product_id`.
 pub async fn get_associated_aggregate_for_product(
     db: &impl ConnectionTrait,
-    user_id: Id,
-    provider_id: Id,
+    user_id: DbId,
+    provider_id: DbId,
     product_id: &str,
 ) -> GraphqlResult<Vec<AggregateIngredient>> {
     let aggregate = db::agg_ingredients::Entity::find()
@@ -33,7 +33,7 @@ pub async fn get_associated_aggregate_for_product(
 pub async fn calculate_aggregate_total_price(
     db: &impl TransactionTrait,
     state: &AppState,
-    aggregate_id: Id,
+    aggregate_id: DbId,
 ) -> GraphqlResult<(CentPrice, usize)> {
     let tx = db.begin().await?;
 

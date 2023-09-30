@@ -3,12 +3,12 @@ use crate::api::ctx::ContextExt;
 use crate::api::error::GraphqlError;
 use crate::api::GraphqlResult;
 use crate::db;
-use crate::db::{Id, IntoActiveValueExt, SelectExt};
 use async_graphql::{Context, Object};
 use cookie::time::OffsetDateTime;
 use cookie::{Cookie, SameSite};
 
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, QueryFilter, TransactionTrait};
+use wgg_db_entity::{DbId, IntoActiveValueExt, SelectExt};
 
 #[derive(Default)]
 pub struct AuthMutation;
@@ -45,7 +45,7 @@ impl AuthMutation {
     async fn user_update(
         &self,
         ctx: &Context<'_>,
-        id: Id,
+        id: DbId,
         input: UserUpdateChangeSet,
     ) -> GraphqlResult<UserUpdatePayload> {
         let state = ctx.wgg_state();
@@ -77,7 +77,7 @@ impl AuthMutation {
     /// # Accessible By
     ///
     /// Admins.
-    async fn user_delete(&self, ctx: &Context<'_>, id: Id) -> GraphqlResult<UserDeletePayload> {
+    async fn user_delete(&self, ctx: &Context<'_>, id: DbId) -> GraphqlResult<UserDeletePayload> {
         let state = ctx.wgg_state();
         let _ = ctx.wgg_admin()?;
 
@@ -113,7 +113,7 @@ impl AuthMutation {
     }
 
     /// Log out with the current account
-    async fn logout(&self, ctx: &Context<'_>) -> GraphqlResult<Id> {
+    async fn logout(&self, ctx: &Context<'_>) -> GraphqlResult<DbId> {
         let state = ctx.wgg_state();
         let cookies = ctx.wgg_cookies();
 
@@ -152,7 +152,7 @@ pub struct UserCreatePayload {
 #[derive(async_graphql::SimpleObject)]
 pub struct UserDeletePayload {
     /// The Id of the deleted user
-    pub id: Id,
+    pub id: DbId,
 }
 
 #[derive(async_graphql::InputObject, Debug)]
