@@ -39,19 +39,25 @@ async fn run(current_dir: &Path, compile_db: &Path) -> anyhow::Result<()> {
         .join("src")
         .join("entity");
 
-    let generate_cmd = sea_orm_cli::GenerateSubcommands::Entity {
+    let generate_cmd = sea_orm_cli::cli::GenerateSubcommands::Entity {
         compact_format: false,
         expanded_format: true,
         include_hidden_tables: false,
-        tables: None,
+        tables: vec![],
         ignore_tables: vec![],
         max_connections: 1,
         output_dir: wgg_db_entity_path.to_string_lossy().into_owned(),
         database_schema: "".to_string(),
         database_url: database_url(compile_db),
         with_serde: "none".to_string(),
+        serde_skip_deserializing_primary_key: false,
+        serde_skip_hidden_column: true,
         with_copy_enums: true,
         date_time_crate: DateTimeCrate::Chrono,
+        lib: false,
+        model_extra_derives: vec![],
+        model_extra_attributes: vec![],
+        seaography: false,
     };
 
     sea_orm_cli::commands::run_generate_command(generate_cmd, false)

@@ -36,15 +36,16 @@ impl AggregateQuery {
                 if let Some(combo) = fields.has_product {
                     use sea_orm::sea_query::*;
                     let provider_id = state.provider_id_from_provider(&combo.provider);
+
                     let subquery = Query::select()
                         .expr(db::agg_ingredients::Column::Id.into_simple_expr())
                         .from(db::agg_ingredients::Entity)
                         .left_join(
                             db::agg_ingredients_links::Entity,
-                            Expr::tbl(db::agg_ingredients::Entity, db::agg_ingredients::Column::Id).equals(
+                            Expr::col((db::agg_ingredients::Entity, db::agg_ingredients::Column::Id)).equals((
                                 db::agg_ingredients_links::Entity,
                                 db::agg_ingredients_links::Column::AggregateId,
-                            ),
+                            )),
                         )
                         .cond_where(db::agg_ingredients_links::related_product(
                             &combo.product_id,
