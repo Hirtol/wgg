@@ -140,8 +140,6 @@ impl PicnicBridge {
     }
 }
 
-// These implementations contain a lot of duplicate code to handle the Auth token refresh (when needed).
-// Unfortunately, extracting these out to a common function taking a closure required higher-lifetime bounds I couldn't get to work (even with boxing :/)
 #[async_trait::async_trait]
 impl ProviderInfo for PicnicBridge {
     fn provider(&self) -> Provider {
