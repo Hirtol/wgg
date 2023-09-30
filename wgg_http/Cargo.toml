@@ -14,52 +14,52 @@ name = "wgg_http"
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = {workspace = true}
-tracing = {workspace = true}
-itertools = {workspace = true}
+thiserror = { workspace = true }
+tracing = { workspace = true }
+itertools = { workspace = true }
 secrecy = { workspace = true }
-once_cell = {workspace = true}
+once_cell = { workspace = true }
 tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }
 
 # Async
-tokio = { workspace = true, features = ["full"]}
-futures = {workspace = true}
+tokio = { workspace = true, features = ["full"] }
+futures = { workspace = true }
 
 # Web
-async-graphql = { version = "5.0.5", default-features=false, features = ["email-validator", "tempfile", "time", "dataloader", "tracing", "playground", "graphiql"] }
-async-graphql-axum = "5.0.5"
+async-graphql = { version = "5", default-features = false, features = ["email-validator", "tempfile", "time", "dataloader", "tracing", "playground", "graphiql"] }
+async-graphql-axum = "5"
 axum = { version = "0.6.4", features = ["ws", "headers", "tower-log", "multipart", "http2"] }
-axum-extra = { version = "0.4.2", features = ["spa"] }
+axum-extra = { version = "0.8.0", features = [] }
 tower = { version = "0.4.13", features = ["timeout", "limit", "load-shed"] }
-tower-http = { version = "0.3.4", features = ["full"] }
+tower-http = { version = "0.4.4", features = ["full"] }
 
-cookie = { version = "0.16.2", features = ["private", "percent-encode"] }
-tower-cookies = { version = "0.8.0", features = ["private"] }
+cookie = { version = "0.17.0", features = ["private", "percent-encode"] }
+tower-cookies = { version = "0.9.0", features = ["private"] }
 httpdate = "1.0.2"
 
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = {workspace = true}
+serde_json = { workspace = true }
 
 # Database
 sqlx.workspace = true
-sea-orm = {workspace = true,  features = ["runtime-tokio-rustls", "sqlx-sqlite", "with-chrono", "with-json", "with-uuid"]}
+sea-orm = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-sqlite", "with-chrono", "with-json", "with-uuid"] }
 
 # Crypto
-argon2 = "0.4.1"
+argon2 = "0.5.2"
 rand = "0.8.5"
 
 # Config
 figment = { version = "0.10.6", features = ["toml", "env"] }
 dotenv = "0.15.0"
 platform-dirs = "0.3.0"
-toml = "0.7.1"
+toml = "0.8.1"
 arc-swap = { workspace = true }
 
 # Providers
 wgg_providers = { path = "../wgg_providers", features = [] }
 wgg_db_entity = { path = "../wgg_db_entity" }
-wgg_scheduler = {workspace = true}
+wgg_scheduler = { workspace = true }
 
 
 [dev-dependencies]

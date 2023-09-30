@@ -109,7 +109,7 @@ fn hash_password(password: impl AsRef<[u8]>) -> anyhow::Result<String> {
     let argon = Argon2::default();
 
     Ok(argon
-        .hash_password(password.as_ref(), salt.as_ref())
+        .hash_password(password.as_ref(), salt.as_salt())
         .map_err(|e| anyhow::anyhow!(e))?
         .to_string())
 }
