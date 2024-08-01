@@ -10,6 +10,8 @@ pub enum ApiError {
     EmptySearch,
     #[error("Either the current auth token is incorrect or has expired")]
     AuthError,
+    #[error("The current credentials cache has no way of returning a second factor code")]
+    NoSecondFactorCode,
     #[error(transparent)]
     Other(#[from] anyhow::Error),
     #[error(transparent)]

@@ -98,7 +98,7 @@ pub struct AppConfig {
     /// Will be done asynchronously but will send *a lot* (~80 per provider) of requests.
     pub startup_sale_validation: bool,
     /// Whether to enable the GraphQL playground.
-    /// 
+    ///
     /// Disabled by default.
     pub graphql_playground: bool,
 }
@@ -125,16 +125,6 @@ pub struct PicnicConfig {
     /// The maximum requests per second to allow towards Picnic servers.
     /// More is better, but comes with a greater risk of API bans.
     pub requests_per_second: NonZeroU32,
-    /// The stored/original auth token for Picnic.
-    ///
-    /// Note that this is automatically refreshed by the application when it is needed, assuming [the credentials](AuthConfig)
-    /// are provided.
-    ///
-    /// # Security
-    ///
-    /// This stores a potentially sensitive token in this config file, it is therefore highly advised to keep this in a
-    /// secure place with limited permissions for other processes.
-    pub auth_token: Option<String>,
     /// The email associated with the Picnic account.
     ///
     /// Both the email and password should be provided through environment variables
@@ -224,7 +214,6 @@ impl Default for PicnicConfig {
     fn default() -> Self {
         Self {
             requests_per_second: wgg_providers::PICNIC_RECOMMENDED_RPS.unwrap(),
-            auth_token: None,
             picnic_email: None,
             picnic_password: None,
         }
@@ -239,7 +228,7 @@ impl TryFrom<PicnicConfig> for wgg_providers::PicnicCredentials {
             anyhow::bail!("Either the email or password was missing for Picnic Credentials initialisation");
         };
 
-        Ok(Self::new(email, password, value.auth_token.map(|i| i.into())))
+        Ok(Self::new(email, password))
     }
 }
 

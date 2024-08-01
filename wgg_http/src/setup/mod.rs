@@ -33,6 +33,7 @@ use wgg_scheduler::JobScheduler;
 
 mod caching;
 mod first_time;
+mod picnic;
 
 pub struct Application {
     pub tcp: TcpListener,
@@ -57,15 +58,17 @@ impl Application {
         tracing::debug!("Creating Providers...");
         let cache = caching::setup_cache(&config).await;
         let mut providers_builder = WggProvider::builder()
-            .with_cache(cache)
+            .with_product_cache(cache)
             .with_startup_sale_validation(config.app.startup_sale_validation)
             .with_jumbo(Default::default())
             .with_picnic_rps(Some(config.pd.picnic.requests_per_second));
 
-        // Try initialise the Picnic provider.
+        // Try to initialise the Picnic provider.
         match config.pd.picnic.clone().try_into() {
             Ok(picnic_creds) => {
-                providers_builder = providers_builder.with_picnic(picnic_creds);
+                let cache_provider = picnic::PicnicCredentialsCache::new(config.app.cache_dir.join("picnic.json"));
+
+                providers_builder = providers_builder.with_picnic(picnic_creds, cache_provider);
             }
             Err(e) => tracing::debug!(error = %e, "Not using Picnic Provider"),
         }
@@ -127,7 +130,6 @@ impl Application {
         let mut cfg = self.config.load_full();
         let final_config = Arc::<Config>::make_mut(&mut cfg);
 
-        final_config.pd.picnic.auth_token = self.providers.picnic_auth_token().await;
         caching::teardown_cache(self.providers.serialized_cache(), final_config).await;
         self.scheduler.stop().await?;
 

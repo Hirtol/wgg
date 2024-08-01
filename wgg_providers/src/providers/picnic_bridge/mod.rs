@@ -10,9 +10,7 @@ use governor::state::{InMemoryState, NotKeyed};
 use governor::{Jitter, Quota};
 use itertools::Itertools;
 use regex::Regex;
-use secrecy::ExposeSecret;
 
-pub use authentication::PicnicCredentials;
 use wgg_picnic::models::{
     Body, Decorator, ImageSize, PageBody, PageChildren, PagePml, PagesRoot, PmlComponent, UnavailableReason,
 };
@@ -30,6 +28,9 @@ use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
 use crate::providers::{common_bridge, ProviderCart, ProviderInfo, StaticProviderInfo};
 use crate::{lazy_re, lazy_re_set, ProviderError};
+
+pub use authentication::PicnicCredentials;
+use wgg_picnic::credentials::CredentialsCache;
 
 mod authentication;
 
@@ -62,20 +63,15 @@ impl StaticProviderInfo for PicnicBridge {
 }
 
 impl PicnicBridge {
-    pub(crate) async fn new(credentials: PicnicCredentials, limit_rps: Option<NonZeroU32>) -> Result<Self> {
+    pub(crate) async fn new<T: CredentialsCache>(
+        login: PicnicCredentials,
+        cache: T,
+        limit_rps: Option<NonZeroU32>,
+    ) -> Result<Self> {
         let config = Default::default();
-        let api = if let Some(auth_token) = credentials.to_credentials() {
-            PicnicApi::new(auth_token, config)
-        } else {
-            let result =
-                PicnicApi::from_login(credentials.email(), credentials.password().expose_secret(), config).await?;
+        let api = PicnicApi::new(cache, config, login.to_login());
 
-            tracing::info!("Picnic remote login complete");
-
-            result
-        };
-
-        Ok(Self::from_api(api, credentials, limit_rps))
+        Ok(Self::from_api(api, login, limit_rps))
     }
 
     pub(crate) fn from_api(api: PicnicApi, credentials: PicnicCredentials, limit_rps: Option<NonZeroU32>) -> Self {
@@ -88,10 +84,6 @@ impl PicnicBridge {
             credentials,
             refresh_lock: Default::default(),
         }
-    }
-
-    pub(crate) async fn credentials(&self) -> wgg_picnic::Credentials {
-        self.api.read().await.credentials().clone()
     }
 
     async fn wait_rate_limit(&self) {
@@ -107,36 +99,8 @@ impl PicnicBridge {
     {
         self.wait_rate_limit().await;
 
-        let api_result = {
-            let read_lock = self.api.read().await;
-            api_request(&TemporaryApi::new(&read_lock)).await
-        };
-
-        let result = match api_result {
-            Ok(res) => res,
-            Err(wgg_picnic::ApiError::AuthError) => {
-                if let Ok(_lock) = self.refresh_lock.try_lock() {
-                    tracing::info!("Refreshing Picnic authentication token due to failure");
-                    let mut api_guard = self.api.write().await;
-
-                    api_guard
-                        .login(self.credentials.email(), self.credentials.password().expose_secret())
-                        .await?;
-
-                    api_request(&TemporaryApi::new(&api_guard)).await?
-                } else {
-                    // Once the refresh_lock is released we will *eventually* be able to lock it here and re-execute the request.
-                    // If it fails again just error out.
-                    let _ = self.refresh_lock.lock().await;
-
-                    let read_lock = self.api.read().await;
-                    api_request(&TemporaryApi::new(&read_lock)).await?
-                }
-            }
-            Err(e) => return Err(e.into()),
-        };
-
-        Ok(result)
+        let read_lock = self.api.read().await;
+        Ok(api_request(&TemporaryApi::new(&read_lock)).await?)
     }
 }
 

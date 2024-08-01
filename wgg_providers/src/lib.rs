@@ -1,14 +1,17 @@
-use crate::models::Provider;
-pub use crate::providers::PicnicCredentials;
-use crate::providers::ProviderInfo;
+use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
+
 pub use caching::SerdeCache;
 pub use error::ProviderError;
 pub use providers::PICNIC_RECOMMENDED_RPS;
 pub use sale_resolver::SaleInfo;
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+pub use wgg_picnic;
 pub use wgg_provider::{ProvidersIter, WggProvider, WggProviderBuilder};
+
+use crate::models::Provider;
+pub use crate::providers::PicnicCredentials;
+use crate::providers::ProviderInfo;
 
 mod caching;
 mod error;

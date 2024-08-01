@@ -1,5 +1,8 @@
-use wgg_picnic::Config;
-use wgg_picnic::{Credentials, PicnicApi};
+use std::sync::Arc;
+use wgg_picnic::credentials::cache::MemoryCache;
+use wgg_picnic::credentials::Credentials;
+use wgg_picnic::PicnicApi;
+use wgg_picnic::{Config, LoginCredentials};
 
 /// The environment variable that needs to be set to start live testing.
 pub const LIVE_TESTING_ENV: &str = "AUTH_API_LIVE_TESTING";
@@ -12,8 +15,9 @@ pub fn picnic_api() -> PicnicApi {
     let user_id = dotenv::var("PICNIC_USER_ID").expect("Expected an environment variable to exist");
 
     let cred = Credentials::new(auth_cred, user_id);
+    let cache = MemoryCache::new(Some(Arc::new(cred)));
 
-    PicnicApi::new(cred, Config::default())
+    PicnicApi::new(cache, Config::default(), LoginCredentials::default())
 }
 
 #[macro_export]

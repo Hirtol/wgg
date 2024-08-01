@@ -7,6 +7,7 @@ use std::time::Duration;
 use async_graphql::EnumType;
 
 use wgg_jumbo::BaseJumboApi;
+use wgg_picnic::credentials::CredentialsCache;
 use wgg_scheduler::JobScheduler;
 
 use crate::caching::SerdeCache;
@@ -30,7 +31,7 @@ pub struct WggProvider {
 
 impl WggProvider {
     /// Start creating a new collection of providers
-    pub fn builder() -> WggProviderBuilder {
+    pub fn builder<T: CredentialsCache>() -> WggProviderBuilder<T> {
         WggProviderBuilder::new()
     }
 
@@ -40,15 +41,6 @@ impl WggProvider {
             product_cache: self.cache.as_serde_cache(),
             promotions_cache: self.sales.cache().clone(),
         }
-    }
-
-    /// Returns the latest Picnic auth token in use, if the provider has been initialised with [with_picnic](WggProviderBuilder::with_picnic)
-    /// in the builder.
-    pub async fn picnic_auth_token(&self) -> Option<String> {
-        let real_ref = self.dyn_providers.find_provider(Provider::Picnic).ok()?;
-        let picnic = real_ref.as_any().downcast_ref::<PicnicBridge>()?;
-
-        Some(picnic.credentials().await.auth_token)
     }
 
     /// Provide autocomplete results from the requested [Provider].
@@ -341,26 +333,35 @@ impl<'a> Iterator for ProvidersIter<'a> {
 }
 
 #[derive(Default)]
-pub struct WggProviderBuilder {
+pub struct WggProviderBuilder<T = ()> {
     picnic_creds: Option<PicnicCredentials>,
+    picnic_creds_cache: Option<T>,
     picnic_rps: Option<NonZeroU32>,
     jumbo: Option<BaseJumboApi>,
     cache: Option<SerdeCache>,
     startup_validation: bool,
 }
 
-impl WggProviderBuilder {
+impl<T: CredentialsCache> WggProviderBuilder<T> {
     /// Create a new [WggProviderBuilder] instance.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            picnic_creds: None,
+            picnic_creds_cache: None,
+            picnic_rps: None,
+            jumbo: None,
+            cache: None,
+            startup_validation: false,
+        }
     }
 
     /// Initialise the Picnic API provider.
     ///
     /// Should one provide `auth_token` to the [PicnicCredentials] then the initial login attempt is skipped and this
     /// future resolves immediately.
-    pub fn with_picnic(mut self, picnic_credentials: PicnicCredentials) -> Self {
+    pub fn with_picnic(mut self, picnic_credentials: PicnicCredentials, cache: T) -> Self {
         self.picnic_creds = Some(picnic_credentials);
+        self.picnic_creds_cache = Some(cache);
         self
     }
 
@@ -381,7 +382,7 @@ impl WggProviderBuilder {
     }
 
     /// Provide a persistent cache, to be called back before the end of the program.
-    pub fn with_cache(mut self, cache: Option<SerdeCache>) -> Self {
+    pub fn with_product_cache(mut self, cache: Option<SerdeCache>) -> Self {
         self.cache = cache;
         self
     }
@@ -401,9 +402,9 @@ impl WggProviderBuilder {
         let mut dyn_providers: DynamicProviders = DynamicProviders::new();
 
         // Picnic
-        if let Some(credentials) = self.picnic_creds {
+        if let (Some(credentials), Some(cache)) = (self.picnic_creds, self.picnic_creds_cache) {
             let rps = self.picnic_rps.or(crate::providers::PICNIC_RECOMMENDED_RPS);
-            let picnic = Arc::new(PicnicBridge::new(credentials, rps).await?);
+            let picnic = Arc::new(PicnicBridge::new(credentials, cache, rps).await?);
             dyn_providers.insert(Provider::Picnic, picnic);
         }
 

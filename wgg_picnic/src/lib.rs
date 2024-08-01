@@ -3,17 +3,18 @@ use crate::models::{
     MyStore, Order, OrderStatus, PagesRoot, PartialDelivery, ProductArticle, SearchResult, Suggestion, UserInfo,
 };
 use anyhow::{anyhow, Context};
-use md5::Digest;
-use reqwest::{Response, StatusCode};
+use reqwest::{Proxy, Response, StatusCode};
 use serde::Serialize;
-use std::fmt::Debug;
+use std::sync::Arc;
 
 use reqwest::header::HeaderMap;
 use std::time::Duration;
 
-pub use crate::{config::Config, error::ApiError};
+use crate::credentials::{CredentialsCache, CredentialsManager};
+pub use crate::{config::Config, credentials::Credentials, credentials::LoginCredentials, error::ApiError};
 
 mod config;
+pub mod credentials;
 mod error;
 pub mod images;
 pub mod models;
@@ -32,8 +33,8 @@ type Query<'a> = [(&'a str, &'a str)];
 ///
 /// See [PicnicApi::new] or [PicnicApi::from_login] for creating a new instance.
 pub struct PicnicApi {
-    config: Config,
-    credentials: Credentials,
+    config: Arc<Config>,
+    cred_manager: CredentialsManager,
     client: reqwest::Client,
 }
 
@@ -42,30 +43,15 @@ impl PicnicApi {
     ///
     /// It is the caller's responsibility to ensure the [Credentials] are valid.
     /// Otherwise, refer to [PicnicApi::from_login].
-    pub fn new(credentials: Credentials, config: Config) -> Self {
+    pub fn new(credentials: impl CredentialsCache, config: Config, login: LoginCredentials) -> Self {
         let client = get_reqwest_client(&config.user_agent).expect("Failed to create a API Client");
+        let config = Arc::new(config);
+        let credentials_manager = CredentialsManager::new(credentials, config.clone(), login);
         PicnicApi {
             config,
-            credentials,
+            cred_manager: credentials_manager,
             client,
         }
-    }
-
-    /// Create a new [PicnicApi] instance by logging in.
-    ///
-    /// It is recommended to save the [Credentials] in a secure place to avoid having to log in with username/password
-    /// every time. One could in the future then call [PicnicApi::new].
-    pub async fn from_login(email: impl Into<String>, password: impl AsRef<str>, config: Config) -> Result<Self> {
-        let credentials = Self::login_impl(&config, email.into(), password.as_ref()).await?;
-
-        Ok(Self::new(credentials, config))
-    }
-
-    /// Return the current credentials used by the [PicnicApi].
-    ///
-    /// Can be useful to save separately to avoid having to log in every restart.
-    pub fn credentials(&self) -> &Credentials {
-        &self.credentials
     }
 
     /// Query all user details of the current user.
@@ -73,14 +59,6 @@ impl PicnicApi {
         let response = self.get("/user", &[]).await?;
 
         Ok(response.json().await?)
-    }
-
-    /// Log-in again, refreshing the internal [Credentials] in the process.
-    pub async fn login(&mut self, email: impl Into<String>, password: impl AsRef<str>) -> Result<&Credentials> {
-        let credentials = Self::login_impl(&self.config, email.into(), password.as_ref()).await?;
-        self.credentials = credentials;
-
-        Ok(&self.credentials)
     }
 
     /// Search for the provided query.
@@ -324,62 +302,11 @@ impl PicnicApi {
         Ok(response.json().await?)
     }
 
-    /// Private login function for deduplication purposes.
-    async fn login_impl(config: &Config, email: String, password: &str) -> Result<Credentials> {
-        let mut hasher = md5::Md5::new();
-
-        hasher.update(password);
-
-        let result = hasher.finalize();
-        let hex = hex::encode(result);
-
-        let client = get_reqwest_client(&config.user_agent)?;
-        let login = LoginRequest {
-            key: email,
-            secret: hex,
-            client_id: config
-                .picnic_details
-                .as_ref()
-                .map(|i| i.client_id.clone())
-                .unwrap_or_else(|| "30100".to_string()),
-            client_version: config.picnic_details.as_ref().map(|i| i.client_version.clone()),
-            device_id: None,
-        };
-
-        let response = client
-            .post(config.get_full_url("/user/login"))
-            .json(&login)
-            .send()
-            .await?;
-
-        if response.status().is_client_error() {
-            return Err(ApiError::LoginFailed(format!(
-                "Status: {} - Body: {}",
-                response.status(),
-                response.text().await?
-            )));
-        }
-
-        let auth_token = response
-            .headers()
-            .get("x-picnic-auth")
-            .ok_or_else(|| anyhow!("No picnic auth token available in response: {:#?}", response))?
-            .to_str()
-            .context("Failed to convert to str")?
-            .to_string();
-        let login_response: LoginResponse = response.json().await?;
-
-        Ok(Credentials {
-            auth_token,
-            user_id: login_response.user_id,
-        })
-    }
-
     async fn get(&self, url_suffix: &str, payload: &Query<'_>) -> Result<Response> {
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-picnic-auth",
-            (&self.credentials.auth_token)
+            (&self.cred_manager.credentials().await?.auth_token)
                 .try_into()
                 .context("Failed to convert agent")?,
         );
@@ -395,6 +322,7 @@ impl PicnicApi {
             .query(payload)
             .send()
             .await?;
+        self.cred_manager.handle_response(&response).await?;
 
         match response.status() {
             StatusCode::OK => Ok(response),
@@ -417,7 +345,7 @@ impl PicnicApi {
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-picnic-auth",
-            (&self.credentials.auth_token)
+            (&self.cred_manager.credentials().await?.auth_token)
                 .try_into()
                 .context("Failed to convert agent")?,
         );
@@ -433,20 +361,9 @@ impl PicnicApi {
             .json(payload)
             .send()
             .await?;
+        self.cred_manager.handle_response(&response).await?;
 
         Ok(response)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Credentials {
-    pub auth_token: String,
-    pub user_id: String,
-}
-
-impl Credentials {
-    pub fn new(auth_token: String, user_id: String) -> Self {
-        Self { auth_token, user_id }
     }
 }
 

@@ -34,6 +34,7 @@ pub async fn test_suggestion() {
     let api = conditional_test!(picnic_api);
 
     let result = api.suggestions("melk").await.unwrap();
+    println!("Results: {:#?}", result);
     // halfvolle melk
     let milk_exists = result.iter().find(|x| x.suggestion == "halfvolle melk");
 
@@ -45,7 +46,8 @@ pub async fn test_product() {
     let api = conditional_test!(picnic_api);
 
     let result = api.product("11470254").await.unwrap();
-    assert_eq!(result.name, "Picnic halfvolle melk");
+    println!("Product: {:#?}", result);
+    assert_eq!(result.name, "Halfvolle melk");
 }
 
 #[tokio::test]

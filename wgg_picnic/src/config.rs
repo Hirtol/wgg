@@ -60,7 +60,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new(CountryCode::NL, 17, Some(PicnicDetails::default()))
+        Self::new(CountryCode::NL, 15, Some(PicnicDetails::default()))
     }
 }
 
@@ -107,11 +107,11 @@ pub struct PicnicDetails {
 impl Default for PicnicDetails {
     fn default() -> Self {
         PicnicDetails {
-            picnic_agent: "30100;1.15.204;".to_string(),
+            picnic_agent: "30100;1.15.247;".to_string(),
             // Extracted from the decompiled app, is just a constant?
             client_id: "30100".to_string(),
             // Can contain a - android:versionCode component as well
-            client_version: "1.15.204".to_string(),
+            client_version: "1.15.247".to_string(),
         }
     }
 }

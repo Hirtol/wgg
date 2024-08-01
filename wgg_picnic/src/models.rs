@@ -35,7 +35,7 @@ pub struct UserInfo {
     pub address: Address,
     pub phone: String,
     pub contact_email: String,
-    pub feature_toggles: Vec<String>,
+    pub feature_toggles: Vec<FeatureToggle>,
     pub push_subscriptions: Vec<Subscriptions>,
     pub subscriptions: Vec<Subscriptions>,
     pub customer_type: String,
@@ -46,6 +46,11 @@ pub struct UserInfo {
     pub total_deliveries: i64,
     pub completed_deliveries: i64,
     pub consent_decisions: ConsentDecisions,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FeatureToggle {
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -93,7 +98,6 @@ pub struct SearchResult {
     #[serde(rename = "type")]
     pub type_field: String,
     pub id: String,
-    pub links: Vec<Link>,
     pub name: String,
     pub items: Vec<SearchItem>,
     pub level: i64,
@@ -133,7 +137,6 @@ pub struct SingleArticle {
     #[serde(default)]
     pub unit_quantity: String,
     pub unit_quantity_sub: Option<String>,
-    pub tags: Vec<Value>,
 }
 
 // ** Decorator **
@@ -424,7 +427,6 @@ pub enum Body {
 #[serde_with::serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PmlContent {
-    pub pml_version: String,
     #[serde_as(deserialize_as = "serde_with::DefaultOnError")]
     pub component: Option<PmlComponent>,
 }
