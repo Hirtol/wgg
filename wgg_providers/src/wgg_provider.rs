@@ -304,6 +304,14 @@ impl WggProvider {
         let result = provider_concrete.product(product_id).await?;
 
         self.cache.insert_product(provider, result.clone(), product_id);
+        // Sometimes products have unlisted promotions.
+        // We can try retrieve them here. TODO: Do this in a central location so that it is always done.
+        if let Some(promo) = &result.sale_information {
+            if let Some(sale_id) = &promo.id {
+                tracing::warn!(sale_id, ?promo, "Sale Id");
+                let _ = self.sales.promotion_sublist(provider, sale_id).await;
+            }
+        }
 
         Ok(result)
     }

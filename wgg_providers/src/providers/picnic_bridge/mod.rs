@@ -11,10 +11,10 @@ use governor::{Jitter, Quota};
 use itertools::Itertools;
 use regex::Regex;
 
+use wgg_picnic::PicnicApi;
 use wgg_picnic::models::{
     Body, Decorator, ImageSize, PageBody, PageChildren, PagePml, PagesRoot, PmlComponent, UnavailableReason,
 };
-use wgg_picnic::PicnicApi;
 
 use crate::error::Result;
 use crate::models::{
@@ -26,8 +26,8 @@ use crate::models::{
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{parse_quantity, parse_sale_label};
-use crate::providers::{common_bridge, ProviderCart, ProviderInfo, StaticProviderInfo};
-use crate::{lazy_re, lazy_re_set, ProviderError};
+use crate::providers::{ProviderCart, ProviderInfo, StaticProviderInfo, common_bridge};
+use crate::{ProviderError, lazy_re, lazy_re_set};
 
 pub use authentication::PicnicCredentials;
 use wgg_picnic::credentials::CredentialsCache;
@@ -424,6 +424,7 @@ fn parse_list_article_item(category_name: &mut Option<String>, article: PagePml)
         let valid = common_bridge::get_guessed_sale_validity(Utc::now());
         if let Some(sale) = parsed_sale {
             SaleInformation {
+                id: None,
                 label: sale_label,
                 additional_label: Vec::new(),
                 sale_validity: valid,
@@ -431,6 +432,7 @@ fn parse_list_article_item(category_name: &mut Option<String>, article: PagePml)
             }
         } else {
             SaleInformation {
+                id: None,
                 label: "UNKNOWN".to_string(),
                 additional_label: Vec::new(),
                 sale_validity: valid,
@@ -465,12 +467,14 @@ fn parse_new_picnic_promotion(sublist_id: impl Into<String>, promotion: PagesRoo
             .map(|article| parse_picnic_item_to_search_item(article.article))
             .collect();
 
+        let sublist_id = sublist_id.into();
         let sale_info: SaleInformation = articles
             .iter()
             .flat_map(|item| &item.sale_information)
             .next()
             .cloned()
             .unwrap_or_else(|| SaleInformation {
+                id: Some(sublist_id.clone()),
                 label: "UNKNOWN".to_string(),
                 additional_label: Vec::new(),
                 sale_validity: common_bridge::get_guessed_sale_validity(Utc::now()),
@@ -478,7 +482,7 @@ fn parse_new_picnic_promotion(sublist_id: impl Into<String>, promotion: PagesRoo
             });
 
         let result = WggSaleGroupComplete {
-            id: sublist_id.into(),
+            id: sublist_id,
             name: promotion.header.title,
             image_urls: vec![],
             items: articles,
@@ -658,6 +662,7 @@ fn parse_picnic_full_product_to_product(product: wgg_picnic::models::ProductArti
     if let Some(promo) = product.labels.promo {
         if should_permit_sale_label(&promo.text) {
             result.sale_information = SaleInformation {
+                id: None,
                 sale_type: parse_sale_label(&promo.text),
                 label: promo.text,
                 additional_label: Vec::new(),
@@ -754,6 +759,7 @@ fn parse_picnic_item_to_search_item(article: wgg_picnic::models::SingleArticle) 
     if let Some(label) = sale_label {
         if should_permit_sale_label(&label) {
             result.sale_information = SaleInformation {
+                id: None,
                 sale_type: parse_sale_label(&label),
                 label,
                 additional_label: Vec::new(),

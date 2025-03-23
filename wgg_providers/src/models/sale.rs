@@ -110,6 +110,8 @@ pub struct ProductIdT {
 
 #[derive(Serialize, Deserialize, async_graphql::SimpleObject, Clone, Debug, PartialEq, PartialOrd)]
 pub struct SaleInformation {
+    /// The original sale ID
+    pub id: Option<String>,
     /// A label for a sale like `1 + 1 GRATIS` or `2 voor 2.50`.
     /// Used to derived [Self::sale_type]
     pub label: String,

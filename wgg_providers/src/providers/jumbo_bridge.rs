@@ -9,8 +9,8 @@ use crate::models::{
 };
 use crate::pagination::OffsetPagination;
 use crate::providers::common_bridge::{derive_unit_price, parse_sale_label, parse_unit_component};
-use crate::providers::{common_bridge, ProviderInfo, StaticProviderInfo};
-use crate::{lazy_re, ProviderError};
+use crate::providers::{ProviderInfo, StaticProviderInfo, common_bridge};
+use crate::{ProviderError, lazy_re};
 use anyhow::Context;
 use cached::proc_macro::once;
 use regex::Regex;
@@ -162,7 +162,7 @@ impl ProviderInfo for JumboBridge {
 
 fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> Option<WggSaleGroupLimited> {
     Some(WggSaleGroupLimited {
-        id: promotion.id.into(),
+        id: promotion.id.clone().into(),
         name: promotion.title,
         image_urls: promotion.image.map(|img| vec![img.url]).unwrap_or_default(),
         items: promotion
@@ -173,6 +173,7 @@ fn parse_jumbo_promotion(promotion: wgg_jumbo::models::Promotion) -> Option<WggS
         // Jumbo has a tendency to include not on-sale items in their sale listings (Ronde prijs! kind of promotions)
         // Those have no `tags` and will thus fail here.
         sale_info: parse_promotion_to_sale_info(
+            Some(promotion.id.into()),
             &promotion.tags,
             SaleValidity {
                 valid_from: promotion.start_date,
@@ -286,6 +287,7 @@ fn parse_jumbo_product_to_crate_product(mut product: wgg_jumbo::models::Product)
     // Promotions
     if let Some(promotion) = product.promotion {
         result.sale_information = parse_promotion_to_sale_info(
+            Some(promotion.id),
             &promotion.tags,
             SaleValidity {
                 valid_from: promotion.from_date,
@@ -443,6 +445,7 @@ fn parse_jumbo_item_to_search_item(mut article: wgg_jumbo::models::PartialProduc
     // Promotions
     if let Some(promotion) = article.promotion {
         result.sale_information = parse_promotion_to_sale_info(
+            Some(promotion.id),
             &promotion.tags,
             SaleValidity {
                 valid_from: promotion.from_date,
@@ -480,13 +483,18 @@ fn parse_jumbo_item_to_search_item(mut article: wgg_jumbo::models::PartialProduc
 }
 
 /// Parse a [ProductPromotion] to a [SaleInformation] type.
-fn parse_promotion_to_sale_info(tags: &[impl AsRef<str>], sale_validity: SaleValidity) -> Option<SaleInformation> {
+fn parse_promotion_to_sale_info(
+    promotion_id: Option<String>,
+    tags: &[impl AsRef<str>],
+    sale_validity: SaleValidity,
+) -> Option<SaleInformation> {
     // Get the first valid label
     let parsed_label = tags
         .iter()
         .flat_map(|tag| Some((tag, parse_sale_label(tag.as_ref())?)))
         .next();
     let to_sale = |sale_type: Option<SaleType>, label: &str| SaleInformation {
+        id: promotion_id,
         label: label.to_string(),
         additional_label: tags
             .iter()
