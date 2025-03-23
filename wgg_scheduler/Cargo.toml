@@ -1,22 +1,22 @@
 [package]
 name = "wgg_scheduler"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [features]
 default = ["tracing"]
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = {workspace = true}
-tracing = {workspace = true, optional = true}
-itertools = {workspace = true}
+thiserror = { workspace = true }
+tracing = { workspace = true, optional = true }
+itertools = { workspace = true }
 
 # Async
 tokio = { workspace = true }
-futures = {workspace = true}
-async-trait = {workspace = true }
-chrono = {workspace = true}
+futures = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
 cron = "0.12.0"
 uuid = { version = "1.2.2", features = ["v4", "fast-rng"] }
 keyed_priority_queue = "0.4.1"

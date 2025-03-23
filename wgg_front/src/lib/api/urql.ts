@@ -123,15 +123,14 @@ export async function asyncQueryStore<Data = any, Variables extends AnyVariables
     });
 
     const unsubscribe = result.subscribe((x) => {
-        if (x.data != undefined) {
+        if (!x.stale && x.data != undefined) {
             resolver({ store: result, item: x });
             // Hacky way to get around the situation where `x` has data immediately available.
             // The `unsubscribe()` method wouldn't be initialised yet, causing an error.
-
             setTimeout(() => unsubscribe(), 1);
         }
 
-        if (!x.fetching) {
+        if (!x.fetching && !x.stale) {
             if (x.error) {
                 rejector(result);
                 // Hacky way to get around the situation where `x` has data immediately available.

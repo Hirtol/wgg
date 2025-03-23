@@ -1,4 +1,4 @@
-use reqwest::{Client, Response};
+use reqwest::{Client, Proxy, Response};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -171,6 +171,7 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
     Ok(reqwest::ClientBuilder::default()
         .timeout(Duration::from_secs(10))
         .tcp_keepalive(Duration::from_secs(20))
+        // .proxy(Proxy::https("http://localhost:8080").unwrap())
         .gzip(true)
         .user_agent(user_agent)
         .build()?)

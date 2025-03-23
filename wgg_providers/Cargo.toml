@@ -1,7 +1,7 @@
 [package]
 name = "wgg_providers"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [features]
 default = []
@@ -9,38 +9,38 @@ trace-original-api = []
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = {workspace = true}
-tracing = {workspace = true}
-itertools = {workspace = true}
+thiserror = { workspace = true }
+tracing = { workspace = true }
+itertools = { workspace = true }
 secrecy = { workspace = true }
 
 # Async
 tokio = { workspace = true, features = ["full"] }
-futures = {workspace = true}
-async-trait = {workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
 
 # Web
 tower = "0.4.13"
 
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive", "rc"] }
-serde_json = {workspace = true}
+serde_json = { workspace = true }
 reqwest = { version = "0.11.11", features = ["json", "cookies", "rustls-tls", "gzip"] }
 
 wgg_picnic = { path = "../wgg_picnic" }
 wgg_jumbo = { path = "../wgg_jumbo" }
-async-graphql = { version = "5", default-features=false, features = ["chrono"] }
+async-graphql = { version = "5", default-features = false, features = ["chrono"] }
 regex = "1.6.0"
-wgg_scheduler = {workspace = true}
+wgg_scheduler = { workspace = true }
 
 # Caching
 moka = { version = "0.12.0", features = ["future", "sync"] }
-once_cell = {workspace = true}
+once_cell = { workspace = true }
 cached = { version = "0.46.0", features = ["async_tokio_rt_multi_thread"] }
 dashmap = { version = "5.4.0", features = ["serde"] }
 
 # Rate Limitting
-governor = { version = "0.6.0", default-features=false, features= ["std", "jitter", "quanta"] }
+governor = { version = "0.6.0", default-features = false, features = ["std", "jitter", "quanta"] }
 
 
 [dev-dependencies]

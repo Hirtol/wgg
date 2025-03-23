@@ -1,21 +1,21 @@
 [package]
 name = "wgg_jumbo"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = {workspace = true}
-tracing = {workspace = true}
-itertools = {workspace = true}
+thiserror = { workspace = true }
+tracing = { workspace = true }
+itertools = { workspace = true }
 
 # Async
-tokio = { workspace = true}
-futures = {workspace = true}
+tokio = { workspace = true }
+futures = { workspace = true }
 
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
-serde_json = {workspace = true}
+serde_json = { workspace = true }
 serde_path_to_error = "0.1"
 serde_with = { version = "3.3.0", features = ["chrono_0_4"] }
 reqwest = { version = "0.11.11", features = ["json", "cookies", "rustls-tls", "gzip"] }

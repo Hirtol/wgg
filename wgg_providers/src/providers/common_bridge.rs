@@ -128,7 +128,7 @@ pub(crate) fn parse_sale_label(sale_label: &str) -> Option<SaleType> {
         // `1 euro korting` | `1.50 euro korting`
         r"(\d+)(?:[,.](\d+))? \s* euro \s* korting",
         // `€1.00 korting`
-        r"€ \s* (\d+)(?:[,.](\d+))? \s* korting",
+        r"€? \s* (\d+)(?:[,.](\d+))? \s* korting",
         // `NU €4.00`
         r"NU \s* €(\d+)(?:[,.](\d+))?"
     );

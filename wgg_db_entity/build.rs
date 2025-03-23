@@ -57,6 +57,8 @@ async fn run(current_dir: &Path, compile_db: &Path) -> anyhow::Result<()> {
         lib: false,
         model_extra_derives: vec![],
         model_extra_attributes: vec![],
+        enum_extra_derives: vec![],
+        enum_extra_attributes: vec![],
         seaography: false,
     };
 

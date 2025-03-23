@@ -1,8 +1,8 @@
 use crate::models::{
-    Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, LoginRequest, LoginResponse, ModifyCartProduct,
-    MyStore, Order, OrderStatus, PagesRoot, PartialDelivery, ProductArticle, SearchResult, Suggestion, UserInfo,
+    Category, Delivery, DeliverySlotQuery, DeliveryStatus, ImageSize, ModifyCartProduct, MyStore, Order, OrderStatus,
+    PagesRoot, PartialDelivery, ProductArticle, SearchResult, Suggestion, UserInfo,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use reqwest::{Proxy, Response, StatusCode};
 use serde::Serialize;
 use std::sync::Arc;
@@ -70,8 +70,10 @@ impl PicnicApi {
         }
 
         let response = self.get("/search", &[("search_term", query.as_ref())]).await?;
-
-        Ok(response.json().await?)
+        let text = response.text().await?;
+        println!("Text Received: {text:#?}");
+        // Ok(response.json().await?)
+        Ok(serde_json::from_str(&text).unwrap())
     }
 
     /// Get a suggestion for the provided query.
@@ -371,6 +373,9 @@ fn get_reqwest_client(user_agent: &str) -> anyhow::Result<reqwest::Client> {
     Ok(reqwest::ClientBuilder::default()
         .timeout(Duration::from_secs(10))
         .tcp_keepalive(Duration::from_secs(20))
+        .danger_accept_invalid_certs(true)
+        // .danger_accept_invalid_hostnames(true)
+        // .proxy(Proxy::https("http://localhost:8080").unwrap())
         .gzip(true)
         .user_agent(user_agent)
         .build()?)
